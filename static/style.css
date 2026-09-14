@@ -59,44 +59,97 @@ input:focus:invalid {
 
 /* Print-specific styles */
 @media print {
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
     .no-print {
         display: none !important;
     }
-    
+
     .print-break {
         page-break-after: always;
     }
-    
-    body {
-        font-size: 12pt;
-        line-height: 1.4;
+
+    html, body {
+        overflow: visible !important;
+        height: auto !important;
+        background: white !important;
     }
-    
+
+    body {
+        font-size: 9pt;
+        line-height: 1.25;
+    }
+
+    main {
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Tables can be wider than the viewport on screen and scroll
+       horizontally; for print, show the whole table instead of
+       clipping it or leaving a scrollbar in the output. */
+    .overflow-x-auto, .overflow-y-auto, .overflow-auto {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
     .bg-white {
         background: white !important;
     }
-    
-    .shadow-md {
+
+    .shadow-md, .shadow-lg, .shadow-xl {
         box-shadow: none !important;
     }
-    
-    .rounded-lg {
+
+    .rounded-lg, .rounded-full {
         border-radius: 0 !important;
     }
-    
-    table {
-        font-size: 10pt;
-        width: 100%;
+
+    /* The ranking table's own Tailwind utility classes (px-6, py-3/4,
+       text-sm/xs, whitespace-nowrap) are more specific than a bare
+       "table"/"th"/"td" rule, so they must be overridden explicitly
+       and with !important to actually shrink the table for print. */
+    #ranking-content table {
+        width: 100% !important;
+        table-layout: auto;
         border-collapse: collapse;
+        font-size: 8pt;
     }
-    
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
+
+    #ranking-content th,
+    #ranking-content td {
+        border: 1px solid #ccc !important;
+        padding: 2px 4px !important;
+        white-space: normal !important;
     }
-    
-    th {
+
+    #ranking-content th *,
+    #ranking-content td * {
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        white-space: normal !important;
+    }
+
+    #ranking-content th {
         background-color: #f5f5f5 !important;
         font-weight: bold;
+    }
+
+    #ranking-content thead {
+        display: table-header-group;
+    }
+
+    #ranking-content tr {
+        page-break-inside: avoid;
+    }
+
+    #ranking-content .w-8,
+    #ranking-content .h-8 {
+        width: 16px !important;
+        height: 16px !important;
     }
 }

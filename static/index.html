@@ -6,26 +6,6 @@
     <title>Competition Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Print styles */
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-            
-            .print-break {
-                page-break-after: always;
-            }
-            
-            body {
-                font-size: 12pt;
-            }
-            
-            table {
-                font-size: 10pt;
-            }
-        }
-    </style>
 </head>
 <body class="bg-gray-50">
     <!-- Navigation -->
@@ -434,7 +414,7 @@
                         Ranking
                     </h2>
                     <div class="flex space-x-3">
-                        <select id="ranking-discipline-select" onchange="loadRanking()" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <select id="ranking-discipline-select" onchange="loadRanking()" class="no-print px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
                             <option value="">All Disciplines</option>
                         </select>
                         <button id="print-ranking-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center no-print">
