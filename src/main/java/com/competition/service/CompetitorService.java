@@ -1,0 +1,221 @@
+package com.competition.service;
+
+import com.competition.model.Competitor;
+import com.competition.model.Start;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class CompetitorService {
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    
+    private DataService dataService;
+
+    public CompetitorService(DataService dataService) {
+        this.dataService = dataService;
+    }
+
+    public List<Competitor> getAllCompetitors() throws Exception {
+        Map<String, Object> data = dataService.loadData();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        
+        List<Competitor> competitors = new ArrayList<>();
+        if (competitorsData != null) {
+            for (Map<String, Object> competitorData : competitorsData) {
+                competitors.add(mapToCompetitor(competitorData));
+            }
+        }
+        return competitors;
+    }
+
+    public Competitor createCompetitor(Competitor competitor) throws Exception {
+        Map<String, Object> data = dataService.loadData();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        
+        // Check for duplicate email if provided
+        if (competitor.getEmail() != null && !competitor.getEmail().isEmpty()) {
+            for (Map<String, Object> existing : competitorsData) {
+                String existingEmail = (String) existing.get("email");
+                if (competitor.getEmail().equals(existingEmail)) {
+                    throw new IllegalArgumentException("Email already exists");
+                }
+            }
+        }
+        
+        competitor.setId(dataService.getNextId(competitorsData));
+        competitor.setCreatedAt(LocalDateTime.now().format(formatter));
+        competitor.setStarts(new HashMap<>());
+        competitor.setRelayNumber(null);
+        
+        Map<String, Object> competitorMap = mapFromCompetitor(competitor);
+        competitorsData.add(competitorMap);
+        
+        data.put("competitors", competitorsData);
+        dataService.saveData(data);
+        
+        return competitor;
+    }
+
+    public Competitor updateCompetitor(int id, Competitor competitor) throws Exception {
+        Map<String, Object> data = dataService.loadData();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        
+        Map<String, Object> existingData = null;
+        for (Map<String, Object> compData : competitorsData) {
+            if (((Number) compData.get("id")).intValue() == id) {
+                existingData = compData;
+                break;
+            }
+        }
+        
+        if (existingData == null) {
+            throw new IllegalArgumentException("Competitor not found");
+        }
+        
+        // Check for duplicate email (excluding current competitor)
+        if (competitor.getEmail() != null && !competitor.getEmail().isEmpty()) {
+            for (Map<String, Object> compData : competitorsData) {
+                String existingEmail = (String) compData.get("email");
+                if (competitor.getEmail().equals(existingEmail) && 
+                    ((Number) compData.get("id")).intValue() != id) {
+                    throw new IllegalArgumentException("Email already exists");
+                }
+            }
+        }
+        
+        // Update existing data
+        existingData.put("name", competitor.getName());
+        existingData.put("gender", competitor.getGender());
+        existingData.put("club", competitor.getClub());
+        existingData.put("email", competitor.getEmail());
+        existingData.put("phone", competitor.getPhone());
+        existingData.put("address", competitor.getAddress());
+        existingData.put("starts", competitor.getStarts());
+        existingData.put("relay_number", competitor.getRelayNumber());
+        
+        dataService.saveData(data);
+        
+        return mapToCompetitor(existingData);
+    }
+
+    public void deleteCompetitor(int id) throws Exception {
+        Map<String, Object> data = dataService.loadData();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
+        
+        // Remove competitor
+        competitorsData.removeIf(comp -> ((Number) comp.get("id")).intValue() == id);
+        
+        // Remove associated results
+        resultsData.removeIf(result -> ((Number) result.get("competitor_id")).intValue() == id);
+        
+        data.put("competitors", competitorsData);
+        data.put("results", resultsData);
+        dataService.saveData(data);
+    }
+
+    public Competitor getCompetitorById(int id) throws Exception {
+        Map<String, Object> data = dataService.loadData();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        
+        for (Map<String, Object> compData : competitorsData) {
+            if (((Number) compData.get("id")).intValue() == id) {
+                return mapToCompetitor(compData);
+            }
+        }
+        return null;
+    }
+
+    private Competitor mapToCompetitor(Map<String, Object> data) {
+        Competitor competitor = new Competitor();
+        competitor.setId(((Number) data.get("id")).intValue());
+        competitor.setName((String) data.get("name"));
+        competitor.setGender((String) data.get("gender"));
+        competitor.setClub((String) data.get("club"));
+        competitor.setEmail((String) data.get("email"));
+        competitor.setPhone((String) data.get("phone"));
+        competitor.setAddress((String) data.get("address"));
+        competitor.setYearOfBirth(data.get("year_of_birth") != null ? (String) data.get("year_of_birth") : "");
+        competitor.setCreatedAt((String) data.get("created_at"));
+        competitor.setTeamId(data.get("team_id") != null ? ((Number) data.get("team_id")).intValue() : null);
+        competitor.setRelayNumber(data.get("relay_number") != null ? ((Number) data.get("relay_number")).intValue() : null);
+        
+        // Map starts
+        @SuppressWarnings("unchecked")
+        Map<String, List<Map<String, Object>>> startsData = (Map<String, List<Map<String, Object>>>) data.get("starts");
+        if (startsData != null) {
+            Map<String, List<Start>> starts = new HashMap<>();
+            for (Map.Entry<String, List<Map<String, Object>>> entry : startsData.entrySet()) {
+                List<Start> startList = new ArrayList<>();
+                for (Map<String, Object> startData : entry.getValue()) {
+                    startList.add(mapToStart(startData));
+                }
+                starts.put(entry.getKey(), startList);
+            }
+            competitor.setStarts(starts);
+        }
+        
+        return competitor;
+    }
+
+    private Map<String, Object> mapFromCompetitor(Competitor competitor) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", competitor.getId());
+        data.put("name", competitor.getName());
+        data.put("gender", competitor.getGender());
+        data.put("club", competitor.getClub());
+        data.put("email", competitor.getEmail());
+        data.put("phone", competitor.getPhone());
+        data.put("address", competitor.getAddress());
+        data.put("year_of_birth", competitor.getYearOfBirth());
+        data.put("created_at", competitor.getCreatedAt());
+        data.put("team_id", competitor.getTeamId());
+        data.put("relay_number", competitor.getRelayNumber());
+        data.put("disciplines", competitor.getDisciplines() != null ? competitor.getDisciplines() : new ArrayList<>());
+        
+        // Map starts
+        if (competitor.getStarts() != null) {
+            Map<String, List<Map<String, Object>>> startsData = new HashMap<>();
+            for (Map.Entry<String, List<Start>> entry : competitor.getStarts().entrySet()) {
+                List<Map<String, Object>> startList = new ArrayList<>();
+                for (Start start : entry.getValue()) {
+                    startList.add(mapFromStart(start));
+                }
+                startsData.put(entry.getKey(), startList);
+            }
+            data.put("starts", startsData);
+        } else {
+            data.put("starts", new HashMap<>());
+        }
+        
+        return data;
+    }
+
+    private Start mapToStart(Map<String, Object> data) {
+        Start start = new Start();
+        start.setGeneratedId((String) data.get("generated_id"));
+        start.setStartNumber(((Number) data.get("start_number")).intValue());
+        start.setDisciplineId(((Number) data.get("discipline_id")).intValue());
+        start.setStatus((String) data.get("status"));
+        return start;
+    }
+
+    private Map<String, Object> mapFromStart(Start start) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("generated_id", start.getGeneratedId());
+        data.put("start_number", start.getStartNumber());
+        data.put("discipline_id", start.getDisciplineId());
+        data.put("status", start.getStatus());
+        return data;
+    }
+}

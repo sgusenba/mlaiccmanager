@@ -1,0 +1,23 @@
+# Maven build output
+target/
+dependency-reduced-pom.xml
+
+# Compiled class files
+*.class
+
+# Logs
+logs/
+*.log
+
+# Runtime data (contains real competitor personal data - never commit)
+data.json
+*.backup
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
