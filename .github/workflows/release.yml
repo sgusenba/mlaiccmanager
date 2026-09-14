@@ -1,0 +1,45 @@
+name: Build and release
+
+# Builds the jar with Maven and publishes it (plus static/ and
+# disciplines.json) as a single tarball attached to a rolling "latest"
+# release. deploy/download-deploy.sh on the target container just
+# downloads that one URL — no git/Maven/JDK needed there.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build
+        run: mvn -B clean package
+
+      - name: Package deployment bundle
+        run: |
+          mkdir -p dist-bundle
+          cp target/mlaiccmanager-*.jar dist-bundle/mlaiccmanager.jar
+          cp -r static dist-bundle/static
+          cp disciplines.json dist-bundle/disciplines.json
+          tar -czf mlaiccmanager-dist.tar.gz -C dist-bundle .
+
+      - name: Publish "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build
+          target_commitish: ${{ github.sha }}
+          files: mlaiccmanager-dist.tar.gz
