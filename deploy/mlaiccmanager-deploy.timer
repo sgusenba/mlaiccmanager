@@ -1,0 +1,16 @@
+# Periodically checks GitHub for a new "latest" release build and
+# redeploys if found. Default: 1 minute after boot, then every 5
+# minutes. Adjust
+# OnUnitActiveSec below (and re-run `systemctl daemon-reload` +
+# `systemctl restart mlaiccmanager-deploy.timer`) to change the interval.
+
+[Unit]
+Description=Periodically check GitHub and redeploy MLAICC Manager
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=mlaiccmanager-deploy.service
+
+[Install]
+WantedBy=timers.target

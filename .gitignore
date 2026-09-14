@@ -2,6 +2,11 @@
 target/
 dependency-reduced-pom.xml
 
+# jpackage native installer output
+dist/
+jpackage-input/
+jpackage-temp/
+
 # Compiled class files
 *.class
 
@@ -21,3 +26,6 @@ data.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Deploy secrets/config (see deploy/pct.env.example)
+deploy/pct.env

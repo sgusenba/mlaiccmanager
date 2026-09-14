@@ -1,0 +1,15 @@
+# One-shot unit that runs deploy/download-deploy.sh: downloads the
+# latest GitHub Actions build and restarts mlaiccmanager.service if it's
+# different from what's currently deployed. Triggered by
+# mlaiccmanager-deploy.timer; can also be run on demand:
+#   systemctl start mlaiccmanager-deploy.service
+#   journalctl -u mlaiccmanager-deploy.service -f
+
+[Unit]
+Description=MLAICC Manager - download latest build from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mlaiccmanager/deploy/download-deploy.sh
