@@ -94,6 +94,19 @@ src/main/resources/
 static/                     # Frontend assets served at /
 ```
 
+## Deployment
+
+Releases are built by GitHub Actions and deployed to a Proxmox LXC container, which auto-pulls new builds. See [deploy/setup.sh](deploy/setup.sh) for one-time container setup.
+
+Useful commands on the container:
+
+```bash
+systemctl status mlaiccmanager
+systemctl start mlaiccmanager-deploy.service   # deploy right now
+journalctl -u mlaiccmanager-deploy.service -f  # watch a deploy run
+journalctl -u mlaiccmanager -f                 # app logs
+```
+
 ## License
 
 This project is open source and available under the MIT License.
