@@ -38,16 +38,6 @@ public class CompetitorService {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
         
-        // Check for duplicate email if provided
-        if (competitor.getEmail() != null && !competitor.getEmail().isEmpty()) {
-            for (Map<String, Object> existing : competitorsData) {
-                String existingEmail = (String) existing.get("email");
-                if (competitor.getEmail().equals(existingEmail)) {
-                    throw new IllegalArgumentException("Email already exists");
-                }
-            }
-        }
-        
         competitor.setId(dataService.getNextId(competitorsData));
         competitor.setCreatedAt(LocalDateTime.now().format(formatter));
         competitor.setStarts(new HashMap<>());
@@ -77,17 +67,6 @@ public class CompetitorService {
         
         if (existingData == null) {
             throw new IllegalArgumentException("Competitor not found");
-        }
-        
-        // Check for duplicate email (excluding current competitor)
-        if (competitor.getEmail() != null && !competitor.getEmail().isEmpty()) {
-            for (Map<String, Object> compData : competitorsData) {
-                String existingEmail = (String) compData.get("email");
-                if (competitor.getEmail().equals(existingEmail) && 
-                    ((Number) compData.get("id")).intValue() != id) {
-                    throw new IllegalArgumentException("Email already exists");
-                }
-            }
         }
         
         // Update existing data

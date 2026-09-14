@@ -104,7 +104,7 @@ export function hideDisciplineActivation() {
 // Hide discipline form
 export function hideDisciplineForm() {
     hideElement('discipline-form');
-    clearForm('discipline-form');
+    clearForm('discipline-data-form');
 }
 
 // Render available disciplines for activation
