@@ -68,7 +68,7 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 - `DELETE /api/competitors/{id}?version=N` — delete a competitor
 
 ### Starts (`/api/competitors/{competitorId}/starts`)
-- `POST /api/competitors/{competitorId}/starts` — create a start for a competitor
+- `POST /api/competitors/{competitorId}/starts` — create a start for a competitor. The start ID is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`); starts created before this format keep their old unseparated IDs. Returns `409` if the ID is already used by any start or result.
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
 
 ### Disciplines
