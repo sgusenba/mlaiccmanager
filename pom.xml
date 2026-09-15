@@ -21,6 +21,9 @@
         <jackson.version>2.15.2</jackson.version>
         <slf4j.version>2.0.9</slf4j.version>
         <logback.version>1.4.11</logback.version>
+        <!-- Build time (UTC) written into build-info.properties -->
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
     </properties>
 
     <dependencies>
@@ -102,6 +105,23 @@
     </dependencies>
 
     <build>
+        <resources>
+            <!-- Only build-info.properties is filtered, so ${...} in other resources stays untouched -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>build-info.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>build-info.properties</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

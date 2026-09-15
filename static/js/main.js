@@ -6,6 +6,7 @@ import { setupDisciplineEventListeners } from './modules/disciplines.js';
 import { setupStartsEventListeners } from './modules/starts.js';
 import { setupResultsEventListeners } from './modules/results.js';
 import { setupRankingEventListeners } from './modules/ranking.js';
+import { loadBuildInfo } from './buildInfo.js';
 
 // Setup all event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupStartsEventListeners();
     setupResultsEventListeners();
     setupRankingEventListeners();
-    
+
+    loadBuildInfo();
+
     console.log('Application initialized successfully');
 });
