@@ -19,37 +19,33 @@ export function renderCompetitors() {
     hideElement('no-competitors');
     tbody.innerHTML = competitors.map(competitor => `
         <tr class="hover:bg-gray-50">
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-4 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                     <svg class="h-5 w-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
-                    <div>
-                        <div class="text-sm font-medium text-gray-900">${competitor.name}</div>
-                        <div class="text-sm text-gray-500">${competitor.email || 'No email'}</div>
-                        ${competitor.club ? `<div class="text-xs text-gray-400">Club: ${competitor.club}</div>` : ''}
-                    </div>
-                </td>
+                    <div class="text-sm font-medium text-gray-900">${competitor.name}</div>
+                </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 #${competitor.id}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${competitor.gender || 'Not specified'}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 text-sm text-gray-500">
                 ${competitor.club || 'Not specified'}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${competitor.email || 'Not provided'}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${competitor.phone || 'Not provided'}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 py-4 text-sm text-gray-500">
                 ${competitor.address || 'Not provided'}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex space-x-2">
                     <button data-action="manage-starts" data-competitor-id="${competitor.id}" class="text-green-600 hover:text-green-900" title="Manage Starts">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
