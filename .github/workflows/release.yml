@@ -33,6 +33,7 @@ jobs:
           mkdir -p dist-bundle
           cp target/mlaiccmanager-*.jar dist-bundle/mlaiccmanager.jar
           cp -r static dist-bundle/static
+          echo "{\"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > dist-bundle/static/build-info.json
           cp disciplines.json dist-bundle/disciplines.json
           tar -czf mlaiccmanager-dist.tar.gz -C dist-bundle .
 
