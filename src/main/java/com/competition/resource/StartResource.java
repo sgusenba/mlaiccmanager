@@ -1,6 +1,7 @@
 package com.competition.resource;
 
 import com.competition.model.Start;
+import com.competition.service.ConflictException;
 import com.competition.service.StartService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -36,6 +37,8 @@ public class StartResource {
             int disciplineId = ((Number) disciplineIdObj).intValue();
             Start created = startService.createStart(competitorId, disciplineId);
             return Response.ok(created).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid start data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)

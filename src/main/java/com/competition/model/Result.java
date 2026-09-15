@@ -34,6 +34,10 @@ public class Result {
     @JsonProperty("updated_at")
     private String updatedAt;
 
+    // Incremented on every update; clients send it back so stale saves can be rejected
+    @JsonProperty("version")
+    private Integer version;
+
     // Constructors
     public Result() {}
 
@@ -73,4 +77,7 @@ public class Result {
 
     public String getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }

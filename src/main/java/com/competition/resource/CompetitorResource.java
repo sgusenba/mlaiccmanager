@@ -2,6 +2,8 @@ package com.competition.resource;
 
 import com.competition.model.Competitor;
 import com.competition.service.CompetitorService;
+import com.competition.service.ConflictException;
+import com.competition.service.RecordNotFoundException;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -47,6 +49,8 @@ public class CompetitorResource {
                 Competitor created = competitorService.createCompetitor(competitor);
                 return Response.ok(created).build();
             }
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid competitor data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -63,6 +67,8 @@ public class CompetitorResource {
         try {
             Competitor updated = competitorService.updateCompetitor(id, competitor);
             return Response.ok(updated).build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid competitor data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -75,10 +81,12 @@ public class CompetitorResource {
 
     @DELETE
     @Path("/{id}")
-    public Response deleteCompetitor(@PathParam("id") int id) {
+    public Response deleteCompetitor(@PathParam("id") int id, @QueryParam("version") Integer version) {
         try {
-            competitorService.deleteCompetitor(id);
+            competitorService.deleteCompetitor(id, version);
             return Response.noContent().build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (Exception e) {
             logger.error("Error deleting competitor", e);
             return Response.serverError().entity("{\"error\": \"Failed to delete competitor\"}").build();

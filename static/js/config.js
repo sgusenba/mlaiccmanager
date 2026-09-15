@@ -11,7 +11,10 @@ const state = {
     selectedCompetitor: null,
     selectedStart: null,
     currentEditingId: null,
-    currentEditingResultId: null
+    currentEditingVersion: null,
+    currentEditingResultId: null,
+    currentEditingResultVersion: null,
+    activeDisciplinesBase: null
 };
 
 // State getter/setter functions for controlled access
