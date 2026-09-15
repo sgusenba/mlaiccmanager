@@ -1,7 +1,7 @@
 // Discipline management module
 
 import { getState, setState } from '../config.js';
-import { loadAvailableDisciplines as apiLoadAvailableDisciplines, loadActiveDisciplines as apiLoadActiveDisciplines, saveActiveDisciplines as apiSaveActiveDisciplines } from '../api.js';
+import { loadAvailableDisciplines as apiLoadAvailableDisciplines, loadActiveDisciplines as apiLoadActiveDisciplines, saveActiveDisciplines as apiSaveActiveDisciplines, deactivateDiscipline as apiDeactivateDiscipline } from '../api.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, clearForm } from '../utils.js';
 
 // Wrapper functions for API calls
@@ -92,6 +92,8 @@ function handleDisciplineAction(event) {
 
 // Show discipline activation modal
 export function showDisciplineActivation() {
+    // Remember what the list looked like when the dialog opened, to detect changes by other users
+    setState('activeDisciplinesBase', [...getState('activeDisciplines')]);
     showElement('discipline-activation-modal');
     renderAvailableDisciplinesForActivation();
 }
@@ -234,11 +236,20 @@ export async function saveActiveDisciplines() {
     const disciplineIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
     
     try {
-        await apiSaveActiveDisciplines(disciplineIds);
+        await apiSaveActiveDisciplines(disciplineIds, getState('activeDisciplinesBase'));
         hideDisciplineActivation();
         await loadActiveDisciplines();
+        renderActiveDisciplines();
         showMessage('Active disciplines updated successfully!', 'success');
     } catch (error) {
+        if (error.isConflict) {
+            // Show the dialog again with the list as it is stored now
+            await loadActiveDisciplines();
+            renderActiveDisciplines();
+            showDisciplineActivation();
+            showMessage('Someone else changed the active disciplines in the meantime. The latest selection is now loaded - please make your change again.', 'error');
+            return;
+        }
         showMessage('Error updating active disciplines', 'error');
     }
 }
@@ -247,12 +258,11 @@ export async function saveActiveDisciplines() {
 export async function deactivateDiscipline(disciplineId) {
     if (!confirm('Are you sure you want to deactivate this discipline?')) return;
     
-    const activeDisciplines = getState('activeDisciplines');
-    const newActiveDisciplines = activeDisciplines.filter(id => id !== disciplineId);
-    
     try {
-        await apiSaveActiveDisciplines(newActiveDisciplines);
+        // Server removes just this one id, so changes by other users are kept
+        await apiDeactivateDiscipline(disciplineId);
         await loadActiveDisciplines();
+        renderActiveDisciplines();
         showMessage('Discipline deactivated successfully!', 'success');
     } catch (error) {
         showMessage('Error deactivating discipline', 'error');

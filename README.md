@@ -48,13 +48,24 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 - **`data.json`** — all competition-specific data (competitors, starts, results, active disciplines). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
 - **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels). Tracked in the repo as shared configuration.
 
+## Multiple Users
+
+Several people can use the app at the same time:
+
+- All reads and writes of `data.json` are serialized on the server, so simultaneous saves never overwrite each other.
+- Competitors and results carry a `version` number. Updates and deletes send back the version the user saw; if someone else saved the record in the meantime, the server answers **409 Conflict** with `{"error": ..., "current": <latest record>}` and the UI loads the latest data so the user can redo the change. Requests without `version` skip this check.
+- Entering a second result for the same start also returns 409 with the existing result.
+- Updating or deleting a record that no longer exists returns **404**.
+
+Browsers do not refresh on their own; other users' changes show up when switching sections or reloading the page.
+
 ## API Endpoints
 
 ### Competitors (`/api/competitors`)
 - `GET /api/competitors` — list all competitors
-- `POST /api/competitors` — create a competitor
-- `PUT /api/competitors/{id}` — update a competitor
-- `DELETE /api/competitors/{id}` — delete a competitor
+- `POST /api/competitors` — create a competitor (or update it when `id` is set; send `version`)
+- `PUT /api/competitors/{id}` — update a competitor's details (send `version`; starts are not changed here)
+- `DELETE /api/competitors/{id}?version=N` — delete a competitor
 
 ### Starts (`/api/competitors/{competitorId}/starts`)
 - `POST /api/competitors/{competitorId}/starts` — create a start for a competitor
@@ -62,7 +73,8 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 ### Disciplines
 - `GET /api/active-disciplines` — get currently active disciplines
-- `POST /api/active-disciplines` — set active disciplines
+- `POST /api/active-disciplines` — set active disciplines (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
+- `DELETE /api/active-disciplines/{id}` — deactivate a single discipline
 - `GET /api/available-disciplines` — get all available disciplines from config
 - `GET /api/disciplines` — list disciplines
 - `POST /api/disciplines` — create a discipline
@@ -71,9 +83,9 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 ### Results (`/api/results`)
 - `GET /api/results` — list results (optional discipline filter)
-- `POST /api/results` — create a result
-- `PUT /api/results/{id}` — update a result
-- `DELETE /api/results/{id}` — delete a result
+- `POST /api/results` — create a result (or update it when `id` is set; send `version`)
+- `PUT /api/results/{id}` — update a result (send `version`)
+- `DELETE /api/results/{id}?version=N` — delete a result
 
 ### Rankings (`/api/ranking`)
 - `GET /api/ranking` — list rankings

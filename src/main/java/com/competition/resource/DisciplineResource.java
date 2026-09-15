@@ -1,6 +1,7 @@
 package com.competition.resource;
 
 import com.competition.model.Discipline;
+import com.competition.service.ConflictException;
 import com.competition.service.DisciplineService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -42,22 +43,44 @@ public class DisciplineResource {
     @Path("/active-disciplines")
     public Response setActiveDisciplines(Map<String, Object> requestData) {
         try {
-            List<Integer> disciplineIds = new ArrayList<>();
-            Object rawIds = requestData != null ? requestData.get("discipline_ids") : null;
-            if (rawIds instanceof List) {
-                for (Object idObj : (List<?>) rawIds) {
-                    if (idObj instanceof Number) {
-                        disciplineIds.add(((Number) idObj).intValue());
-                    }
-                }
-            }
+            List<Integer> disciplineIds = toIdList(requestData != null ? requestData.get("discipline_ids") : null);
+            // Optional: the list the client started from, to detect concurrent changes
+            List<Integer> baseIds = requestData != null && requestData.get("base_ids") instanceof List
+                ? toIdList(requestData.get("base_ids"))
+                : null;
 
-            List<Integer> activeDisciplines = disciplineService.setActiveDisciplines(disciplineIds);
+            List<Integer> activeDisciplines = disciplineService.setActiveDisciplines(disciplineIds, baseIds);
             return Response.ok(activeDisciplines).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
         } catch (Exception e) {
             logger.error("Error setting active disciplines", e);
             return Response.serverError().entity("{\"error\": \"Failed to set active disciplines\"}").build();
         }
+    }
+
+    @DELETE
+    @Path("/active-disciplines/{id}")
+    public Response deactivateDiscipline(@PathParam("id") int id) {
+        try {
+            List<Integer> activeDisciplines = disciplineService.deactivateDiscipline(id);
+            return Response.ok(activeDisciplines).build();
+        } catch (Exception e) {
+            logger.error("Error deactivating discipline", e);
+            return Response.serverError().entity("{\"error\": \"Failed to deactivate discipline\"}").build();
+        }
+    }
+
+    private static List<Integer> toIdList(Object rawIds) {
+        List<Integer> ids = new ArrayList<>();
+        if (rawIds instanceof List) {
+            for (Object idObj : (List<?>) rawIds) {
+                if (idObj instanceof Number) {
+                    ids.add(((Number) idObj).intValue());
+                }
+            }
+        }
+        return ids;
     }
 
     @GET

@@ -1,6 +1,8 @@
 package com.competition.resource;
 
 import com.competition.model.Result;
+import com.competition.service.ConflictException;
+import com.competition.service.RecordNotFoundException;
 import com.competition.service.ResultService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -48,6 +50,8 @@ public class ResultResource {
                 Result created = resultService.createResult(result);
                 return Response.ok(created).build();
             }
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid result data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -64,6 +68,8 @@ public class ResultResource {
         try {
             Result updated = resultService.updateResult(id, result);
             return Response.ok(updated).build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid result data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -76,10 +82,12 @@ public class ResultResource {
 
     @DELETE
     @Path("/{id}")
-    public Response deleteResult(@PathParam("id") int id) {
+    public Response deleteResult(@PathParam("id") int id, @QueryParam("version") Integer version) {
         try {
-            resultService.deleteResult(id);
+            resultService.deleteResult(id, version);
             return Response.noContent().build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (Exception e) {
             logger.error("Error deleting result", e);
             return Response.serverError().entity("{\"error\": \"Failed to delete result\"}").build();

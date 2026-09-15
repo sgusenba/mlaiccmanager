@@ -76,19 +76,20 @@ public class RankingService {
     }
 
     private List<Map<String, Object>> getResultsForDiscipline(int disciplineId) throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
+        return dataService.read(data -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
 
-        return resultsData.stream()
-            .filter(r -> ((Number) r.get("discipline_id")).intValue() == disciplineId)
-            .collect(Collectors.toList());
+            return resultsData.stream()
+                .filter(r -> ((Number) r.get("discipline_id")).intValue() == disciplineId)
+                .collect(Collectors.toList());
+        });
     }
 
     private List<Ranking> buildRankings(List<Map<String, Object>> disciplineResults) throws Exception {
-        Map<String, Object> data = dataService.loadData();
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
+        List<Map<String, Object>> competitorsData = dataService.read(
+            data -> (List<Map<String, Object>>) data.get("competitors"));
 
         // Group results by competitor, preserving encounter order
         Map<Integer, List<Map<String, Object>>> byCompetitor = new LinkedHashMap<>();

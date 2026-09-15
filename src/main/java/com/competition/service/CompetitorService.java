@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class CompetitorService {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-    
+
     private DataService dataService;
 
     public CompetitorService(DataService dataService) {
@@ -20,96 +20,96 @@ public class CompetitorService {
     }
 
     public List<Competitor> getAllCompetitors() throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
-        
-        List<Competitor> competitors = new ArrayList<>();
-        if (competitorsData != null) {
-            for (Map<String, Object> competitorData : competitorsData) {
-                competitors.add(mapToCompetitor(competitorData));
+        return dataService.read(data -> {
+            List<Map<String, Object>> competitorsData = competitorsOf(data);
+
+            List<Competitor> competitors = new ArrayList<>();
+            if (competitorsData != null) {
+                for (Map<String, Object> competitorData : competitorsData) {
+                    competitors.add(mapToCompetitor(competitorData));
+                }
             }
-        }
-        return competitors;
+            return competitors;
+        });
     }
 
     public Competitor createCompetitor(Competitor competitor) throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
-        
-        competitor.setId(dataService.getNextId(competitorsData));
-        competitor.setCreatedAt(LocalDateTime.now().format(formatter));
-        competitor.setStarts(new HashMap<>());
-        competitor.setRelayNumber(null);
-        
-        Map<String, Object> competitorMap = mapFromCompetitor(competitor);
-        competitorsData.add(competitorMap);
-        
-        data.put("competitors", competitorsData);
-        dataService.saveData(data);
-        
-        return competitor;
+        return dataService.update(data -> {
+            List<Map<String, Object>> competitorsData = competitorsOf(data);
+
+            competitor.setId(dataService.getNextId(competitorsData));
+            competitor.setCreatedAt(LocalDateTime.now().format(formatter));
+            competitor.setStarts(new HashMap<>());
+            competitor.setRelayNumber(null);
+            competitor.setVersion(1);
+
+            competitorsData.add(mapFromCompetitor(competitor));
+            return competitor;
+        });
     }
 
+    /**
+     * Updates the competitor's personal details. Starts and relay number are not
+     * taken from the payload: starts are managed only through StartService, so a
+     * form save can never wipe starts another user added meanwhile.
+     */
     public Competitor updateCompetitor(int id, Competitor competitor) throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
-        
-        Map<String, Object> existingData = null;
-        for (Map<String, Object> compData : competitorsData) {
-            if (((Number) compData.get("id")).intValue() == id) {
-                existingData = compData;
-                break;
+        return dataService.update(data -> {
+            Map<String, Object> existingData = findById(competitorsOf(data), id);
+            if (existingData == null) {
+                throw new RecordNotFoundException("Competitor not found");
             }
-        }
-        
-        if (existingData == null) {
-            throw new IllegalArgumentException("Competitor not found");
-        }
-        
-        // Update existing data
-        existingData.put("name", competitor.getName());
-        existingData.put("gender", competitor.getGender());
-        existingData.put("club", competitor.getClub());
-        existingData.put("email", competitor.getEmail());
-        existingData.put("phone", competitor.getPhone());
-        existingData.put("address", competitor.getAddress());
-        existingData.put("starts", competitor.getStarts());
-        existingData.put("relay_number", competitor.getRelayNumber());
-        
-        dataService.saveData(data);
-        
-        return mapToCompetitor(existingData);
+            DataService.checkVersion(existingData, competitor.getVersion(),
+                "Competitor was changed by someone else", mapToCompetitor(existingData));
+
+            existingData.put("name", competitor.getName());
+            existingData.put("gender", competitor.getGender());
+            existingData.put("club", competitor.getClub());
+            existingData.put("email", competitor.getEmail());
+            existingData.put("phone", competitor.getPhone());
+            existingData.put("address", competitor.getAddress());
+            DataService.bumpVersion(existingData);
+
+            return mapToCompetitor(existingData);
+        });
     }
 
-    public void deleteCompetitor(int id) throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
-        
-        // Remove competitor
-        competitorsData.removeIf(comp -> ((Number) comp.get("id")).intValue() == id);
-        
-        // Remove associated results
-        resultsData.removeIf(result -> ((Number) result.get("competitor_id")).intValue() == id);
-        
-        data.put("competitors", competitorsData);
-        data.put("results", resultsData);
-        dataService.saveData(data);
+    public void deleteCompetitor(int id, Integer expectedVersion) throws Exception {
+        dataService.update(data -> {
+            List<Map<String, Object>> competitorsData = competitorsOf(data);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
+
+            Map<String, Object> existingData = findById(competitorsData, id);
+            if (existingData == null) {
+                throw new RecordNotFoundException("Competitor not found");
+            }
+            DataService.checkVersion(existingData, expectedVersion,
+                "Competitor was changed by someone else", mapToCompetitor(existingData));
+
+            // Remove competitor and associated results
+            competitorsData.remove(existingData);
+            resultsData.removeIf(result -> ((Number) result.get("competitor_id")).intValue() == id);
+            return null;
+        });
     }
 
     public Competitor getCompetitorById(int id) throws Exception {
-        Map<String, Object> data = dataService.loadData();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> competitorsData = (List<Map<String, Object>>) data.get("competitors");
-        
+        return dataService.read(data -> {
+            Map<String, Object> compData = findById(competitorsOf(data), id);
+            return compData != null ? mapToCompetitor(compData) : null;
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> competitorsOf(Map<String, Object> data) {
+        return (List<Map<String, Object>>) data.get("competitors");
+    }
+
+    private static Map<String, Object> findById(List<Map<String, Object>> competitorsData, int id) {
         for (Map<String, Object> compData : competitorsData) {
             if (((Number) compData.get("id")).intValue() == id) {
-                return mapToCompetitor(compData);
+                return compData;
             }
         }
         return null;
@@ -128,7 +128,8 @@ public class CompetitorService {
         competitor.setCreatedAt((String) data.get("created_at"));
         competitor.setTeamId(data.get("team_id") != null ? ((Number) data.get("team_id")).intValue() : null);
         competitor.setRelayNumber(data.get("relay_number") != null ? ((Number) data.get("relay_number")).intValue() : null);
-        
+        competitor.setVersion(DataService.getVersion(data));
+
         // Map starts
         @SuppressWarnings("unchecked")
         Map<String, List<Map<String, Object>>> startsData = (Map<String, List<Map<String, Object>>>) data.get("starts");
@@ -143,7 +144,7 @@ public class CompetitorService {
             }
             competitor.setStarts(starts);
         }
-        
+
         return competitor;
     }
 
@@ -161,7 +162,8 @@ public class CompetitorService {
         data.put("team_id", competitor.getTeamId());
         data.put("relay_number", competitor.getRelayNumber());
         data.put("disciplines", competitor.getDisciplines() != null ? competitor.getDisciplines() : new ArrayList<>());
-        
+        data.put("version", competitor.getVersion() != null ? competitor.getVersion() : 0);
+
         // Map starts
         if (competitor.getStarts() != null) {
             Map<String, List<Map<String, Object>>> startsData = new HashMap<>();
@@ -176,7 +178,7 @@ public class CompetitorService {
         } else {
             data.put("starts", new HashMap<>());
         }
-        
+
         return data;
     }
 

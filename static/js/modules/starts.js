@@ -1,7 +1,7 @@
 // Starts management module
 
 import { getState, setState } from '../config.js';
-import { addStart, deleteStart as apiDeleteStart } from '../api.js';
+import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue } from '../utils.js';
 
 // Display competitor information
@@ -170,41 +170,38 @@ export async function saveStart() {
     }
     
     try {
-        const newStart = await addStart(selectedCompetitor.id, disciplineId);
-        
-        // Initialize starts object if it doesn't exist
-        if (!selectedCompetitor.starts) {
-            selectedCompetitor.starts = {};
-        }
-        
-        // Initialize starts for this discipline if it doesn't exist
-        if (!selectedCompetitor.starts[disciplineId]) {
-            selectedCompetitor.starts[disciplineId] = [];
-        }
-        
-        // Add the new start from backend response
-        selectedCompetitor.starts[disciplineId].push(newStart);
-        
-        // Sort starts by start number
-        selectedCompetitor.starts[disciplineId].sort((a, b) => a.start_number - b.start_number);
-        
-        // Update local competitors array
-        const competitors = getState('competitors');
-        const competitorIndex = competitors.findIndex(c => c.id === selectedCompetitor.id);
-        if (competitorIndex !== -1) {
-            competitors[competitorIndex] = selectedCompetitor;
-            setState('competitors', competitors);
-        }
-        
-        // Update display
-        displayStartsTable(selectedCompetitor);
+        await addStart(selectedCompetitor.id, disciplineId);
         hideAddStartForm();
-        
+        await refreshSelectedCompetitor();
         showMessage('Start added successfully', 'success');
     } catch (error) {
         console.error('Error adding start:', error);
-        showMessage('Error adding start', 'error');
+        // Show the starts as stored on the server, including ones other users added
+        if (!await refreshSelectedCompetitor()) return;
+        showMessage(error.body?.error ? `Error adding start: ${error.body.error}` : 'Error adding start', 'error');
     }
+}
+
+// Reload competitors from the server and re-render the selected competitor's starts,
+// so starts added or deleted by other users show up too.
+// Returns false if the competitor no longer exists (the user has already been told).
+async function refreshSelectedCompetitor() {
+    const selectedCompetitor = getState('selectedCompetitor');
+    if (!selectedCompetitor) return true;
+    
+    const competitors = await loadCompetitors();
+    const fresh = competitors.find(c => c.id === selectedCompetitor.id);
+    if (!fresh) {
+        // An empty list may just mean loading failed; keep what is shown then
+        if (competitors.length === 0) return true;
+        clearCompetitorSearch();
+        showMessage('This competitor was deleted by someone else.', 'error');
+        return false;
+    }
+    setState('selectedCompetitor', fresh);
+    displayCompetitorInfo(fresh);
+    displayStartsTable(fresh);
+    return true;
 }
 
 // Delete start
@@ -216,34 +213,12 @@ export async function deleteStart(disciplineId, generatedId) {
     
     try {
         await apiDeleteStart(selectedCompetitor.id, generatedId);
-        
-        // Remove start from local state
-        if (selectedCompetitor.starts && selectedCompetitor.starts[disciplineId]) {
-            selectedCompetitor.starts[disciplineId] = selectedCompetitor.starts[disciplineId].filter(
-                start => start.generated_id !== generatedId
-            );
-            
-            // Remove discipline entry if no starts left
-            if (selectedCompetitor.starts[disciplineId].length === 0) {
-                delete selectedCompetitor.starts[disciplineId];
-            }
-            
-            // Update local competitors array
-            const competitors = getState('competitors');
-            const competitorIndex = competitors.findIndex(c => c.id === selectedCompetitor.id);
-            if (competitorIndex !== -1) {
-                competitors[competitorIndex] = selectedCompetitor;
-                setState('competitors', competitors);
-            }
-            
-            // Update display
-            displayStartsTable(selectedCompetitor);
-            
-            showMessage('Start deleted successfully', 'success');
-        }
+        await refreshSelectedCompetitor();
+        showMessage('Start deleted successfully', 'success');
     } catch (error) {
         console.error('Error deleting start:', error);
-        showMessage('Error deleting start', 'error');
+        if (!await refreshSelectedCompetitor()) return;
+        showMessage(error.body?.error ? `Error deleting start: ${error.body.error}` : 'Error deleting start', 'error');
     }
 }
 

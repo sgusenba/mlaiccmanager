@@ -112,6 +112,7 @@ export function hideCompetitorForm() {
     hideElement('competitor-form');
     clearForm('competitor-data-form');
     setState('currentEditingId', null);
+    setState('currentEditingVersion', null);
 
     // Reset form title and submit button back to "Add" state
     document.querySelector('#competitor-form h3').textContent = 'Add New Competitor';
@@ -134,24 +135,57 @@ export async function saveCompetitor(event) {
         club: getElementValue('competitor-club'),
         email: getElementValue('competitor-email'),
         phone: getElementValue('competitor-phone'),
-        address: getElementValue('competitor-address'),
-        starts: {},
-        relay_number: null
+        address: getElementValue('competitor-address')
+        // starts are managed in the Starts section and never sent from this form
     };
-    
+
     const currentEditingId = getState('currentEditingId');
     if (currentEditingId) {
         data.id = currentEditingId;
+        data.version = getState('currentEditingVersion');
     }
-    
+
     try {
         await apiSaveCompetitor(data);
         hideCompetitorForm();
         await loadCompetitors();
+        renderCompetitors();
         showMessage(currentEditingId ? 'Competitor updated successfully!' : 'Competitor created successfully!', 'success');
     } catch (error) {
+        if (currentEditingId && (error.isConflict || error.isNotFound)) {
+            await handleCompetitorSaveConflict(error);
+            return;
+        }
         showMessage('Error saving competitor', 'error');
     }
+}
+
+// Someone else changed or deleted the competitor while this form was open
+async function handleCompetitorSaveConflict(error) {
+    await loadCompetitors();
+    renderCompetitors();
+
+    const current = error.body?.current;
+    if (error.isConflict && current) {
+        fillCompetitorForm(current);
+        showMessage('Someone else changed this competitor in the meantime. The latest data is now loaded - please make your change again.', 'error');
+    } else {
+        hideCompetitorForm();
+        showMessage('This competitor was deleted by someone else.', 'error');
+    }
+}
+
+// Populate form fields and remember which version the user is editing
+function fillCompetitorForm(competitor) {
+    setState('currentEditingId', competitor.id);
+    setState('currentEditingVersion', competitor.version ?? null);
+
+    setElementValue('competitor-name', competitor.name);
+    setElementValue('competitor-gender', competitor.gender || '');
+    setElementValue('competitor-club', competitor.club || '');
+    setElementValue('competitor-email', competitor.email || '');
+    setElementValue('competitor-phone', competitor.phone || '');
+    setElementValue('competitor-address', competitor.address || '');
 }
 
 // Edit competitor
@@ -159,17 +193,9 @@ export function editCompetitor(id) {
     const competitors = getState('competitors');
     const competitor = competitors.find(c => c.id === id);
     if (!competitor) return;
-    
-    setState('currentEditingId', id);
-    
-    // Populate form fields
-    setElementValue('competitor-name', competitor.name);
-    setElementValue('competitor-gender', competitor.gender || '');
-    setElementValue('competitor-club', competitor.club || '');
-    setElementValue('competitor-email', competitor.email || '');
-    setElementValue('competitor-phone', competitor.phone || '');
-    setElementValue('competitor-address', competitor.address || '');
-    
+
+    fillCompetitorForm(competitor);
+
     showCompetitorForm();
     
     // Update form title
@@ -186,12 +212,23 @@ export function editCompetitor(id) {
 // Delete competitor
 export async function deleteCompetitor(id) {
     if (!confirm('Are you sure you want to delete this competitor?')) return;
-    
+
+    const competitor = getState('competitors').find(c => c.id === id);
+
     try {
-        await apiDeleteCompetitor(id);
+        await apiDeleteCompetitor(id, competitor?.version);
         await loadCompetitors();
+        renderCompetitors();
         showMessage('Competitor deleted successfully!', 'success');
     } catch (error) {
+        if (error.isConflict || error.isNotFound) {
+            await loadCompetitors();
+            renderCompetitors();
+            showMessage(error.isConflict
+                ? 'Someone else changed this competitor in the meantime. The list is refreshed - please check it and delete again if needed.'
+                : 'This competitor was already deleted by someone else.', 'error');
+            return;
+        }
         showMessage('Error deleting competitor', 'error');
     }
 }

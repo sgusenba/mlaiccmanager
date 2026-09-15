@@ -43,6 +43,10 @@ public class Competitor {
     @JsonProperty("year_of_birth")
     private String yearOfBirth;
 
+    // Incremented on every update; clients send it back so stale saves can be rejected
+    @JsonProperty("version")
+    private Integer version;
+
     // Constructors
     public Competitor() {}
 
@@ -89,4 +93,7 @@ public class Competitor {
 
     public String getYearOfBirth() { return yearOfBirth; }
     public void setYearOfBirth(String yearOfBirth) { this.yearOfBirth = yearOfBirth; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }

@@ -1,7 +1,7 @@
 // Results management module
 
 import { getState, setState } from '../config.js';
-import { saveResult as apiSaveResult, deleteResult as apiDeleteResult, loadResults } from '../api.js';
+import { saveResult as apiSaveResult, deleteResult as apiDeleteResult, loadResults, loadCompetitors } from '../api.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, scrollToElement } from '../utils.js';
 
 // Render results table
@@ -297,8 +297,10 @@ function displaySelectedStart(start) {
     // Store result ID for editing
     if (existingResult) {
         setState('currentEditingResultId', existingResult.id);
+        setState('currentEditingResultVersion', existingResult.version ?? null);
     } else {
         setState('currentEditingResultId', null);
+        setState('currentEditingResultVersion', null);
     }
     
     // Add event listeners to entry fields for sum calculation
@@ -390,9 +392,10 @@ async function saveResult(event) {
         notes: notes
     };
     
-    // Add ID if editing existing result
+    // Add ID and the version the user saw if editing existing result
     if (currentEditingResultId) {
         data.id = currentEditingResultId;
+        data.version = getState('currentEditingResultVersion');
     }
     
     try {
@@ -405,7 +408,30 @@ async function saveResult(event) {
         
         showMessage(currentEditingResultId ? 'Result updated successfully!' : 'Result saved successfully!', 'success');
     } catch (error) {
+        if (error.isConflict || error.isNotFound) {
+            await reloadAfterResultConflict(selectedStart.generated_id);
+            showMessage(error.isNotFound
+                ? 'This result was deleted by someone else. Please enter it again if needed.'
+                : currentEditingResultId
+                    ? 'Someone else changed this result in the meantime. The latest values are now loaded - please make your change again.'
+                    : 'Someone else already entered a result for this start. Their result is now loaded - please check it.', 'error');
+            return;
+        }
         showMessage('Error saving result', 'error');
+    }
+}
+
+// Reload data after another user changed a result and show the start again with the latest values
+async function reloadAfterResultConflict(startId) {
+    await Promise.all([loadResults(), loadCompetitors()]);
+    renderResults();
+    
+    const start = startId ? findStartById(startId) : null;
+    if (start) {
+        setState('selectedStart', start);
+        displaySelectedStart(start);
+    } else {
+        clearStartSearch();
     }
 }
 
@@ -424,7 +450,7 @@ async function deleteResultForStart() {
     }
     
     try {
-        await apiDeleteResult(currentEditingResultId);
+        await apiDeleteResult(currentEditingResultId, getState('currentEditingResultVersion'));
         clearStartSearch();
         
         // Reload results to update the table
@@ -433,16 +459,29 @@ async function deleteResultForStart() {
         
         showMessage('Result deleted successfully!', 'success');
     } catch (error) {
+        if (error.isConflict || error.isNotFound) {
+            await reloadAfterResultConflict(selectedStart.generated_id);
+            showMessage(resultDeleteConflictMessage(error), 'error');
+            return;
+        }
         showMessage('Error deleting result', 'error');
     }
+}
+
+function resultDeleteConflictMessage(error) {
+    return error.isConflict
+        ? 'Someone else changed this result in the meantime. The latest values are now loaded - please check them and delete again if needed.'
+        : 'This result was already deleted by someone else.';
 }
 
 // Delete result from table
 export async function deleteResult(id) {
     if (!confirm('Are you sure you want to delete this result?')) return;
     
+    const result = getState('results').find(r => r.id === id);
+    
     try {
-        await apiDeleteResult(id);
+        await apiDeleteResult(id, result?.version);
         
         // Reload results to update the table
         await loadResults();
@@ -450,6 +489,12 @@ export async function deleteResult(id) {
         
         showMessage('Result deleted successfully!', 'success');
     } catch (error) {
+        if (error.isConflict || error.isNotFound) {
+            await loadResults();
+            renderResults();
+            showMessage(resultDeleteConflictMessage(error), 'error');
+            return;
+        }
         showMessage('Error deleting result', 'error');
     }
 }
@@ -472,6 +517,7 @@ export function clearStartSearch() {
     setElementContent('selected-start-info', '');
     setState('selectedStart', null);
     setState('currentEditingResultId', null);
+    setState('currentEditingResultVersion', null);
 }
 
 // Setup event listeners for results section

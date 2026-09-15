@@ -2,19 +2,43 @@
 
 import { API_BASE, getState, setState } from './config.js';
 
+// Error carrying the HTTP status and parsed JSON body, e.g. a 409 conflict
+// with { error, current } when someone else saved the same record first
+export class ApiError extends Error {
+    constructor(status, body) {
+        super(body?.error || `HTTP error! status: ${status}`);
+        this.status = status;
+        this.body = body;
+    }
+
+    get isConflict() { return this.status === 409; }
+    get isNotFound() { return this.status === 404; }
+}
+
 // Generic API helper with error handling
 async function apiCall(endpoint, options = {}) {
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, options);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const text = await response.text();
+        let body = null;
+        if (text) {
+            try {
+                body = JSON.parse(text);
+            } catch {
+                body = { error: text };
+            }
         }
-        return await response.json();
+        if (!response.ok) {
+            throw new ApiError(response.status, body);
+        }
+        return body;
     } catch (error) {
         console.error(`API call to ${endpoint} failed:`, error);
         throw error;
     }
 }
+
+const versionQuery = (version) => (version !== undefined && version !== null ? `?version=${version}` : '');
 
 // Load competitors
 export async function loadCompetitors() {
@@ -77,18 +101,23 @@ export async function saveCompetitor(data) {
     });
 }
 
-// Delete competitor
-export async function deleteCompetitor(id) {
-    return await apiCall(`/competitors/${id}`, { method: 'DELETE' });
+// Delete competitor (version: the version the user saw, to reject stale deletes)
+export async function deleteCompetitor(id, version) {
+    return await apiCall(`/competitors/${id}${versionQuery(version)}`, { method: 'DELETE' });
 }
 
-// Save active disciplines
-export async function saveActiveDisciplines(disciplineIds) {
+// Save active disciplines (baseIds: the list the user started from, to detect concurrent changes)
+export async function saveActiveDisciplines(disciplineIds, baseIds) {
     return await apiCall('/active-disciplines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discipline_ids: disciplineIds })
+        body: JSON.stringify({ discipline_ids: disciplineIds, base_ids: baseIds })
     });
+}
+
+// Deactivate a single discipline
+export async function deactivateDiscipline(disciplineId) {
+    return await apiCall(`/active-disciplines/${disciplineId}`, { method: 'DELETE' });
 }
 
 // Add start to competitor
@@ -116,9 +145,9 @@ export async function saveResult(data) {
     });
 }
 
-// Delete result
-export async function deleteResult(id) {
-    return await apiCall(`/results/${id}`, { method: 'DELETE' });
+// Delete result (version: the version the user saw, to reject stale deletes)
+export async function deleteResult(id, version) {
+    return await apiCall(`/results/${id}${versionQuery(version)}`, { method: 'DELETE' });
 }
 
 // Load ranking for specific discipline
