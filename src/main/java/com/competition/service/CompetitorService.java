@@ -64,6 +64,7 @@ public class CompetitorService {
 
             existingData.put("name", competitor.getName());
             existingData.put("gender", competitor.getGender());
+            existingData.put("year_of_birth", competitor.getYearOfBirth());
             existingData.put("club", competitor.getClub());
             existingData.put("email", competitor.getEmail());
             existingData.put("phone", competitor.getPhone());

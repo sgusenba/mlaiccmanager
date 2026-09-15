@@ -33,6 +33,9 @@ export function renderCompetitors() {
             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${competitor.gender || 'Not specified'}
             </td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${competitor.year_of_birth || 'Not specified'}
+            </td>
             <td class="px-4 py-4 text-sm text-gray-500">
                 ${competitor.club || 'Not specified'}
             </td>
@@ -128,6 +131,7 @@ export async function saveCompetitor(event) {
     const data = {
         name: getElementValue('competitor-name'),
         gender: getElementValue('competitor-gender'),
+        year_of_birth: getElementValue('competitor-year-of-birth'),
         club: getElementValue('competitor-club'),
         email: getElementValue('competitor-email'),
         phone: getElementValue('competitor-phone'),
@@ -178,6 +182,7 @@ function fillCompetitorForm(competitor) {
 
     setElementValue('competitor-name', competitor.name);
     setElementValue('competitor-gender', competitor.gender || '');
+    setElementValue('competitor-year-of-birth', competitor.year_of_birth || '');
     setElementValue('competitor-club', competitor.club || '');
     setElementValue('competitor-email', competitor.email || '');
     setElementValue('competitor-phone', competitor.phone || '');
@@ -259,6 +264,12 @@ export function setupCompetitorEventListeners() {
         addCompetitorBtn.addEventListener('click', showCompetitorForm);
     }
     
+    // Year of birth can't be in the future
+    const yearOfBirthInput = document.getElementById('competitor-year-of-birth');
+    if (yearOfBirthInput) {
+        yearOfBirthInput.max = new Date().getFullYear();
+    }
+
     // Competitor form
     const competitorForm = document.getElementById('competitor-data-form');
     if (competitorForm) {
