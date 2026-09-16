@@ -18,22 +18,25 @@ public final class RelayRules {
     }
 
     /**
-     * Returns why the competitor cannot take a lane in the given relay and
-     * discipline, or null if they can. ignoreAssignmentId is left out of the
-     * check (the assignment being replaced).
+     * Returns why the start cannot take a lane in the given relay, or null if
+     * it can. competitorOfStart resolves an assignment's start to its
+     * competitor; ignoreAssignmentId is left out of the check (the assignment
+     * being replaced).
      */
-    public static String checkConflict(int competitorId, String relayId, String disciplineId,
-                                       List<Map<String, Object>> assignments, String ignoreAssignmentId) {
+    public static String checkConflict(String startId, int competitorId, String relayId,
+                                       List<Map<String, Object>> assignments,
+                                       Map<String, Integer> competitorOfStart, String ignoreAssignmentId) {
         for (Map<String, Object> a : assignments) {
-            if (intOf(a.get("competitor_id")) != competitorId || Objects.equals(a.get("id"), ignoreAssignmentId)) {
+            if (Objects.equals(a.get("id"), ignoreAssignmentId)) {
                 continue;
             }
-            // Rule 1: one start per discipline, across the whole meet
-            if (disciplineId.equals(a.get("discipline_id"))) {
-                return "Competitor already has a start in this discipline";
+            // Rule 1: a registered start is shot once, so it takes at most one lane
+            if (startId.equals(a.get("start_id"))) {
+                return "This start already has a lane";
             }
-            // Rule 2: one lane per relay, across all disciplines
-            if (relayId.equals(a.get("relay_id"))) {
+            // Rule 2: one lane per relay, across all ranges — all ranges fire at the same time
+            if (relayId.equals(a.get("relay_id"))
+                && Objects.equals(competitorOfStart.get((String) a.get("start_id")), competitorId)) {
                 return "Competitor already has a lane in this relay";
             }
         }

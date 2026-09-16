@@ -1,10 +1,11 @@
 // Relay management page: schedule builder, lane assignment grid and competitor overview.
-// All relay data comes from /api/rmgmt (stored in relays.json).
+// All relay data comes from /api/rmgmt (stored in relays.json); a lane holds one
+// registered start (e.g. "1-52-1") from data.json.
 
 const API = '/api/rmgmt';
 
 const state = {
-    data: null,          // GET /api/rmgmt: config, disciplines, days, relays, assignments
+    data: null,          // GET /api/rmgmt: config, ranges, disciplines, days, relays, assignments
     relayId: null,       // relay shown in the assignment grid
     overview: null
 };
@@ -89,6 +90,13 @@ function relayLabel(relay) {
     return `${formatDate(day?.date)} · Relay ${relay.sequence_no} · ${relay.start_time}–${addMinutes(relay.start_time, duration())}`;
 }
 
+// "Anna Muster (#1) – No 7 Colt (original) · 1-52-1"
+function startLabel(entry) {
+    const competitor = entry.competitor;
+    const who = competitor ? `${competitor.name} (#${competitor.id})` : 'Unknown competitor';
+    return `${who} – ${entry.discipline_name ?? '?'} · ${entry.start_id}`;
+}
+
 async function loadData() {
     state.data = await api('');
 }
@@ -121,14 +129,25 @@ async function refreshSchedule() {
 }
 
 function renderSchedule() {
-    const { config, disciplines, days, assignments } = state.data;
+    const { config, ranges, disciplines, days, assignments } = state.data;
     document.getElementById('relay-duration').value = config.relay_duration_min;
-    document.getElementById('discipline-summary').textContent =
-        'Lanes per relay: ' + disciplines.map(d => `${d.name} × ${d.lane_count}`).join(', ');
+    document.getElementById('range-summary').textContent =
+        'Lanes per relay: ' + ranges.map(r => `${r.name} × ${r.lane_count}`).join(', ');
+
+    document.getElementById('discipline-ranges-list').innerHTML = disciplines.length
+        ? disciplines.map(discipline => `
+            <label class="flex items-center justify-between gap-2 text-sm border border-gray-200 rounded-md px-3 py-2">
+                <span class="truncate" title="${escapeHtml(discipline.name)}">${escapeHtml(discipline.name)}</span>
+                <select class="discipline-range px-2 py-1 border border-gray-300 rounded-md text-sm" data-discipline-id="${discipline.id}">
+                    <option value="">any range</option>
+                    ${ranges.map(r => `<option value="${escapeHtml(r.id)}" ${r.id === discipline.range_id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
+                </select>
+            </label>`).join('')
+        : '<p class="text-sm text-gray-500">No disciplines yet. Activate disciplines and register starts in the competition management first.</p>';
 
     const filled = new Map();
     assignments.forEach(a => {
-        const key = `${a.relay_id}/${a.discipline_id}`;
+        const key = `${a.relay_id}/${a.range_id}`;
         filled.set(key, (filled.get(key) || 0) + 1);
     });
 
@@ -156,7 +175,7 @@ function renderSchedule() {
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relay</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                            ${state.data.disciplines.map(d => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(d.name)}</th>`).join('')}
+                            ${ranges.map(r => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(r.name)}</th>`).join('')}
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
                         </tr>
                     </thead>
@@ -165,16 +184,16 @@ function renderSchedule() {
                         <tr data-relay-id="${escapeHtml(relay.id)}">
                             <td class="px-4 py-2 text-sm font-medium">${relay.sequence_no}</td>
                             <td class="px-4 py-2 text-sm">${escapeHtml(relay.start_time)}–${addMinutes(relay.start_time, config.relay_duration_min)}</td>
-                            ${state.data.disciplines.map(d => {
-                                const n = filled.get(`${relay.id}/${d.id}`) || 0;
-                                return `<td class="px-4 py-2 text-sm ${n === d.lane_count ? 'text-green-700 font-medium' : 'text-gray-600'}">${n} / ${d.lane_count}</td>`;
+                            ${ranges.map(r => {
+                                const n = filled.get(`${relay.id}/${r.id}`) || 0;
+                                return `<td class="px-4 py-2 text-sm ${n === r.lane_count ? 'text-green-700 font-medium' : 'text-gray-600'}">${n} / ${r.lane_count}</td>`;
                             }).join('')}
                             <td class="px-4 py-2 text-sm whitespace-nowrap no-print">
                                 <button class="relay-open-btn text-blue-600 hover:text-blue-800 mr-3">Assign lanes</button>
                                 <button class="relay-delete-btn text-red-600 hover:text-red-800">Delete</button>
                             </td>
                         </tr>`).join('')}
-                        ${relays.length === 0 ? `<tr><td colspan="${3 + state.data.disciplines.length}" class="px-4 py-4 text-sm text-gray-500 text-center">No relays on this day yet.</td></tr>` : ''}
+                        ${relays.length === 0 ? `<tr><td colspan="${3 + ranges.length}" class="px-4 py-4 text-sm text-gray-500 text-center">No relays on this day yet.</td></tr>` : ''}
                     </tbody>
                 </table>
             </div>
@@ -193,6 +212,18 @@ function setupScheduleListeners() {
         perform(async () => {
             await api('/config', 'PUT', { relay_duration_min: minutes });
             showMessage('Relay duration saved, start times recalculated', 'success');
+        }, refreshSchedule);
+    });
+
+    document.getElementById('discipline-ranges-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const mapping = {};
+        document.querySelectorAll('.discipline-range').forEach(select => {
+            mapping[select.dataset.disciplineId] = select.value || null;
+        });
+        perform(async () => {
+            await api('/discipline-ranges', 'PUT', { discipline_ranges: mapping });
+            showMessage('Ranges saved', 'success');
         }, refreshSchedule);
     });
 
@@ -255,12 +286,12 @@ async function renderRelay() {
     const relayId = state.relayId;
     const [relay, ...available] = await Promise.all([
         api(`/relays/${encodeURIComponent(relayId)}`),
-        ...state.data.disciplines.map(d =>
-            api(`/relays/${encodeURIComponent(relayId)}/available-competitors?discipline_id=${encodeURIComponent(d.id)}`))
+        ...state.data.ranges.map(r =>
+            api(`/relays/${encodeURIComponent(relayId)}/available-starts?range_id=${encodeURIComponent(r.id)}`))
     ]);
     if (relayId !== state.relayId) return; // user switched relay meanwhile
 
-    const availableByDiscipline = new Map(state.data.disciplines.map((d, i) => [d.id, available[i]]));
+    const availableByRange = new Map(state.data.ranges.map((r, i) => [r.id, available[i]]));
     const end = addMinutes(relay.start_time, relay.relay_duration_min);
 
     document.getElementById('relay-detail').innerHTML = `
@@ -269,19 +300,18 @@ async function renderRelay() {
             <span class="text-base font-normal text-gray-600">${escapeHtml(formatDate(relay.day?.date))} · ${escapeHtml(relay.start_time)}–${end}</span>
         </h2>
         <div class="relay-grid grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            ${relay.disciplines.map(block => laneBlock(relay, block, availableByDiscipline.get(block.id) || [])).join('')}
+            ${relay.ranges.map(block => laneBlock(block, availableByRange.get(block.id) || [])).join('')}
         </div>`;
 }
 
-function laneBlock(relay, block, available) {
+function laneBlock(block, available) {
     const taken = block.lanes.filter(l => l.assignment).length;
     const optionsFor = (assignment) => {
         const current = assignment
-            ? `<option value="${assignment.competitor_id}" selected>${escapeHtml(competitorLabel(assignment.competitor, assignment.competitor_id))}</option>`
+            ? `<option value="${escapeHtml(assignment.start_id)}" selected>${escapeHtml(startLabel(assignment))}</option>`
             : '';
         return `<option value="">— empty —</option>${current}` + available
-            .filter(c => !assignment || c.id !== assignment.competitor_id)
-            .map(c => `<option value="${c.id}">${escapeHtml(competitorLabel(c, c.id))}</option>`)
+            .map(start => `<option value="${escapeHtml(start.start_id)}">${escapeHtml(startLabel(start))}</option>`)
             .join('');
     };
 
@@ -294,24 +324,19 @@ function laneBlock(relay, block, available) {
             <table class="min-w-full divide-y divide-gray-100">
                 <tbody>
                     ${block.lanes.map(lane => `
-                    <tr data-discipline-id="${escapeHtml(block.id)}" data-lane-no="${lane.lane_no}"
+                    <tr data-range-id="${escapeHtml(block.id)}" data-lane-no="${lane.lane_no}"
                         data-assignment-id="${escapeHtml(lane.assignment?.id ?? '')}">
                         <td class="px-3 py-1 text-sm font-medium text-gray-500 w-12 text-right">${lane.lane_no}</td>
                         <td class="px-3 py-1">
                             <select class="lane-select w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'}">
                                 ${optionsFor(lane.assignment)}
                             </select>
-                            <span class="print-only text-sm">${lane.assignment ? escapeHtml(competitorLabel(lane.assignment.competitor, lane.assignment.competitor_id)) : ''}</span>
+                            <span class="print-only text-sm">${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}</span>
                         </td>
                     </tr>`).join('')}
                 </tbody>
             </table>
         </div>`;
-}
-
-function competitorLabel(competitor, id) {
-    if (!competitor) return `Unknown competitor #${id}`;
-    return `${competitor.name} (#${competitor.id})${competitor.club ? ` – ${competitor.club}` : ''}`;
 }
 
 function setupAssignmentListeners() {
@@ -338,17 +363,17 @@ function setupAssignmentListeners() {
         if (!event.target.classList.contains('lane-select')) return;
         const row = event.target.closest('tr');
         const assignmentId = row.dataset.assignmentId || null;
-        const competitorId = event.target.value;
+        const startId = event.target.value;
         event.target.disabled = true;
 
         perform(async () => {
-            if (competitorId) {
+            if (startId) {
                 await api('/assignments', 'POST', {
                     relay_id: state.relayId,
-                    discipline_id: row.dataset.disciplineId,
+                    range_id: row.dataset.rangeId,
                     lane_no: parseInt(row.dataset.laneNo, 10),
-                    competitor_id: parseInt(competitorId, 10),
-                    // the occupant this user saw, so a lane changed by someone else is not overwritten
+                    start_id: startId,
+                    // the assignment this user saw, so a lane changed by someone else is not overwritten
                     expected_assignment_id: assignmentId
                 });
             } else if (assignmentId) {
@@ -370,46 +395,53 @@ async function refreshOverview() {
 }
 
 function renderOverview() {
-    const { disciplines, rows, lane_issues: laneIssues } = state.overview;
+    const { rows, data_issues: dataIssues } = state.overview;
     const filter = document.getElementById('overview-filter').value.trim().toLowerCase();
     const issuesOnly = document.getElementById('overview-issues-only').checked;
     const multipleDays = state.data.days.length > 1;
 
-    const problemCount = rows.filter(r => r.issues.length).length + laneIssues.length;
+    const problemCount = rows.filter(r => r.issues.length).length + dataIssues.length;
     document.getElementById('overview-issues').innerHTML = problemCount
         ? `<div class="mb-4 px-4 py-3 rounded-md bg-red-100 text-red-800 border border-red-200">
                ${problemCount} problem${problemCount === 1 ? '' : 's'} found in the stored relay data.
-               ${laneIssues.map(i => `<div class="text-sm">${escapeHtml(i)}</div>`).join('')}
+               ${dataIssues.map(i => `<div class="text-sm">${escapeHtml(i)}</div>`).join('')}
            </div>`
         : '';
 
     const th = (text) => `<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(text)}</th>`;
     document.getElementById('overview-head').innerHTML =
-        `<tr>${th('Competitor')}${th('Club')}${disciplines.map(d => th(d.name)).join('')}${th('Problems')}</tr>`;
+        `<tr>${th('Competitor')}${th('Club')}${th('Scheduled starts')}${th('Not yet scheduled')}${th('Problems')}</tr>`;
 
     const visible = rows.filter(row => {
         if (issuesOnly && row.issues.length === 0) return false;
         if (!filter) return true;
-        return `${row.competitor.name} ${row.competitor.club ?? ''} #${row.competitor.id}`.toLowerCase().includes(filter);
+        const haystack = [`${row.competitor.name} ${row.competitor.club ?? ''} #${row.competitor.id}`,
+            ...row.scheduled.map(e => `${e.discipline_name} ${e.start_id}`),
+            ...row.unscheduled.map(e => `${e.discipline_name} ${e.start_id}`)].join(' ').toLowerCase();
+        return haystack.includes(filter);
     });
 
-    const cell = (entry) => {
+    const scheduledLine = (entry) => {
         const when = `${multipleDays ? `${escapeHtml(formatDate(entry.date))}, ` : ''}${escapeHtml(entry.start_time ?? '?')}`;
-        return `<div><a href="#assignment" class="overview-relay-link text-blue-600 hover:underline" data-relay-id="${escapeHtml(entry.relay_id)}">Relay ${entry.sequence_no ?? '?'}</a>
-                · Lane ${entry.lane_no} <span class="text-gray-500">(${when})</span></div>`;
+        return `<div>
+            <span class="text-gray-900">${escapeHtml(entry.discipline_name ?? '?')}</span>
+            <span class="text-gray-400">${escapeHtml(entry.start_id)}</span> →
+            <a href="#assignment" class="overview-relay-link text-blue-600 hover:underline" data-relay-id="${escapeHtml(entry.relay_id)}">Relay ${entry.sequence_no ?? '?'}</a>
+            · ${escapeHtml(entry.range_name ?? '?')} lane ${entry.lane_no} <span class="text-gray-500">(${when})</span>
+        </div>`;
     };
 
     document.getElementById('overview-body').innerHTML = visible.map(row => `
         <tr class="${row.issues.length ? 'bg-red-50' : ''}">
             <td class="px-4 py-2 text-sm font-medium whitespace-nowrap">${escapeHtml(row.competitor.name)} <span class="text-gray-400">#${row.competitor.id}</span></td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(row.competitor.club ?? '')}</td>
-            ${disciplines.map(d => {
-                const entries = row.assignments.filter(a => a.discipline_id === d.id);
-                return `<td class="px-4 py-2 text-sm">${entries.length ? entries.map(cell).join('') : '<span class="text-gray-300">–</span>'}</td>`;
-            }).join('')}
+            <td class="px-4 py-2 text-sm">${row.scheduled.length ? row.scheduled.map(scheduledLine).join('') : '<span class="text-gray-300">–</span>'}</td>
+            <td class="px-4 py-2 text-sm text-amber-700">${row.unscheduled.length
+                ? row.unscheduled.map(s => `<div>${escapeHtml(s.discipline_name ?? '?')} <span class="text-gray-400">${escapeHtml(s.start_id)}</span></div>`).join('')
+                : '<span class="text-gray-300">–</span>'}</td>
             <td class="px-4 py-2 text-sm text-red-700">${row.issues.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</td>
         </tr>`).join('')
-        || `<tr><td colspan="${3 + disciplines.length}" class="px-4 py-6 text-center text-sm text-gray-500">No competitors to show.</td></tr>`;
+        || '<tr><td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No competitors to show.</td></tr>';
 }
 
 function setupOverviewListeners() {

@@ -11,7 +11,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Rankings** — automatically sorted rankings with tie-breaking support
-- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and lane assignments across the 25m/50m/100m ranges
+- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
 - **JSON file storage** — simple file-based storage, no database required
 
 ## Technology Stack
@@ -48,7 +48,7 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 - **`data.json`** — all competition-specific data (competitors, starts, results, active disciplines). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
 - **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels). Tracked in the repo as shared configuration.
-- **`relays.json`** — everything about relays (meet days, relays, lane assignments, lane counts, relay duration), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors are not copied into it, only referenced by id.
+- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, the discipline-to-range mapping, relay duration), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
 ## Multiple Users
 
@@ -95,24 +95,30 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 
 ### Relay management (`/api/rmgmt`)
 
-Backs the standalone page at `/rmgmt` and stores everything in `relays.json`. A **relay** (Durchgang) is one time slot in which all three ranges fire at once — 25m with 15 lanes, 50m with 12, 100m with 8 (lane counts are editable in `relays.json`). The relay duration is a single meet-wide value, so a day's relay times follow from its start time.
+Backs the standalone page at `/rmgmt` and stores everything in `relays.json`.
 
-Two rules are enforced on the server and also drive the lane dropdowns, so conflicting competitors are not offered:
+- A **relay** (Durchgang) is one time slot in which all **ranges** fire at once. A range is a lane block: 25m with 15 lanes, 50m with 12, 100m with 8 (ids `m25`/`m50`/`m100`, lane counts editable in `relays.json`). Ranges are not the MLAIC disciplines — those keep living in `disciplines.json`.
+- The relay duration is a single meet-wide value, so a day's relay times follow from its start time.
+- A lane holds one **registered start** (e.g. `1-52-1`), created as usual in the competition management. `relays.json` only stores the start id; competitor and discipline are resolved from `data.json` on read.
+- Each MLAIC discipline can be mapped to the range it fires on. A lane then only offers starts of that range; a discipline left on "any range" is offered everywhere.
 
-1. A competitor has at most one start per range, across the whole meet.
-2. A competitor has at most one lane per relay (all three ranges fire simultaneously).
+Two rules are enforced on the server and also drive the lane dropdowns, so conflicting starts are not offered:
 
-- `GET /api/rmgmt` — config, ranges, days, relays and assignments in one response
+1. A registered start takes at most one lane (it is shot once).
+2. A competitor has at most one lane per relay (all ranges fire simultaneously).
+
+- `GET /api/rmgmt` — config, ranges, disciplines with their range, days, relays and assignments in one response
 - `PUT /api/rmgmt/config` — set `relay_duration_min` (recalculates every day's start times)
+- `PUT /api/rmgmt/discipline-ranges` — replace the discipline-to-range mapping, e.g. `{"discipline_ranges": {"52": "m25"}}` (a discipline left out, or set to `null`, may be assigned to any range)
 - `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days (deleting a day removes its relays and assignments)
 - `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
 - `GET /api/rmgmt/relays/{id}` — relay detail: one lane block per range with its current assignments
 - `DELETE /api/rmgmt/relays/{id}` — delete a relay and its assignments; later relays of the day move up
-- `GET /api/rmgmt/relays/{id}/available-competitors?discipline_id={id}` — competitors that may take a lane here
-- `POST /api/rmgmt/assignments` — put a competitor in a lane; `409` with the reason on a rule violation. Send `expected_assignment_id` (the occupant the user saw, `null` for an empty lane) and the save is rejected with `409` if someone else changed that lane meanwhile
+- `GET /api/rmgmt/relays/{id}/available-starts?range_id={id}` — registered starts that may take a lane here
+- `POST /api/rmgmt/assignments` — put a start in a lane (`relay_id`, `range_id`, `lane_no`, `start_id`); `409` with the reason on a rule violation, `400` if the start's discipline fires on another range. Send `expected_assignment_id` (the assignment the user saw, `null` for an empty lane) and the save is rejected with `409` if someone else changed that lane meanwhile
 - `DELETE /api/rmgmt/assignments/{id}` — clear a lane
 - `GET /api/rmgmt/competitors/{id}/schedule` — one competitor's lanes over the whole meet
-- `GET /api/rmgmt/overview` — all competitors × ranges plus any rule violations found in the stored data (safety net for a hand-edited `relays.json` or a deleted competitor)
+- `GET /api/rmgmt/overview` — every competitor's starts, where each is scheduled, which still need a lane, plus any rule violation found in the stored data (safety net for a hand-edited `relays.json`, a deleted start, or a discipline remapped to another range afterwards)
 
 ## Project Structure
 

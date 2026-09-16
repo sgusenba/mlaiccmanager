@@ -42,6 +42,12 @@ public class RelayResource {
         return handle("update relay config", () -> relayService.updateConfig(request));
     }
 
+    @PUT
+    @Path("/discipline-ranges")
+    public Response updateDisciplineRanges(Map<String, Object> request) {
+        return handle("update discipline ranges", () -> relayService.updateDisciplineRanges(request));
+    }
+
     @POST
     @Path("/days")
     public Response createDay(Map<String, Object> request) {
@@ -85,13 +91,13 @@ public class RelayResource {
     }
 
     @GET
-    @Path("/relays/{id}/available-competitors")
-    public Response getAvailableCompetitors(@PathParam("id") String id, @QueryParam("discipline_id") String disciplineId) {
-        return handle("get available competitors", () -> {
-            if (disciplineId == null || disciplineId.isBlank()) {
-                throw new IllegalArgumentException("discipline_id is required");
+    @Path("/relays/{id}/available-starts")
+    public Response getAvailableStarts(@PathParam("id") String id, @QueryParam("range_id") String rangeId) {
+        return handle("get available starts", () -> {
+            if (rangeId == null || rangeId.isBlank()) {
+                throw new IllegalArgumentException("range_id is required");
             }
-            return relayService.getAvailableCompetitors(id, disciplineId);
+            return relayService.getAvailableStarts(id, rangeId);
         });
     }
 

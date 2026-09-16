@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.model.Discipline;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -18,15 +19,21 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Relay management: meet days, relays (heats) and lane assignments. Everything
- * lives in relays.json, separate from data.json; competitors are only read
- * from data.json and referenced by id.
+ * lives in relays.json, separate from data.json; a lane holds one registered
+ * start (e.g. "1-52-1"), which is only referenced by id and stays in data.json.
+ *
+ * <p>A range (25m/50m/100m) is the lane block a relay is divided into; the
+ * MLAIC disciplines of data.json/disciplines.json can be mapped to a range so
+ * that only the starts belonging there are offered for a lane.
  */
 public class RelayService {
     private static final Logger logger = LoggerFactory.getLogger(RelayService.class);
@@ -47,14 +54,32 @@ public class RelayService {
         T apply(Map<String, Object> relays) throws Exception;
     }
 
+    /** Competitors, their registered starts and the discipline names, read from data.json. */
+    private record Registry(Map<Integer, Map<String, Object>> competitors,
+                            Map<String, Map<String, Object>> starts,
+                            Map<Integer, String> disciplineNames,
+                            List<Integer> activeDisciplines) {
+
+        Map<String, Integer> competitorOfStart() {
+            Map<String, Integer> byStart = new HashMap<>();
+            starts.forEach((startId, start) -> byStart.put(startId, RelayRules.intOf(start.get("competitor_id"))));
+            return byStart;
+        }
+    }
+
     public RelayService(String relaysFilePath, DataService dataService) {
         this.relaysFilePath = relaysFilePath;
         this.dataService = dataService;
     }
 
-    /** The whole relays.json: config, disciplines, days, relays and assignments. */
+    /** Everything the page needs at once: config, ranges, disciplines, days, relays, assignments. */
     public Map<String, Object> getAll() throws Exception {
-        return read(relays -> relays);
+        return read(relays -> {
+            Registry registry = registry();
+            Map<String, Object> result = new LinkedHashMap<>(relays);
+            result.put("disciplines", disciplinesWithRange(relays, registry));
+            return result;
+        });
     }
 
     public Map<String, Object> updateConfig(Map<String, Object> request) throws Exception {
@@ -71,6 +96,37 @@ public class RelayService {
         });
     }
 
+    /**
+     * Replaces the discipline-to-range mapping, e.g. {"52": "m25"}. A discipline
+     * without a mapping can be assigned to any range. Assignments already made
+     * are left alone; the overview flags the ones that no longer match.
+     */
+    public List<Map<String, Object>> updateDisciplineRanges(Map<String, Object> request) throws Exception {
+        Object raw = request != null ? request.get("discipline_ranges") : null;
+        if (!(raw instanceof Map)) {
+            throw new IllegalArgumentException("discipline_ranges must be an object of discipline id to range id");
+        }
+        return update(relays -> {
+            Map<String, Object> mapping = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) raw).entrySet()) {
+                String disciplineId = String.valueOf(entry.getKey());
+                try {
+                    Integer.parseInt(disciplineId);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Discipline id must be a number, got " + disciplineId);
+                }
+                if (entry.getValue() == null || String.valueOf(entry.getValue()).isBlank()) {
+                    continue; // "any range"
+                }
+                String rangeId = String.valueOf(entry.getValue());
+                findRange(relays, rangeId);
+                mapping.put(disciplineId, rangeId);
+            }
+            relays.put("discipline_ranges", mapping);
+            return disciplinesWithRange(relays, registry());
+        });
+    }
+
     public Map<String, Object> createDay(Map<String, Object> request) throws Exception {
         String date = requireDate(request);
         String startTime = requireTime(request);
@@ -81,8 +137,7 @@ public class RelayService {
             day.put("date", date);
             day.put("start_time", startTime);
             days.add(day);
-            days.sort(Comparator.comparing((Map<String, Object> d) -> (String) d.get("date"))
-                .thenComparing(d -> (String) d.get("start_time")));
+            sortDays(days);
             return day;
         });
     }
@@ -95,6 +150,7 @@ public class RelayService {
             day.put("date", date);
             day.put("start_time", startTime);
             recompute(relays, day);
+            sortDays(listOf(relays, "days"));
             return day;
         });
     }
@@ -156,90 +212,115 @@ public class RelayService {
         });
     }
 
-    /** The relay with its day and one lane block per discipline. */
+    /** The relay with its day and one lane block per range. */
     public Map<String, Object> getRelay(String relayId) throws Exception {
         return read(relays -> {
             Map<String, Object> relay = findRelay(relays, relayId);
-            Map<Integer, Map<String, Object>> competitors = competitorsById();
+            Registry registry = registry();
 
             List<Map<String, Object>> blocks = new ArrayList<>();
-            for (Map<String, Object> discipline : listOf(relays, "disciplines")) {
+            for (Map<String, Object> range : listOf(relays, "ranges")) {
                 List<Map<String, Object>> lanes = new ArrayList<>();
-                int laneCount = RelayRules.intOf(discipline.get("lane_count"));
+                int laneCount = RelayRules.intOf(range.get("lane_count"));
                 for (int laneNo = 1; laneNo <= laneCount; laneNo++) {
-                    Map<String, Object> assignment = findLane(relays, relayId, (String) discipline.get("id"), laneNo);
+                    Map<String, Object> assignment = findLane(relays, relayId, (String) range.get("id"), laneNo);
                     Map<String, Object> lane = new LinkedHashMap<>();
                     lane.put("lane_no", laneNo);
-                    lane.put("assignment", assignment != null ? withCompetitor(assignment, competitors) : null);
+                    lane.put("assignment", assignment != null ? resolve(assignment, registry) : null);
                     lanes.add(lane);
                 }
-                Map<String, Object> block = new LinkedHashMap<>(discipline);
+                Map<String, Object> block = new LinkedHashMap<>(range);
                 block.put("lanes", lanes);
                 blocks.add(block);
             }
 
             Map<String, Object> detail = new LinkedHashMap<>(relay);
-            detail.put("day", findDay(relays, (String) relay.get("day_id")));
+            detail.put("day", find(listOf(relays, "days"), relay.get("day_id")));
             detail.put("relay_duration_min", relayDuration(relays));
-            detail.put("disciplines", blocks);
+            detail.put("ranges", blocks);
             return detail;
         });
     }
 
-    /** Competitors that may take a lane in this relay and discipline without breaking a rule. */
-    public List<Map<String, Object>> getAvailableCompetitors(String relayId, String disciplineId) throws Exception {
+    /**
+     * Registered starts that may take a lane in this relay and range: not yet
+     * assigned anywhere, competitor still free in this relay, and the start's
+     * discipline either mapped to this range or not mapped at all.
+     */
+    public List<Map<String, Object>> getAvailableStarts(String relayId, String rangeId) throws Exception {
         return read(relays -> {
             findRelay(relays, relayId);
-            findDiscipline(relays, disciplineId);
+            findRange(relays, rangeId);
+            Registry registry = registry();
             List<Map<String, Object>> assignments = listOf(relays, "assignments");
+            Map<String, Integer> competitorOfStart = registry.competitorOfStart();
+
             List<Map<String, Object>> available = new ArrayList<>();
-            for (Map<String, Object> competitor : competitorsById().values()) {
-                int competitorId = RelayRules.intOf(competitor.get("id"));
-                if (RelayRules.checkConflict(competitorId, relayId, disciplineId, assignments, null) == null) {
-                    available.add(competitorSummary(competitor));
+            for (Map<String, Object> start : registry.starts().values()) {
+                int disciplineId = RelayRules.intOf(start.get("discipline_id"));
+                String mapped = rangeOfDiscipline(relays, disciplineId);
+                if (mapped != null && !mapped.equals(rangeId)) {
+                    continue;
+                }
+                String startId = (String) start.get("start_id");
+                int competitorId = RelayRules.intOf(start.get("competitor_id"));
+                if (RelayRules.checkConflict(startId, competitorId, relayId, assignments, competitorOfStart, null) == null) {
+                    available.add(startSummary(start, registry));
                 }
             }
+            available.sort(Comparator
+                .comparing((Map<String, Object> s) -> Objects.toString(s.get("discipline_name"), ""))
+                .thenComparing(s -> Objects.toString(competitorName(s), "")));
             return available;
         });
     }
 
     /**
-     * Puts a competitor into a lane, replacing whoever is in it. If the request
-     * contains "expected_assignment_id" (the lane occupant the user saw, null for
-     * an empty lane) and the lane changed meanwhile, a ConflictException carries
-     * the current occupant.
+     * Puts a registered start into a lane, replacing whatever is in it. If the
+     * request contains "expected_assignment_id" (the assignment the user saw,
+     * null for an empty lane) and the lane changed meanwhile, a
+     * ConflictException carries the current assignment.
      */
     public Map<String, Object> assign(Map<String, Object> request) throws Exception {
         String relayId = requireString(request, "relay_id");
-        String disciplineId = requireString(request, "discipline_id");
+        String rangeId = requireString(request, "range_id");
         int laneNo = requireInt(request, "lane_no");
-        int competitorId = requireInt(request, "competitor_id");
+        String startId = requireString(request, "start_id");
 
         return update(relays -> {
             findRelay(relays, relayId);
-            Map<String, Object> discipline = findDiscipline(relays, disciplineId);
-            int laneCount = RelayRules.intOf(discipline.get("lane_count"));
+            Map<String, Object> range = findRange(relays, rangeId);
+            int laneCount = RelayRules.intOf(range.get("lane_count"));
             if (laneNo < 1 || laneNo > laneCount) {
-                throw new IllegalArgumentException("Lane must be between 1 and " + laneCount + " for " + discipline.get("name"));
-            }
-            Map<Integer, Map<String, Object>> competitors = competitorsById();
-            if (!competitors.containsKey(competitorId)) {
-                throw new IllegalArgumentException("Competitor not found");
+                throw new IllegalArgumentException("Lane must be between 1 and " + laneCount + " for " + range.get("name"));
             }
 
-            Map<String, Object> current = findLane(relays, relayId, disciplineId, laneNo);
+            Registry registry = registry();
+            Map<String, Object> start = registry.starts().get(startId);
+            if (start == null) {
+                throw new IllegalArgumentException("Start " + startId + " not found");
+            }
+            int disciplineId = RelayRules.intOf(start.get("discipline_id"));
+            String mapped = rangeOfDiscipline(relays, disciplineId);
+            if (mapped != null && !mapped.equals(rangeId)) {
+                throw new IllegalArgumentException(disciplineName(registry, disciplineId) + " is set to fire on "
+                    + rangeName(relays, mapped) + ", not on " + range.get("name"));
+            }
+
+            Map<String, Object> current = findLane(relays, relayId, rangeId, laneNo);
             String currentId = current != null ? (String) current.get("id") : null;
             if (request.containsKey("expected_assignment_id")
                 && !Objects.equals(request.get("expected_assignment_id"), currentId)) {
                 throw new ConflictException("Lane was changed by someone else",
-                    current != null ? withCompetitor(current, competitors) : null);
+                    current != null ? resolve(current, registry) : null);
             }
-            if (current != null && RelayRules.intOf(current.get("competitor_id")) == competitorId) {
-                return withCompetitor(current, competitors);
+            if (current != null && startId.equals(current.get("start_id"))) {
+                return resolve(current, registry);
             }
 
             List<Map<String, Object>> assignments = listOf(relays, "assignments");
-            String conflict = RelayRules.checkConflict(competitorId, relayId, disciplineId, assignments, currentId);
+            String conflict = RelayRules.checkConflict(startId, RelayRules.intOf(start.get("competitor_id")),
+                relayId, assignments, registry.competitorOfStart(), currentId);
             if (conflict != null) {
                 throw new ConflictException(conflict, null);
             }
@@ -247,14 +328,14 @@ public class RelayService {
             Map<String, Object> assignment = new LinkedHashMap<>();
             assignment.put("id", nextId(assignments, "a"));
             assignment.put("relay_id", relayId);
-            assignment.put("discipline_id", disciplineId);
+            assignment.put("range_id", rangeId);
             assignment.put("lane_no", laneNo);
-            assignment.put("competitor_id", competitorId);
+            assignment.put("start_id", startId);
             if (current != null) {
                 assignments.remove(current);
             }
             assignments.add(assignment);
-            return withCompetitor(assignment, competitors);
+            return resolve(assignment, registry);
         });
     }
 
@@ -270,10 +351,12 @@ public class RelayService {
     /** All lanes of one competitor over the whole meet, in time order. */
     public List<Map<String, Object>> getCompetitorSchedule(int competitorId) throws Exception {
         return read(relays -> {
+            Registry registry = registry();
             List<Map<String, Object>> schedule = new ArrayList<>();
             for (Map<String, Object> assignment : listOf(relays, "assignments")) {
-                if (RelayRules.intOf(assignment.get("competitor_id")) == competitorId) {
-                    schedule.add(scheduleEntry(relays, assignment));
+                Map<String, Object> start = registry.starts().get((String) assignment.get("start_id"));
+                if (start != null && RelayRules.intOf(start.get("competitor_id")) == competitorId) {
+                    schedule.add(scheduleEntry(relays, assignment, registry));
                 }
             }
             schedule.sort(SCHEDULE_ORDER);
@@ -282,74 +365,98 @@ public class RelayService {
     }
 
     /**
-     * Every competitor with their lanes per discipline, plus any rule
-     * violations found in the stored data (safety net: e.g. a hand-edited
-     * relays.json or a competitor deleted from data.json).
+     * Every competitor with their registered starts, where each one is
+     * scheduled and which starts still need a lane, plus any rule violation
+     * found in the stored data (safety net: e.g. a hand-edited relays.json, a
+     * deleted start, or a discipline remapped to another range afterwards).
      */
     public Map<String, Object> getOverview() throws Exception {
         return read(relays -> {
-            Map<Integer, Map<String, Object>> competitors = competitorsById();
+            Registry registry = registry();
             List<Map<String, Object>> assignments = listOf(relays, "assignments");
 
-            Map<Integer, List<Map<String, Object>>> byCompetitor = new LinkedHashMap<>();
-            for (Integer id : competitors.keySet()) {
-                byCompetitor.put(id, new ArrayList<>());
-            }
+            // start id -> where it is scheduled
+            Map<String, List<Map<String, Object>>> byStart = new LinkedHashMap<>();
             for (Map<String, Object> assignment : assignments) {
-                byCompetitor.computeIfAbsent(RelayRules.intOf(assignment.get("competitor_id")), k -> new ArrayList<>())
-                    .add(scheduleEntry(relays, assignment));
+                byStart.computeIfAbsent((String) assignment.get("start_id"), k -> new ArrayList<>())
+                    .add(scheduleEntry(relays, assignment, registry));
             }
+
+            Map<Integer, List<Map<String, Object>>> startsByCompetitor = new LinkedHashMap<>();
+            registry.competitors().keySet().forEach(id -> startsByCompetitor.put(id, new ArrayList<>()));
+            registry.starts().values().forEach(start -> startsByCompetitor
+                .computeIfAbsent(RelayRules.intOf(start.get("competitor_id")), k -> new ArrayList<>())
+                .add(start));
 
             List<Map<String, Object>> rows = new ArrayList<>();
-            for (Map.Entry<Integer, List<Map<String, Object>>> entry : byCompetitor.entrySet()) {
-                Map<String, Object> competitor = competitors.get(entry.getKey());
-                List<Map<String, Object>> entries = entry.getValue();
-                entries.sort(SCHEDULE_ORDER);
+            List<String> dataIssues = new ArrayList<>();
 
+            for (Map.Entry<Integer, List<Map<String, Object>>> entry : startsByCompetitor.entrySet()) {
+                int competitorId = entry.getKey();
+                Map<String, Object> competitor = registry.competitors().get(competitorId);
+                List<Map<String, Object>> scheduled = new ArrayList<>();
+                List<Map<String, Object>> unscheduled = new ArrayList<>();
                 List<String> issues = new ArrayList<>();
-                if (competitor == null) {
-                    issues.add("Competitor #" + entry.getKey() + " no longer exists");
-                }
-                Map<Object, Integer> perDiscipline = new HashMap<>();
-                Map<Object, Integer> perRelay = new HashMap<>();
-                for (Map<String, Object> e : entries) {
-                    perDiscipline.merge(e.get("discipline_id"), 1, Integer::sum);
-                    perRelay.merge(e.get("relay_id"), 1, Integer::sum);
-                    if (find(listOf(relays, "relays"), e.get("relay_id")) == null
-                        || find(listOf(relays, "disciplines"), e.get("discipline_id")) == null) {
-                        issues.add("Assignment " + e.get("assignment_id") + " points to a missing relay or discipline");
+
+                for (Map<String, Object> start : entry.getValue()) {
+                    String startId = (String) start.get("start_id");
+                    List<Map<String, Object>> entries = byStart.getOrDefault(startId, List.of());
+                    if (entries.isEmpty()) {
+                        unscheduled.add(startSummary(start, registry));
+                        continue;
+                    }
+                    if (entries.size() > 1) {
+                        issues.add("Start " + startId + " has " + entries.size() + " lanes");
+                    }
+                    for (Map<String, Object> scheduledEntry : entries) {
+                        scheduled.add(scheduledEntry);
+                        String mapped = rangeOfDiscipline(relays, RelayRules.intOf(start.get("discipline_id")));
+                        if (mapped != null && !mapped.equals(scheduledEntry.get("range_id"))) {
+                            issues.add(scheduledEntry.get("discipline_name") + " is scheduled on "
+                                + scheduledEntry.get("range_name") + " but is set to fire on " + rangeName(relays, mapped));
+                        }
+                        if (scheduledEntry.get("start_time") == null) {
+                            issues.add("Start " + startId + " points to a missing relay or range");
+                        }
                     }
                 }
-                perDiscipline.forEach((d, n) -> {
-                    if (n > 1) issues.add(n + " starts in discipline " + disciplineName(relays, d));
-                });
-                perRelay.forEach((r, n) -> {
-                    if (n > 1) issues.add(n + " lanes in the same relay");
+
+                scheduled.sort(SCHEDULE_ORDER);
+                Map<Object, Integer> perRelay = new HashMap<>();
+                scheduled.forEach(e -> perRelay.merge(e.get("relay_id"), 1, Integer::sum));
+                perRelay.forEach((relayId, count) -> {
+                    if (count > 1) issues.add(count + " lanes in the same relay");
                 });
 
                 Map<String, Object> row = new LinkedHashMap<>();
-                row.put("competitor", competitor != null
-                    ? competitorSummary(competitor)
-                    : Map.of("id", entry.getKey(), "name", "Unknown competitor"));
-                row.put("assignments", entries);
+                row.put("competitor", competitor != null ? competitorSummary(competitor)
+                    : Map.of("id", competitorId, "name", "Unknown competitor"));
+                row.put("scheduled", scheduled);
+                row.put("unscheduled", unscheduled);
                 row.put("issues", issues);
                 rows.add(row);
             }
 
-            // Two assignments in the same lane can only come from editing the file by hand
-            List<String> laneIssues = new ArrayList<>();
+            // Assignments whose start is gone from data.json have no competitor to list them under
+            for (Map<String, Object> assignment : assignments) {
+                String startId = (String) assignment.get("start_id");
+                if (!registry.starts().containsKey(startId)) {
+                    dataIssues.add("Lane " + laneLabel(relays, assignment) + " holds start " + startId
+                        + ", which no longer exists");
+                }
+            }
             Map<String, Integer> laneUse = new HashMap<>();
             for (Map<String, Object> a : assignments) {
-                laneUse.merge(a.get("relay_id") + "/" + a.get("discipline_id") + "/" + a.get("lane_no"), 1, Integer::sum);
+                laneUse.merge(laneLabel(relays, a), 1, Integer::sum);
             }
-            laneUse.forEach((lane, n) -> {
-                if (n > 1) laneIssues.add("Lane " + lane + " is assigned " + n + " times");
+            laneUse.forEach((lane, count) -> {
+                if (count > 1) dataIssues.add("Lane " + lane + " is assigned " + count + " times");
             });
 
             Map<String, Object> overview = new LinkedHashMap<>();
-            overview.put("disciplines", listOf(relays, "disciplines"));
+            overview.put("ranges", listOf(relays, "ranges"));
             overview.put("rows", rows);
-            overview.put("lane_issues", laneIssues);
+            overview.put("data_issues", dataIssues);
             return overview;
         });
     }
@@ -360,28 +467,101 @@ public class RelayService {
         .comparing((Map<String, Object> e) -> Objects.toString(e.get("date"), ""))
         .thenComparing(e -> Objects.toString(e.get("start_time"), ""));
 
-    private Map<String, Object> scheduleEntry(Map<String, Object> relays, Map<String, Object> assignment) {
-        Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("assignment_id", assignment.get("id"));
-        entry.put("relay_id", assignment.get("relay_id"));
-        entry.put("discipline_id", assignment.get("discipline_id"));
-        entry.put("discipline_name", disciplineName(relays, assignment.get("discipline_id")));
-        entry.put("lane_no", assignment.get("lane_no"));
+    private Map<String, Object> scheduleEntry(Map<String, Object> relays, Map<String, Object> assignment, Registry registry) {
+        Map<String, Object> entry = resolve(assignment, registry);
         Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
         Map<String, Object> day = relay != null ? find(listOf(relays, "days"), relay.get("day_id")) : null;
+        entry.put("range_name", rangeName(relays, (String) assignment.get("range_id")));
         entry.put("sequence_no", relay != null ? relay.get("sequence_no") : null);
         entry.put("start_time", relay != null ? relay.get("start_time") : null);
         entry.put("date", day != null ? day.get("date") : null);
         return entry;
     }
 
-    private static String disciplineName(Map<String, Object> relays, Object disciplineId) {
-        Map<String, Object> discipline = find(listOf(relays, "disciplines"), disciplineId);
-        return discipline != null ? (String) discipline.get("name") : String.valueOf(disciplineId);
+    /** The stored assignment plus the start, competitor and discipline it points to. */
+    private static Map<String, Object> resolve(Map<String, Object> assignment, Registry registry) {
+        Map<String, Object> result = new LinkedHashMap<>(assignment);
+        Map<String, Object> start = registry.starts().get((String) assignment.get("start_id"));
+        int disciplineId = start != null ? RelayRules.intOf(start.get("discipline_id")) : 0;
+        result.put("start_number", start != null ? start.get("start_number") : null);
+        result.put("discipline_id", start != null ? disciplineId : null);
+        result.put("discipline_name", start != null ? disciplineName(registry, disciplineId) : null);
+        Map<String, Object> competitor = start != null
+            ? registry.competitors().get(RelayRules.intOf(start.get("competitor_id")))
+            : null;
+        result.put("competitor", competitor != null ? competitorSummary(competitor) : null);
+        return result;
+    }
+
+    private static Map<String, Object> startSummary(Map<String, Object> start, Registry registry) {
+        int disciplineId = RelayRules.intOf(start.get("discipline_id"));
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("start_id", start.get("start_id"));
+        summary.put("start_number", start.get("start_number"));
+        summary.put("discipline_id", disciplineId);
+        summary.put("discipline_name", disciplineName(registry, disciplineId));
+        Map<String, Object> competitor = registry.competitors().get(RelayRules.intOf(start.get("competitor_id")));
+        summary.put("competitor", competitor != null ? competitorSummary(competitor) : null);
+        return summary;
+    }
+
+    private static Object competitorName(Map<String, Object> summary) {
+        Object competitor = summary.get("competitor");
+        return competitor instanceof Map ? ((Map<?, ?>) competitor).get("name") : null;
+    }
+
+    private static String disciplineName(Registry registry, int disciplineId) {
+        String name = registry.disciplineNames().get(disciplineId);
+        return name != null ? name : "Discipline #" + disciplineId;
+    }
+
+    /** The active MLAIC disciplines (plus any that are already mapped) with their range. */
+    private static List<Map<String, Object>> disciplinesWithRange(Map<String, Object> relays, Registry registry) {
+        Set<Integer> ids = new LinkedHashSet<>(registry.activeDisciplines());
+        disciplineRangesOf(relays).keySet().forEach(key -> {
+            try {
+                ids.add(Integer.parseInt(key));
+            } catch (NumberFormatException ignored) {
+                // hand-written key, shown only through the mapping itself
+            }
+        });
+        registry.starts().values().forEach(start -> ids.add(RelayRules.intOf(start.get("discipline_id"))));
+
+        List<Map<String, Object>> disciplines = new ArrayList<>();
+        for (Integer id : ids) {
+            Map<String, Object> discipline = new LinkedHashMap<>();
+            discipline.put("id", id);
+            discipline.put("name", disciplineName(registry, id));
+            discipline.put("range_id", rangeOfDiscipline(relays, id));
+            disciplines.add(discipline);
+        }
+        disciplines.sort(Comparator.comparing(d -> Objects.toString(d.get("name"), "")));
+        return disciplines;
+    }
+
+    private static String rangeOfDiscipline(Map<String, Object> relays, int disciplineId) {
+        Object rangeId = disciplineRangesOf(relays).get(String.valueOf(disciplineId));
+        return rangeId instanceof String s && !s.isBlank() ? s : null;
+    }
+
+    private static String rangeName(Map<String, Object> relays, String rangeId) {
+        Map<String, Object> range = find(listOf(relays, "ranges"), rangeId);
+        return range != null ? (String) range.get("name") : String.valueOf(rangeId);
+    }
+
+    private static String laneLabel(Map<String, Object> relays, Map<String, Object> assignment) {
+        Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
+        String relayLabel = relay != null ? "relay " + relay.get("sequence_no") : String.valueOf(assignment.get("relay_id"));
+        return relayLabel + " / " + rangeName(relays, (String) assignment.get("range_id")) + " / " + assignment.get("lane_no");
     }
 
     private void recompute(Map<String, Object> relays, Map<String, Object> day) {
         RelayRules.recomputeDaySchedule(day, relaysOfDay(relays, (String) day.get("id")), relayDuration(relays));
+    }
+
+    private static void sortDays(List<Map<String, Object>> days) {
+        days.sort(Comparator.comparing((Map<String, Object> d) -> (String) d.get("date"))
+            .thenComparing(d -> (String) d.get("start_time")));
     }
 
     private static int relayDuration(Map<String, Object> relays) {
@@ -399,9 +579,9 @@ public class RelayService {
         return result;
     }
 
-    private static Map<String, Object> findLane(Map<String, Object> relays, String relayId, String disciplineId, int laneNo) {
+    private static Map<String, Object> findLane(Map<String, Object> relays, String relayId, String rangeId, int laneNo) {
         for (Map<String, Object> a : listOf(relays, "assignments")) {
-            if (relayId.equals(a.get("relay_id")) && disciplineId.equals(a.get("discipline_id"))
+            if (relayId.equals(a.get("relay_id")) && rangeId.equals(a.get("range_id"))
                 && RelayRules.intOf(a.get("lane_no")) == laneNo) {
                 return a;
             }
@@ -425,12 +605,12 @@ public class RelayService {
         return relay;
     }
 
-    private static Map<String, Object> findDiscipline(Map<String, Object> relays, String disciplineId) {
-        Map<String, Object> discipline = find(listOf(relays, "disciplines"), disciplineId);
-        if (discipline == null) {
-            throw new IllegalArgumentException("Unknown discipline " + disciplineId);
+    private static Map<String, Object> findRange(Map<String, Object> relays, String rangeId) {
+        Map<String, Object> range = find(listOf(relays, "ranges"), rangeId);
+        if (range == null) {
+            throw new IllegalArgumentException("Unknown range " + rangeId);
         }
-        return discipline;
+        return range;
     }
 
     private static Map<String, Object> find(List<Map<String, Object>> items, Object id) {
@@ -458,19 +638,60 @@ public class RelayService {
         return prefix + (max + 1);
     }
 
-    private Map<Integer, Map<String, Object>> competitorsById() throws Exception {
+    /** Competitors, their starts and the discipline names, all read from data.json. */
+    private Registry registry() throws Exception {
+        Map<Integer, String> disciplineNames = new LinkedHashMap<>();
+        for (Discipline discipline : dataService.loadDisciplines()) {
+            disciplineNames.put(discipline.getId(), discipline.getType() != null
+                ? discipline.getEvent() + " (" + discipline.getType() + ")"
+                : discipline.getEvent());
+        }
+
         return dataService.read(data -> {
-            Map<Integer, Map<String, Object>> byId = new LinkedHashMap<>();
+            Map<Integer, Map<String, Object>> competitors = new LinkedHashMap<>();
+            Map<String, Map<String, Object>> starts = new LinkedHashMap<>();
+
             if (data.get("competitors") instanceof List<?> list) {
                 for (Object item : list) {
-                    if (item instanceof Map<?, ?> competitor) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> c = (Map<String, Object>) competitor;
-                        byId.put(RelayRules.intOf(c.get("id")), c);
+                    if (!(item instanceof Map<?, ?> raw)) {
+                        continue;
+                    }
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> competitor = (Map<String, Object>) raw;
+                    int competitorId = RelayRules.intOf(competitor.get("id"));
+                    competitors.put(competitorId, competitor);
+
+                    if (!(competitor.get("starts") instanceof Map<?, ?> startsByDiscipline)) {
+                        continue;
+                    }
+                    for (Object startList : startsByDiscipline.values()) {
+                        if (!(startList instanceof List<?> startItems)) {
+                            continue;
+                        }
+                        for (Object startItem : startItems) {
+                            if (!(startItem instanceof Map<?, ?> start)) {
+                                continue;
+                            }
+                            Map<String, Object> info = new LinkedHashMap<>();
+                            info.put("start_id", start.get("generated_id"));
+                            info.put("start_number", start.get("start_number"));
+                            info.put("discipline_id", RelayRules.intOf(start.get("discipline_id")));
+                            info.put("competitor_id", competitorId);
+                            starts.put((String) start.get("generated_id"), info);
+                        }
                     }
                 }
             }
-            return byId;
+
+            List<Integer> active = new ArrayList<>();
+            if (data.get("active_disciplines") instanceof List<?> ids) {
+                for (Object id : ids) {
+                    if (id instanceof Number n) {
+                        active.add(n.intValue());
+                    }
+                }
+            }
+            return new Registry(competitors, starts, disciplineNames, active);
         });
     }
 
@@ -480,13 +701,6 @@ public class RelayService {
         summary.put("name", competitor.get("name"));
         summary.put("club", competitor.get("club"));
         return summary;
-    }
-
-    private static Map<String, Object> withCompetitor(Map<String, Object> assignment, Map<Integer, Map<String, Object>> competitors) {
-        Map<String, Object> result = new LinkedHashMap<>(assignment);
-        Map<String, Object> competitor = competitors.get(RelayRules.intOf(assignment.get("competitor_id")));
-        result.put("competitor", competitor != null ? competitorSummary(competitor) : null);
-        return result;
     }
 
     private static String requireString(Map<String, Object> request, String key) {
@@ -533,6 +747,11 @@ public class RelayService {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> configOf(Map<String, Object> relays) {
         return (Map<String, Object>) relays.get("config");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> disciplineRangesOf(Map<String, Object> relays) {
+        return (Map<String, Object>) relays.get("discipline_ranges");
     }
 
     @SuppressWarnings("unchecked")
@@ -584,8 +803,11 @@ public class RelayService {
             relays.put("config", new LinkedHashMap<>());
         }
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
-        if (!(relays.get("disciplines") instanceof List)) {
-            relays.put("disciplines", defaultDisciplines());
+        if (!(relays.get("ranges") instanceof List)) {
+            relays.put("ranges", defaultRanges());
+        }
+        if (!(relays.get("discipline_ranges") instanceof Map)) {
+            relays.put("discipline_ranges", new LinkedHashMap<>());
         }
         for (String key : new String[] {"days", "relays", "assignments"}) {
             if (!(relays.get(key) instanceof List)) {
@@ -594,20 +816,20 @@ public class RelayService {
         }
     }
 
-    private static List<Map<String, Object>> defaultDisciplines() {
-        List<Map<String, Object>> disciplines = new ArrayList<>();
-        disciplines.add(discipline("d25", "25m", 15));
-        disciplines.add(discipline("d50", "50m", 12));
-        disciplines.add(discipline("d100", "100m", 8));
-        return disciplines;
+    private static List<Map<String, Object>> defaultRanges() {
+        List<Map<String, Object>> ranges = new ArrayList<>();
+        ranges.add(range("m25", "25m", 15));
+        ranges.add(range("m50", "50m", 12));
+        ranges.add(range("m100", "100m", 8));
+        return ranges;
     }
 
-    private static Map<String, Object> discipline(String id, String name, int laneCount) {
-        Map<String, Object> discipline = new LinkedHashMap<>();
-        discipline.put("id", id);
-        discipline.put("name", name);
-        discipline.put("lane_count", laneCount);
-        return discipline;
+    private static Map<String, Object> range(String id, String name, int laneCount) {
+        Map<String, Object> range = new LinkedHashMap<>();
+        range.put("id", id);
+        range.put("name", name);
+        range.put("lane_count", laneCount);
+        return range;
     }
 
     private void save(Map<String, Object> relays) throws IOException {
