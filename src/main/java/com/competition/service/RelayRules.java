@@ -1,0 +1,62 @@
+package com.competition.service;
+
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Pure rules of the relay management: assignment conflicts and the schedule
+ * of a day. Works on the plain maps stored in relays.json.
+ */
+public final class RelayRules {
+    public static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+
+    private RelayRules() {
+    }
+
+    /**
+     * Returns why the competitor cannot take a lane in the given relay and
+     * discipline, or null if they can. ignoreAssignmentId is left out of the
+     * check (the assignment being replaced).
+     */
+    public static String checkConflict(int competitorId, String relayId, String disciplineId,
+                                       List<Map<String, Object>> assignments, String ignoreAssignmentId) {
+        for (Map<String, Object> a : assignments) {
+            if (intOf(a.get("competitor_id")) != competitorId || Objects.equals(a.get("id"), ignoreAssignmentId)) {
+                continue;
+            }
+            // Rule 1: one start per discipline, across the whole meet
+            if (disciplineId.equals(a.get("discipline_id"))) {
+                return "Competitor already has a start in this discipline";
+            }
+            // Rule 2: one lane per relay, across all disciplines
+            if (relayId.equals(a.get("relay_id"))) {
+                return "Competitor already has a lane in this relay";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Numbers the day's relays 1..n in their current order and sets each start
+     * time from the day's start time and the meet-wide relay duration.
+     */
+    public static void recomputeDaySchedule(Map<String, Object> day, List<Map<String, Object>> relaysOfDay,
+                                            int relayDurationMin) {
+        relaysOfDay.sort(Comparator.comparingInt(r -> intOf(r.get("sequence_no"))));
+        LocalTime time = LocalTime.parse((String) day.get("start_time"), TIME_FORMAT);
+        int sequenceNo = 1;
+        for (Map<String, Object> relay : relaysOfDay) {
+            relay.put("sequence_no", sequenceNo++);
+            relay.put("start_time", time.format(TIME_FORMAT));
+            time = time.plusMinutes(relayDurationMin);
+        }
+    }
+
+    static int intOf(Object value) {
+        return value instanceof Number ? ((Number) value).intValue() : 0;
+    }
+}

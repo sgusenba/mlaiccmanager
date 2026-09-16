@@ -11,6 +11,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Rankings** — automatically sorted rankings with tie-breaking support
+- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and lane assignments across the 25m/50m/100m ranges
 - **JSON file storage** — simple file-based storage, no database required
 
 ## Technology Stack
@@ -47,6 +48,7 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 - **`data.json`** — all competition-specific data (competitors, starts, results, active disciplines). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
 - **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels). Tracked in the repo as shared configuration.
+- **`relays.json`** — everything about relays (meet days, relays, lane assignments, lane counts, relay duration), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors are not copied into it, only referenced by id.
 
 ## Multiple Users
 
@@ -91,6 +93,27 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 - `GET /api/ranking` — list rankings
 - `GET /api/ranking/{disciplineId}` — get ranked results for a discipline
 
+### Relay management (`/api/rmgmt`)
+
+Backs the standalone page at `/rmgmt` and stores everything in `relays.json`. A **relay** (Durchgang) is one time slot in which all three ranges fire at once — 25m with 15 lanes, 50m with 12, 100m with 8 (lane counts are editable in `relays.json`). The relay duration is a single meet-wide value, so a day's relay times follow from its start time.
+
+Two rules are enforced on the server and also drive the lane dropdowns, so conflicting competitors are not offered:
+
+1. A competitor has at most one start per range, across the whole meet.
+2. A competitor has at most one lane per relay (all three ranges fire simultaneously).
+
+- `GET /api/rmgmt` — config, ranges, days, relays and assignments in one response
+- `PUT /api/rmgmt/config` — set `relay_duration_min` (recalculates every day's start times)
+- `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days (deleting a day removes its relays and assignments)
+- `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
+- `GET /api/rmgmt/relays/{id}` — relay detail: one lane block per range with its current assignments
+- `DELETE /api/rmgmt/relays/{id}` — delete a relay and its assignments; later relays of the day move up
+- `GET /api/rmgmt/relays/{id}/available-competitors?discipline_id={id}` — competitors that may take a lane here
+- `POST /api/rmgmt/assignments` — put a competitor in a lane; `409` with the reason on a rule violation. Send `expected_assignment_id` (the occupant the user saw, `null` for an empty lane) and the save is rejected with `409` if someone else changed that lane meanwhile
+- `DELETE /api/rmgmt/assignments/{id}` — clear a lane
+- `GET /api/rmgmt/competitors/{id}/schedule` — one competitor's lanes over the whole meet
+- `GET /api/rmgmt/overview` — all competitors × ranges plus any rule violations found in the stored data (safety net for a hand-edited `relays.json` or a deleted competitor)
+
 ## Project Structure
 
 ```
@@ -104,6 +127,7 @@ src/main/resources/
 ├── application.properties
 └── logback.xml
 static/                     # Frontend assets served at /
+└── rmgmt/                   # Relay management page, served at /rmgmt
 ```
 
 ## Deployment

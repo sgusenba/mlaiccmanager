@@ -17,6 +17,7 @@ public class JerseyConfig extends ResourceConfig {
         register(ResultResource.class);
         register(RankingResource.class);
         register(BuildInfoResource.class);
+        register(RelayResource.class);
 
         // Map stale-save conflicts and missing records to 409 / 404
         register(ConflictExceptionMapper.class);

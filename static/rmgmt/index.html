@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relay Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="rmgmt.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white shadow-lg no-print">
+        <div class="mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between min-h-16 py-2 gap-2">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h1 class="text-xl font-bold">Relay Management</h1>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="#schedule" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Schedule</a>
+                    <a href="#assignment" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Lane Assignment</a>
+                    <a href="#overview" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Competitor Overview</a>
+                    <a href="../" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors border-l border-blue-500">Competition Management</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden no-print"></div>
+
+        <!-- Schedule Section -->
+        <div id="schedule-section" class="section px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
+                <form id="config-form" class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold mb-1">Relay Duration</h3>
+                    <p class="text-sm text-gray-600 mb-4">Fixed for the whole meet. Changing it recalculates all start times.</p>
+                    <div class="flex items-end gap-3">
+                        <div>
+                            <label for="relay-duration" class="block text-sm font-medium text-gray-700 mb-1">Minutes per relay</label>
+                            <input type="number" id="relay-duration" min="1" max="1440" required class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
+                    </div>
+                    <p id="discipline-summary" class="text-sm text-gray-500 mt-4"></p>
+                </form>
+
+                <form id="day-form" class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold mb-1">Add Meet Day</h3>
+                    <p class="text-sm text-gray-600 mb-4">Relays of a day run back to back from its start time.</p>
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div>
+                            <label for="day-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input type="date" id="day-date" required class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="day-start" class="block text-sm font-medium text-gray-700 mb-1">Start time</label>
+                            <input type="time" id="day-start" required value="09:00" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Day</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="days-list" class="space-y-6"></div>
+            <div id="no-days" class="text-center py-12 text-gray-500 hidden">No meet days yet. Add the first day above.</div>
+        </div>
+
+        <!-- Lane Assignment Section -->
+        <div id="assignment-section" class="section hidden px-4">
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-wrap items-center gap-3 no-print">
+                <button id="prev-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Previous relay">&larr;</button>
+                <select id="relay-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0 max-w-full"></select>
+                <button id="next-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Next relay">&rarr;</button>
+                <button id="print-relay-btn" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Print</button>
+            </div>
+            <div id="relay-detail"></div>
+            <div id="no-relays" class="text-center py-12 text-gray-500 hidden">No relays yet. Add a day and relays in the schedule first.</div>
+        </div>
+
+        <!-- Competitor Overview Section -->
+        <div id="overview-section" class="section hidden px-4">
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-4 no-print">
+                <input type="search" id="overview-filter" placeholder="Filter by name or club..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-72 max-w-full">
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" id="overview-issues-only"> Only show problems
+                </label>
+            </div>
+            <div id="overview-issues"></div>
+            <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50" id="overview-head"></thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="overview-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="rmgmt.js"></script>
+</body>
+</html>
