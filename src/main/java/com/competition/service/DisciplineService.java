@@ -125,6 +125,64 @@ public class DisciplineService {
         return null;
     }
 
+    public Discipline createCatalogDiscipline(Map<String, Object> data) throws Exception {
+        return dataService.updateDisciplines(disciplines -> {
+            int maxId = disciplines.stream().mapToInt(Discipline::getId).max().orElse(0);
+            Discipline d = new Discipline();
+            d.setId(maxId + 1);
+            applyCatalogFields(d, data);
+            disciplines.add(d);
+            return d;
+        });
+    }
+
+    public Discipline updateCatalogDiscipline(int id, Map<String, Object> data) throws Exception {
+        return dataService.updateDisciplines(disciplines -> {
+            Discipline target = disciplines.stream()
+                .filter(d -> d.getId() == id).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Discipline not found: " + id));
+            applyCatalogFields(target, data);
+            return target;
+        });
+    }
+
+    public void deleteCatalogDiscipline(int id) throws Exception {
+        dataService.updateDisciplines(disciplines -> {
+            if (!disciplines.removeIf(d -> d.getId() == id)) {
+                throw new IllegalArgumentException("Discipline not found: " + id);
+            }
+            return null;
+        });
+    }
+
+    public List<Discipline> updateShootingDistances(Map<String, String> mapping) throws Exception {
+        return dataService.updateDisciplines(disciplines -> {
+            for (Discipline d : disciplines) {
+                String value = mapping.get(String.valueOf(d.getId()));
+                if (value != null) {
+                    d.setShootingDistance(value.isBlank() ? null : value);
+                }
+            }
+            return disciplines;
+        });
+    }
+
+    private static void applyCatalogFields(Discipline d, Map<String, Object> data) {
+        if (data.containsKey("category")) d.setCategory((String) data.get("category"));
+        if (data.containsKey("level")) d.setLevel((String) data.get("level"));
+        if (data.containsKey("type")) d.setType((String) data.get("type"));
+        if (data.containsKey("event")) d.setEvent((String) data.get("event"));
+        if (data.containsKey("based_on")) d.setBasedOn((String) data.get("based_on"));
+        if (data.containsKey("team_size")) {
+            Object ts = data.get("team_size");
+            d.setTeamSize(ts instanceof Number ? ((Number) ts).intValue() : null);
+        }
+        if (data.containsKey("shooting_distance")) {
+            String sd = (String) data.get("shooting_distance");
+            d.setShootingDistance(sd != null && !sd.isBlank() ? sd : null);
+        }
+    }
+
     private static List<Integer> activeDisciplinesOf(Map<String, Object> data) {
         List<Integer> activeDisciplines = new ArrayList<>();
         if (data.get("active_disciplines") instanceof List<?> rawIds) {

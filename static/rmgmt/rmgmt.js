@@ -129,21 +129,10 @@ async function refreshSchedule() {
 }
 
 function renderSchedule() {
-    const { config, ranges, disciplines, days, assignments } = state.data;
+    const { config, ranges, days, assignments } = state.data;
     document.getElementById('relay-duration').value = config.relay_duration_min;
     document.getElementById('range-summary').textContent =
         'Lanes per relay: ' + ranges.map(r => `${r.name} × ${r.lane_count}`).join(', ');
-
-    document.getElementById('discipline-ranges-list').innerHTML = disciplines.length
-        ? disciplines.map(discipline => `
-            <label class="flex items-center justify-between gap-2 text-sm border border-gray-200 rounded-md px-3 py-2">
-                <span class="truncate" title="${escapeHtml(discipline.name)}">${escapeHtml(discipline.name)}</span>
-                <select class="discipline-range px-2 py-1 border border-gray-300 rounded-md text-sm" data-discipline-id="${discipline.id}">
-                    <option value="">any range</option>
-                    ${ranges.map(r => `<option value="${escapeHtml(r.id)}" ${r.id === discipline.range_id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
-                </select>
-            </label>`).join('')
-        : '<p class="text-sm text-gray-500">No disciplines yet. Activate disciplines and register starts in the competition management first.</p>';
 
     const filled = new Map();
     assignments.forEach(a => {
@@ -212,18 +201,6 @@ function setupScheduleListeners() {
         perform(async () => {
             await api('/config', 'PUT', { relay_duration_min: minutes });
             showMessage('Relay duration saved, start times recalculated', 'success');
-        }, refreshSchedule);
-    });
-
-    document.getElementById('discipline-ranges-form').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const mapping = {};
-        document.querySelectorAll('.discipline-range').forEach(select => {
-            mapping[select.dataset.disciplineId] = select.value || null;
-        });
-        perform(async () => {
-            await api('/discipline-ranges', 'PUT', { discipline_ranges: mapping });
-            showMessage('Ranges saved', 'success');
         }, refreshSchedule);
     });
 

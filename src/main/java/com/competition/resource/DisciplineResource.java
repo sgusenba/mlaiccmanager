@@ -95,6 +95,66 @@ public class DisciplineResource {
         }
     }
 
+    @POST
+    @Path("/available-disciplines")
+    public Response createCatalogDiscipline(Map<String, Object> requestData) {
+        try {
+            Discipline created = disciplineService.createCatalogDiscipline(requestData);
+            return Response.status(Response.Status.CREATED).entity(created).build();
+        } catch (Exception e) {
+            logger.error("Error creating catalog discipline", e);
+            return Response.serverError().entity("{\"error\": \"Failed to create discipline\"}").build();
+        }
+    }
+
+    @PUT
+    @Path("/available-disciplines/{id}")
+    public Response updateCatalogDiscipline(@PathParam("id") int id, Map<String, Object> requestData) {
+        try {
+            Discipline updated = disciplineService.updateCatalogDiscipline(id, requestData);
+            return Response.ok(updated).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+        } catch (Exception e) {
+            logger.error("Error updating catalog discipline", e);
+            return Response.serverError().entity("{\"error\": \"Failed to update discipline\"}").build();
+        }
+    }
+
+    @DELETE
+    @Path("/available-disciplines/{id}")
+    public Response deleteCatalogDiscipline(@PathParam("id") int id) {
+        try {
+            disciplineService.deleteCatalogDiscipline(id);
+            return Response.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+        } catch (Exception e) {
+            logger.error("Error deleting catalog discipline", e);
+            return Response.serverError().entity("{\"error\": \"Failed to delete discipline\"}").build();
+        }
+    }
+
+    @PUT
+    @Path("/available-disciplines/shooting-distances")
+    public Response updateShootingDistances(Map<String, Object> requestData) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> mapping = (Map<String, String>) requestData.get("shooting_distances");
+            if (mapping == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"shooting_distances is required\"}").build();
+            }
+            List<Discipline> updated = disciplineService.updateShootingDistances(mapping);
+            return Response.ok(updated).build();
+        } catch (Exception e) {
+            logger.error("Error updating shooting distances", e);
+            return Response.serverError().entity("{\"error\": \"Failed to update shooting distances\"}").build();
+        }
+    }
+
     @GET
     @Path("/disciplines")
     public Response getCustomDisciplines() {

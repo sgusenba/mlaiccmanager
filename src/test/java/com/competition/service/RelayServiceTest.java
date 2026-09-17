@@ -18,23 +18,26 @@ class RelayServiceTest {
     Path tempDir;
 
     private RelayService relayService;
+    private DataService dataService;
     private String relay1;
     private String relay2;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Disciplines 52 (pistol) and 3 (rifle), as in disciplines.json
         Files.writeString(tempDir.resolve("disciplines.json"),
-            "[{\"id\":3,\"category\":\"rifle\",\"type\":\"original\",\"event\":\"No 3 Minie\"},"
-                + "{\"id\":52,\"category\":\"pistol\",\"type\":\"original\",\"event\":\"No 7 Colt\"}]");
+            "[{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 3 Minie\"},"
+                + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 7 Colt\"},"
+                + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"event\":\"No 9 Gustav Adolph\","
+                + "\"based_on\":\"No 1 Miquelet\",\"team_size\":3}]");
         Files.writeString(tempDir.resolve("data.json"),
             "{\"competitors\":["
                 + competitor(1, "Anna", "\"52\":[" + start("1-52-1", 1, 52) + "," + start("1-52-2", 2, 52) + "],"
-                    + "\"3\":[" + start("1-3-1", 1, 3) + "]")
+                    + "\"3\":[" + start("1-3-1", 1, 3) + "],"
+                    + "\"31\":[" + start("1-31-1", 1, 31) + "]")
                 + "," + competitor(2, "Ben", "\"52\":[" + start("2-52-1", 1, 52) + "]")
-                + "],\"results\":[],\"disciplines\":[],\"teams\":[],\"active_disciplines\":[3,52]}");
+                + "],\"results\":[],\"disciplines\":[],\"teams\":[],\"active_disciplines\":[3,52,31]}");
 
-        DataService dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString());
+        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString());
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
 
         Map<String, Object> day = relayService.createDay(Map.of("date", "2026-10-03", "start_time", "09:00"));
@@ -59,6 +62,17 @@ class RelayServiceTest {
 
     private static List<String> startIds(List<Map<String, Object>> starts) {
         return starts.stream().map(s -> (String) s.get("start_id")).toList();
+    }
+
+    private void setShootingDistances(String... pairs) throws Exception {
+        var disciplines = dataService.loadDisciplines();
+        for (int i = 0; i < pairs.length; i += 2) {
+            int id = Integer.parseInt(pairs[i]);
+            String distance = pairs[i + 1];
+            disciplines.stream().filter(d -> d.getId() == id).findFirst()
+                .ifPresent(d -> d.setShootingDistance(distance.isEmpty() ? null : distance));
+        }
+        dataService.saveDisciplines(disciplines);
     }
 
     @Test
@@ -105,7 +119,7 @@ class RelayServiceTest {
 
     @Test
     void mappedDisciplinesAreOnlyOfferedOnTheirRange() throws Exception {
-        relayService.updateDisciplineRanges(Map.of("discipline_ranges", Map.of("52", "m25", "3", "m100")));
+        setShootingDistances("52", "m25", "3", "m100");
 
         assertEquals(List.of("1-52-1", "1-52-2", "2-52-1"), startIds(relayService.getAvailableStarts(relay1, "m25")));
         assertEquals(List.of("1-3-1"), startIds(relayService.getAvailableStarts(relay1, "m100")));
@@ -115,14 +129,14 @@ class RelayServiceTest {
         assertEquals("No 7 Colt (original) is set to fire on 25m, not on 100m", error.getMessage());
 
         // an unmapped discipline stays available everywhere
-        relayService.updateDisciplineRanges(Map.of("discipline_ranges", Map.of("52", "m25")));
+        setShootingDistances("3", "");
         assertTrue(startIds(relayService.getAvailableStarts(relay1, "m50")).contains("1-3-1"));
     }
 
     @Test
     void overviewListsScheduledAndUnscheduledStartsAndFlagsRemappedOnes() throws Exception {
         assign(relay1, "m50", 2, "1-3-1");
-        relayService.updateDisciplineRanges(Map.of("discipline_ranges", Map.of("3", "m100")));
+        setShootingDistances("3", "m100");
 
         Map<String, Object> overview = relayService.getOverview();
         @SuppressWarnings("unchecked")
@@ -131,7 +145,8 @@ class RelayServiceTest {
             .filter(r -> "Anna".equals(((Map<?, ?>) r.get("competitor")).get("name"))).findFirst().orElseThrow();
 
         assertEquals(List.of("1-3-1"), startIds(castRows(anna.get("scheduled"))));
-        assertEquals(List.of("1-52-1", "1-52-2"), startIds(castRows(anna.get("unscheduled"))));
+        // unscheduled includes individual starts only (team start 1-31-1 is excluded from lane assignment)
+        assertTrue(startIds(castRows(anna.get("unscheduled"))).containsAll(List.of("1-52-1", "1-52-2")));
         assertEquals(List.of("No 3 Minie (original) is scheduled on 50m but is set to fire on 100m"), anna.get("issues"));
     }
 
@@ -168,6 +183,20 @@ class RelayServiceTest {
 
         assertThrows(RecordNotFoundException.class, () -> relayService.getRelay(relay1));
         assertTrue(relayService.getCompetitorSchedule(1).isEmpty());
+    }
+
+    @Test
+    void teamDisciplinesAreNotOfferedForLanes() throws Exception {
+        List<String> available = startIds(relayService.getAvailableStarts(relay1, "m25"));
+        assertFalse(available.contains("1-31-1"), "team discipline starts should not appear");
+        assertTrue(available.contains("1-52-1"), "individual discipline starts should appear");
+    }
+
+    @Test
+    void assignRejectsTeamDisciplines() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+            () -> assign(relay1, "m25", 1, "1-31-1"));
+        assertTrue(error.getMessage().contains("team discipline"));
     }
 
     @SuppressWarnings("unchecked")

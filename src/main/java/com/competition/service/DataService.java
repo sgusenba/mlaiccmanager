@@ -32,6 +32,7 @@ public class DataService {
     // A plain reentrant lock rather than a read/write lock: loadData() may itself
     // write a default file, and only a handful of users are expected.
     private final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock disciplinesLock = new ReentrantLock();
 
     private String dataFilePath;
     private String disciplinesFilePath;
@@ -138,6 +139,15 @@ public class DataService {
     }
 
     public List<Discipline> loadDisciplines() throws IOException {
+        disciplinesLock.lock();
+        try {
+            return loadDisciplinesInternal();
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    private List<Discipline> loadDisciplinesInternal() throws IOException {
         File disciplinesFile = new File(disciplinesFilePath);
 
         if (!disciplinesFile.exists()) {
@@ -158,6 +168,40 @@ public class DataService {
         } else {
             return new ArrayList<>();
         }
+    }
+
+    public void saveDisciplines(List<Discipline> disciplines) throws IOException {
+        disciplinesLock.lock();
+        try {
+            File tempFile = new File(disciplinesFilePath + ".tmp");
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, disciplines);
+            Files.move(tempFile.toPath(), Paths.get(disciplinesFilePath),
+                       StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            logger.debug("Disciplines saved successfully");
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    /** Loads, modifies and saves disciplines atomically. */
+    public <T> T updateDisciplines(DisciplineFunction<T> fn) throws Exception {
+        disciplinesLock.lock();
+        try {
+            List<Discipline> disciplines = loadDisciplinesInternal();
+            T result = fn.apply(disciplines);
+            File tempFile = new File(disciplinesFilePath + ".tmp");
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, disciplines);
+            Files.move(tempFile.toPath(), Paths.get(disciplinesFilePath),
+                       StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return result;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    @FunctionalInterface
+    public interface DisciplineFunction<T> {
+        T apply(List<Discipline> disciplines) throws Exception;
     }
 
     private Map<String, Object> createDefaultData() {

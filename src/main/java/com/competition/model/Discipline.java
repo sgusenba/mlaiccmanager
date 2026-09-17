@@ -1,7 +1,9 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Discipline {
     @JsonProperty("id")
     private int id;
@@ -35,6 +37,9 @@ public class Discipline {
     
     @JsonProperty("team_size")
     private Integer teamSize;
+
+    @JsonProperty("shooting_distance")
+    private String shootingDistance;
 
     // Constructors
     public Discipline() {}
@@ -77,4 +82,7 @@ public class Discipline {
 
     public Integer getTeamSize() { return teamSize; }
     public void setTeamSize(Integer teamSize) { this.teamSize = teamSize; }
+
+    public String getShootingDistance() { return shootingDistance; }
+    public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }
 }
