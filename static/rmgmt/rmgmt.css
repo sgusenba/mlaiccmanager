@@ -1,0 +1,26 @@
+/* Relay management page, on top of ../style.css */
+.print-only {
+    display: none;
+}
+
+@media print {
+    .lane-select {
+        display: none !important;
+    }
+
+    .print-only {
+        display: inline;
+    }
+
+    /* Keep the three lane blocks side by side on paper */
+    .relay-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 4mm !important;
+    }
+
+    .relay-grid td {
+        padding: 1px 4px !important;
+        border-bottom: 1px solid #ddd;
+    }
+}

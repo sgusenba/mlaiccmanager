@@ -19,6 +19,8 @@ logs/
 
 # Runtime data (contains real competitor personal data - never commit)
 data.json
+# Relay management runtime data (meet days, relays, lane assignments)
+relays.json
 *.backup
 
 # IDE
