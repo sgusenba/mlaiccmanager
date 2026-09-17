@@ -41,6 +41,9 @@ public class Discipline {
     @JsonProperty("shooting_distance")
     private String shootingDistance;
 
+    @JsonProperty("active")
+    private boolean active = true;
+
     // Constructors
     public Discipline() {}
 
@@ -85,4 +88,7 @@ public class Discipline {
 
     public String getShootingDistance() { return shootingDistance; }
     public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 }

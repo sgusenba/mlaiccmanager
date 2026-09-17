@@ -1,86 +1,612 @@
-[
-  { "id": 1, "category": "rifle", "level": "individual", "type": "original", "event": "No 1 Miquelet" },
-  { "id": 2, "category": "rifle", "level": "individual", "type": "original", "event": "No 2 Maximilian" },
-  { "id": 3, "category": "rifle", "level": "individual", "type": "original", "event": "No 3 Minie" },
-  { "id": 4, "category": "rifle", "level": "individual", "type": "original", "event": "No 4 Whitworth" },
-  { "id": 5, "category": "rifle", "level": "individual", "type": "original", "event": "No 8 Walkyrie" },
-  { "id": 6, "category": "rifle", "level": "individual", "type": "original", "event": "No 14 Tanegashima" },
-  { "id": 7, "category": "rifle", "level": "individual", "type": "original", "event": "No 15 Vetterli" },
-  { "id": 8, "category": "rifle", "level": "individual", "type": "original", "event": "No 16 Hizadai" },
-  { "id": 9, "category": "rifle", "level": "individual", "type": "original", "event": "No 36 Pennsylvania" },
-  { "id": 10, "category": "rifle", "level": "individual", "type": "original", "event": "No 37 Lamarmora" },
-
-  { "id": 11, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 1 Miquelet" },
-  { "id": 12, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 2 Maximilian" },
-  { "id": 13, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 3 Minie" },
-  { "id": 14, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 4 Whitworth" },
-  { "id": 15, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 8 Walkyrie" },
-  { "id": 16, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 14 Tanegashima" },
-  { "id": 17, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 15 Vetterli" },
-  { "id": 18, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 16 Hizadai" },
-  { "id": 19, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 36 Pennsylvania" },
-  { "id": 20, "category": "rifle", "level": "individual", "type": "reproduction", "event": "No 37 Lamarmora" },
-
-  { "id": 21, "category": "rifle", "level": "individual", "type": "combined", "event": "No 1 Miquelet" },
-  { "id": 22, "category": "rifle", "level": "individual", "type": "combined", "event": "No 2 Maximilian" },
-  { "id": 23, "category": "rifle", "level": "individual", "type": "combined", "event": "No 3 Minie" },
-  { "id": 24, "category": "rifle", "level": "individual", "type": "combined", "event": "No 4 Whitworth" },
-  { "id": 25, "category": "rifle", "level": "individual", "type": "combined", "event": "No 8 Walkyrie" },
-  { "id": 26, "category": "rifle", "level": "individual", "type": "combined", "event": "No 14 Tanegashima" },
-  { "id": 27, "category": "rifle", "level": "individual", "type": "combined", "event": "No 15 Vetterli" },
-  { "id": 28, "category": "rifle", "level": "individual", "type": "combined", "event": "No 16 Hizadai" },
-  { "id": 29, "category": "rifle", "level": "individual", "type": "combined", "event": "No 36 Pennsylvania" },
-  { "id": 30, "category": "rifle", "level": "individual", "type": "combined", "event": "No 37 Lamarmora" },
-
-  { "id": 31, "category": "rifle", "level": "team", "type": "original", "event": "No 9 Gustav Adolph", "based_on": "No 1 Miquelet", "team_size": 3 },
-  { "id": 32, "category": "rifle", "level": "team", "type": "original", "event": "No 10 Pauly", "based_on": "No 3 Minie", "team_size": 3 },
-  { "id": 33, "category": "rifle", "level": "team", "type": "original", "event": "No 17 Amazons", "based_on": "No 8 Walkyrie", "team_size": 3 },
-  { "id": 34, "category": "rifle", "level": "team", "type": "original", "event": "No 19 Nagashino", "based_on": "No 14 Tanegashima", "team_size": 3 },
-  { "id": 35, "category": "rifle", "level": "team", "type": "original", "event": "No 20 Rigby", "based_on": "No 4 Whitworth", "team_size": 3 },
-  { "id": 36, "category": "rifle", "level": "team", "type": "original", "event": "No 24 Pforzheim", "based_on": "No 15 Vetterli", "team_size": 3 },
-  { "id": 37, "category": "rifle", "level": "team", "type": "original", "event": "No 26 Wedgnock", "based_on": "No 2 Maximilian", "team_size": 3 },
-  { "id": 38, "category": "rifle", "level": "team", "type": "original", "event": "No 27 Nobunaga", "based_on": "No 14 Tanegashima", "team_size": 3 },
-  { "id": 39, "category": "rifle", "level": "team", "type": "original", "event": "No 31 Halikko", "based_on": "No 1 Miquelet", "team_size": 3 },
-  { "id": 40, "category": "rifle", "level": "team", "type": "original", "event": "No 43 Hibuta", "based_on": "No 16 Hizadai", "team_size": 3 },
-  { "id": 41, "category": "rifle", "level": "team", "type": "original", "event": "No 46 Königgrätz", "based_on": "No 37 Lamarmora", "team_size": 3 },
-
-  { "id": 42, "category": "rifle", "level": "team", "type": "reproduction", "event": "No 29 Lucca", "based_on": "No 2 Maximilian", "team_size": 3 },
-  { "id": 43, "category": "rifle", "level": "team", "type": "reproduction", "event": "No 32 Magenta", "based_on": "No 3 Minie", "team_size": 3 },
-  { "id": 44, "category": "rifle", "level": "team", "type": "reproduction", "event": "No 40 Enfield", "based_on": "No 37 Lamarmora", "team_size": 3 },
-  { "id": 45, "category": "rifle", "level": "team", "type": "reproduction", "event": "No 44 Hinowa", "based_on": "No 16 Hizadai", "team_size": 3 },
-
-  { "id": 46, "category": "rifle", "level": "team", "type": "open", "event": "No 11 Versailles", "based_on": "Nos. 9 + 10 (aggregate)", "team_size": 6 },
-  { "id": 47, "category": "rifle", "level": "team", "type": "open", "event": "No 20 Rigby", "based_on": "No 4 Whitworth", "team_size": 3 },
-  { "id": 48, "category": "rifle", "level": "team", "type": "open", "event": "No 24 Pforzheim", "based_on": "No 15 Vetterli", "team_size": 3 },
-  { "id": 49, "category": "rifle", "level": "team", "type": "open", "event": "No 42 Kossuth", "based_on": "No 36 Pennsylvania", "team_size": 3 },
-
-  { "id": 50, "category": "pistol", "level": "individual", "type": "original", "event": "No 5 Cominazzo" },
-  { "id": 51, "category": "pistol", "level": "individual", "type": "original", "event": "No 6 Kuchenreuter" },
-  { "id": 52, "category": "pistol", "level": "individual", "type": "original", "event": "No 7 Colt" },
-  { "id": 53, "category": "pistol", "level": "individual", "type": "original", "event": "No 23 Donald Malson" },
-  { "id": 54, "category": "pistol", "level": "individual", "type": "original", "event": "No 28 Tanzutsu" },
-
-  { "id": 55, "category": "pistol", "level": "individual", "type": "reproduction", "event": "No 5 Cominazzo" },
-  { "id": 56, "category": "pistol", "level": "individual", "type": "reproduction", "event": "No 6 Kuchenreuter" },
-  { "id": 57, "category": "pistol", "level": "individual", "type": "reproduction", "event": "No 12 Mariette" },
-  { "id": 58, "category": "pistol", "level": "individual", "type": "reproduction", "event": "No 23 Donald Malson" },
-  { "id": 59, "category": "pistol", "level": "individual", "type": "reproduction", "event": "No 28 Tanzutsu" },
-
-  { "id": 60, "category": "pistol", "level": "individual", "type": "combined", "event": "No 5 Cominazzo" },
-  { "id": 61, "category": "pistol", "level": "individual", "type": "combined", "event": "No 6 Kuchenreuter" },
-  { "id": 62, "category": "pistol", "level": "individual", "type": "combined", "event": "No 7 Colt" },
-  { "id": 63, "category": "pistol", "level": "individual", "type": "combined", "event": "No 12 Mariette" },
-  { "id": 64, "category": "pistol", "level": "individual", "type": "combined", "event": "No 23 Donald Malson" },
-  { "id": 65, "category": "pistol", "level": "individual", "type": "combined", "event": "No 28 Tanzutsu" },
-
-  { "id": 66, "category": "pistol", "level": "team", "type": "original", "event": "No 18 Boutet", "based_on": "No 6 Kuchenreuter", "team_size": 3 },
-  { "id": 67, "category": "pistol", "level": "team", "type": "original", "event": "No 25 Wogdon", "based_on": "No 5 Cominazzo", "team_size": 3 },
-  { "id": 68, "category": "pistol", "level": "team", "type": "original", "event": "No 30 Adams", "based_on": "No 7 Colt", "team_size": 3 },
-  { "id": 69, "category": "pistol", "level": "team", "type": "original", "event": "No 41 Egg", "based_on": "No 5 Cominazzo", "team_size": 3 },
-
-  { "id": 70, "category": "pistol", "level": "team", "type": "reproduction", "event": "No 13 Peterlongo", "based_on": "No 12 Mariette", "team_size": 3 },
-  { "id": 71, "category": "pistol", "level": "team", "type": "reproduction", "event": "No 33 Forsyth", "based_on": "No 6 Kuchenreuter", "team_size": 3 },
-
-  { "id": 72, "category": "pistol", "level": "team", "type": "open", "event": "No 39 Kunitomo", "based_on": "No 28 Tanzutsu", "team_size": 3 },
-  { "id": 73, "category": "pistol", "level": "team", "type": "open", "event": "No 45 El Alamo", "based_on": "Not specified", "team_size": 3 }
-]
+[ {
+  "id" : 1,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 1 Miquelet",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 2,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 2 Maximilian",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 3,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 3 Minie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 4,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 4 Whitworth",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 5,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 8 Walkyrie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 6,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 14 Tanegashima",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 7,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 15 Vetterli",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 8,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 16 Hizadai",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 9,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 36 Pennsylvania",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 10,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 37 Lamarmora",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 11,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 1 Miquelet",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 12,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 2 Maximilian",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 13,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 3 Minie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 14,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 4 Whitworth",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 15,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 8 Walkyrie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 16,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 14 Tanegashima",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 17,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 15 Vetterli",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 18,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 16 Hizadai",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 19,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 36 Pennsylvania",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 20,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 37 Lamarmora",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 21,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 1 Miquelet",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 22,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 2 Maximilian",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 23,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 3 Minie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 24,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 4 Whitworth",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 25,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 8 Walkyrie",
+  "shooting_distance" : "m100",
+  "active" : true
+}, {
+  "id" : 26,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 14 Tanegashima",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 27,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 15 Vetterli",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 28,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 16 Hizadai",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 29,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 36 Pennsylvania",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 30,
+  "category" : "rifle",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 37 Lamarmora",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 31,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 9 Gustav Adolph",
+  "based_on" : "No 1 Miquelet",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 32,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 10 Pauly",
+  "based_on" : "No 3 Minie",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 33,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 17 Amazons",
+  "based_on" : "No 8 Walkyrie",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 34,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 19 Nagashino",
+  "based_on" : "No 14 Tanegashima",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 35,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 20 Rigby",
+  "based_on" : "No 4 Whitworth",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 36,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 24 Pforzheim",
+  "based_on" : "No 15 Vetterli",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 37,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 26 Wedgnock",
+  "based_on" : "No 2 Maximilian",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 38,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 27 Nobunaga",
+  "based_on" : "No 14 Tanegashima",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 39,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 31 Halikko",
+  "based_on" : "No 1 Miquelet",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 40,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 43 Hibuta",
+  "based_on" : "No 16 Hizadai",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 41,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 46 Königgrätz",
+  "based_on" : "No 37 Lamarmora",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 42,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 29 Lucca",
+  "based_on" : "No 2 Maximilian",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 43,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 32 Magenta",
+  "based_on" : "No 3 Minie",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 44,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 40 Enfield",
+  "based_on" : "No 37 Lamarmora",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 45,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 44 Hinowa",
+  "based_on" : "No 16 Hizadai",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 46,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 11 Versailles",
+  "based_on" : "Nos. 9 + 10 (aggregate)",
+  "team_size" : 6,
+  "active" : true
+}, {
+  "id" : 47,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 20 Rigby",
+  "based_on" : "No 4 Whitworth",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 48,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 24 Pforzheim",
+  "based_on" : "No 15 Vetterli",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 49,
+  "category" : "rifle",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 42 Kossuth",
+  "based_on" : "No 36 Pennsylvania",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 50,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 5 Cominazzo",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 51,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 6 Kuchenreuter",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 52,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 7 Colt",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 53,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 23 Donald Malson",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 54,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "No 28 Tanzutsu",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 55,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 5 Cominazzo",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 56,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 6 Kuchenreuter",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 57,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 12 Mariette",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 58,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 23 Donald Malson",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 59,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "No 28 Tanzutsu",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 60,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 5 Cominazzo",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 61,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 6 Kuchenreuter",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 62,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 7 Colt",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 63,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 12 Mariette",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 64,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 23 Donald Malson",
+  "shooting_distance" : "m50",
+  "active" : true
+}, {
+  "id" : 65,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "No 28 Tanzutsu",
+  "shooting_distance" : "m25",
+  "active" : true
+}, {
+  "id" : 66,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 18 Boutet",
+  "based_on" : "No 6 Kuchenreuter",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 67,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 25 Wogdon",
+  "based_on" : "No 5 Cominazzo",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 68,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 30 Adams",
+  "based_on" : "No 7 Colt",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 69,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "original",
+  "event" : "No 41 Egg",
+  "based_on" : "No 5 Cominazzo",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 70,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 13 Peterlongo",
+  "based_on" : "No 12 Mariette",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 71,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "reproduction",
+  "event" : "No 33 Forsyth",
+  "based_on" : "No 6 Kuchenreuter",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 72,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 39 Kunitomo",
+  "based_on" : "No 28 Tanzutsu",
+  "team_size" : 3,
+  "active" : true
+}, {
+  "id" : 73,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "open",
+  "event" : "No 45 El Alamo",
+  "based_on" : "Not specified",
+  "team_size" : 3,
+  "active" : true
+} ]

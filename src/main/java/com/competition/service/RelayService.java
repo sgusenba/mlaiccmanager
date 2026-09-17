@@ -594,6 +594,7 @@ public class RelayService {
         Map<Integer, String> disciplineNames = new LinkedHashMap<>();
         Map<Integer, String> disciplineLevels = new LinkedHashMap<>();
         Map<Integer, String> disciplineShootingDistances = new LinkedHashMap<>();
+        List<Integer> activeDisciplineIds = new ArrayList<>();
         for (Discipline discipline : dataService.loadDisciplines()) {
             disciplineNames.put(discipline.getId(), discipline.getType() != null
                 ? discipline.getEvent() + " (" + discipline.getType() + ")"
@@ -603,6 +604,9 @@ public class RelayService {
             }
             if (discipline.getShootingDistance() != null && !discipline.getShootingDistance().isBlank()) {
                 disciplineShootingDistances.put(discipline.getId(), discipline.getShootingDistance());
+            }
+            if (discipline.isActive()) {
+                activeDisciplineIds.add(discipline.getId());
             }
         }
 
@@ -642,15 +646,7 @@ public class RelayService {
                 }
             }
 
-            List<Integer> active = new ArrayList<>();
-            if (data.get("active_disciplines") instanceof List<?> ids) {
-                for (Object id : ids) {
-                    if (id instanceof Number n) {
-                        active.add(n.intValue());
-                    }
-                }
-            }
-            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, active);
+            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, activeDisciplineIds);
         });
     }
 
