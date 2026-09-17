@@ -11,6 +11,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Rankings** — automatically sorted rankings with tie-breaking support
+- **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
 - **JSON file storage** — simple file-based storage, no database required
 
@@ -43,6 +44,16 @@ run.bat
 ```
 
 The server starts on `http://localhost:5000`. Static frontend assets are served from `static/`, and the REST API is mounted under `/api`.
+
+## Frontend
+
+The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty:
+
+- **`/`** (`static/index.html` + `static/js/`) — main competition management UI (competitors, starts, disciplines, results, ranking), split into modules under `static/js/modules/`
+- **`/dmgmt`** (`static/dmgmt/`) — discipline management page
+- **`/rmgmt`** (`static/rmgmt/`) — relay management page
+
+Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
 
 ## Data Storage
 
@@ -132,8 +143,11 @@ src/main/java/com/competition/
 src/main/resources/
 ├── application.properties
 └── logback.xml
-static/                     # Frontend assets served at /
-└── rmgmt/                   # Relay management page, served at /rmgmt
+static/                     # Frontend assets served at / (plain HTML/CSS/JS, Tailwind via CDN)
+├── index.html               # Main competition management UI
+├── js/                       # Vanilla JS, split by feature (competitors, starts, disciplines, results, ranking)
+├── dmgmt/                    # Discipline management page, served at /dmgmt
+└── rmgmt/                    # Relay management page, served at /rmgmt
 ```
 
 ## Deployment
