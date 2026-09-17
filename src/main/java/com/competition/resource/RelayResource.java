@@ -42,12 +42,6 @@ public class RelayResource {
         return handle("update relay config", () -> relayService.updateConfig(request));
     }
 
-    @PUT
-    @Path("/discipline-ranges")
-    public Response updateDisciplineRanges(Map<String, Object> request) {
-        return handle("update discipline ranges", () -> relayService.updateDisciplineRanges(request));
-    }
-
     @POST
     @Path("/days")
     public Response createDay(Map<String, Object> request) {

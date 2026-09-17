@@ -19,11 +19,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -54,10 +52,12 @@ public class RelayService {
         T apply(Map<String, Object> relays) throws Exception;
     }
 
-    /** Competitors, their registered starts and the discipline names, read from data.json. */
+    /** Competitors, their registered starts and the discipline metadata, read from data.json/disciplines.json. */
     private record Registry(Map<Integer, Map<String, Object>> competitors,
                             Map<String, Map<String, Object>> starts,
                             Map<Integer, String> disciplineNames,
+                            Map<Integer, String> disciplineLevels,
+                            Map<Integer, String> disciplineShootingDistances,
                             List<Integer> activeDisciplines) {
 
         Map<String, Integer> competitorOfStart() {
@@ -72,12 +72,11 @@ public class RelayService {
         this.dataService = dataService;
     }
 
-    /** Everything the page needs at once: config, ranges, disciplines, days, relays, assignments. */
+    /** Everything the relay page needs at once: config, ranges, days, relays, assignments. */
     public Map<String, Object> getAll() throws Exception {
         return read(relays -> {
-            Registry registry = registry();
             Map<String, Object> result = new LinkedHashMap<>(relays);
-            result.put("disciplines", disciplinesWithRange(relays, registry));
+            result.remove("discipline_ranges");
             return result;
         });
     }
@@ -93,37 +92,6 @@ public class RelayService {
                 recompute(relays, day);
             }
             return configOf(relays);
-        });
-    }
-
-    /**
-     * Replaces the discipline-to-range mapping, e.g. {"52": "m25"}. A discipline
-     * without a mapping can be assigned to any range. Assignments already made
-     * are left alone; the overview flags the ones that no longer match.
-     */
-    public List<Map<String, Object>> updateDisciplineRanges(Map<String, Object> request) throws Exception {
-        Object raw = request != null ? request.get("discipline_ranges") : null;
-        if (!(raw instanceof Map)) {
-            throw new IllegalArgumentException("discipline_ranges must be an object of discipline id to range id");
-        }
-        return update(relays -> {
-            Map<String, Object> mapping = new LinkedHashMap<>();
-            for (Map.Entry<?, ?> entry : ((Map<?, ?>) raw).entrySet()) {
-                String disciplineId = String.valueOf(entry.getKey());
-                try {
-                    Integer.parseInt(disciplineId);
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Discipline id must be a number, got " + disciplineId);
-                }
-                if (entry.getValue() == null || String.valueOf(entry.getValue()).isBlank()) {
-                    continue; // "any range"
-                }
-                String rangeId = String.valueOf(entry.getValue());
-                findRange(relays, rangeId);
-                mapping.put(disciplineId, rangeId);
-            }
-            relays.put("discipline_ranges", mapping);
-            return disciplinesWithRange(relays, registry());
         });
     }
 
@@ -244,8 +212,9 @@ public class RelayService {
 
     /**
      * Registered starts that may take a lane in this relay and range: not yet
-     * assigned anywhere, competitor still free in this relay, and the start's
-     * discipline either mapped to this range or not mapped at all.
+     * assigned anywhere, competitor still free in this relay, the start's
+     * discipline either mapped to this range or not mapped at all, and the
+     * discipline is not a team discipline.
      */
     public List<Map<String, Object>> getAvailableStarts(String relayId, String rangeId) throws Exception {
         return read(relays -> {
@@ -258,7 +227,10 @@ public class RelayService {
             List<Map<String, Object>> available = new ArrayList<>();
             for (Map<String, Object> start : registry.starts().values()) {
                 int disciplineId = RelayRules.intOf(start.get("discipline_id"));
-                String mapped = rangeOfDiscipline(relays, disciplineId);
+                if ("team".equals(registry.disciplineLevels().get(disciplineId))) {
+                    continue;
+                }
+                String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
                 if (mapped != null && !mapped.equals(rangeId)) {
                     continue;
                 }
@@ -301,7 +273,11 @@ public class RelayService {
                 throw new IllegalArgumentException("Start " + startId + " not found");
             }
             int disciplineId = RelayRules.intOf(start.get("discipline_id"));
-            String mapped = rangeOfDiscipline(relays, disciplineId);
+            if ("team".equals(registry.disciplineLevels().get(disciplineId))) {
+                throw new IllegalArgumentException(disciplineName(registry, disciplineId)
+                    + " is a team discipline and cannot be assigned to a lane");
+            }
+            String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
             if (mapped != null && !mapped.equals(rangeId)) {
                 throw new IllegalArgumentException(disciplineName(registry, disciplineId) + " is set to fire on "
                     + rangeName(relays, mapped) + ", not on " + range.get("name"));
@@ -410,7 +386,7 @@ public class RelayService {
                     }
                     for (Map<String, Object> scheduledEntry : entries) {
                         scheduled.add(scheduledEntry);
-                        String mapped = rangeOfDiscipline(relays, RelayRules.intOf(start.get("discipline_id")));
+                        String mapped = shootingDistanceOfDiscipline(registry, RelayRules.intOf(start.get("discipline_id")));
                         if (mapped != null && !mapped.equals(scheduledEntry.get("range_id"))) {
                             issues.add(scheduledEntry.get("discipline_name") + " is scheduled on "
                                 + scheduledEntry.get("range_name") + " but is set to fire on " + rangeName(relays, mapped));
@@ -515,33 +491,8 @@ public class RelayService {
         return name != null ? name : "Discipline #" + disciplineId;
     }
 
-    /** The active MLAIC disciplines (plus any that are already mapped) with their range. */
-    private static List<Map<String, Object>> disciplinesWithRange(Map<String, Object> relays, Registry registry) {
-        Set<Integer> ids = new LinkedHashSet<>(registry.activeDisciplines());
-        disciplineRangesOf(relays).keySet().forEach(key -> {
-            try {
-                ids.add(Integer.parseInt(key));
-            } catch (NumberFormatException ignored) {
-                // hand-written key, shown only through the mapping itself
-            }
-        });
-        registry.starts().values().forEach(start -> ids.add(RelayRules.intOf(start.get("discipline_id"))));
-
-        List<Map<String, Object>> disciplines = new ArrayList<>();
-        for (Integer id : ids) {
-            Map<String, Object> discipline = new LinkedHashMap<>();
-            discipline.put("id", id);
-            discipline.put("name", disciplineName(registry, id));
-            discipline.put("range_id", rangeOfDiscipline(relays, id));
-            disciplines.add(discipline);
-        }
-        disciplines.sort(Comparator.comparing(d -> Objects.toString(d.get("name"), "")));
-        return disciplines;
-    }
-
-    private static String rangeOfDiscipline(Map<String, Object> relays, int disciplineId) {
-        Object rangeId = disciplineRangesOf(relays).get(String.valueOf(disciplineId));
-        return rangeId instanceof String s && !s.isBlank() ? s : null;
+    private static String shootingDistanceOfDiscipline(Registry registry, int disciplineId) {
+        return registry.disciplineShootingDistances().get(disciplineId);
     }
 
     private static String rangeName(Map<String, Object> relays, String rangeId) {
@@ -638,13 +589,21 @@ public class RelayService {
         return prefix + (max + 1);
     }
 
-    /** Competitors, their starts and the discipline names, all read from data.json. */
+    /** Competitors, their starts and discipline metadata, all read from data.json/disciplines.json. */
     private Registry registry() throws Exception {
         Map<Integer, String> disciplineNames = new LinkedHashMap<>();
+        Map<Integer, String> disciplineLevels = new LinkedHashMap<>();
+        Map<Integer, String> disciplineShootingDistances = new LinkedHashMap<>();
         for (Discipline discipline : dataService.loadDisciplines()) {
             disciplineNames.put(discipline.getId(), discipline.getType() != null
                 ? discipline.getEvent() + " (" + discipline.getType() + ")"
                 : discipline.getEvent());
+            if (discipline.getLevel() != null) {
+                disciplineLevels.put(discipline.getId(), discipline.getLevel());
+            }
+            if (discipline.getShootingDistance() != null && !discipline.getShootingDistance().isBlank()) {
+                disciplineShootingDistances.put(discipline.getId(), discipline.getShootingDistance());
+            }
         }
 
         return dataService.read(data -> {
@@ -691,7 +650,7 @@ public class RelayService {
                     }
                 }
             }
-            return new Registry(competitors, starts, disciplineNames, active);
+            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, active);
         });
     }
 
@@ -750,11 +709,6 @@ public class RelayService {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> disciplineRangesOf(Map<String, Object> relays) {
-        return (Map<String, Object>) relays.get("discipline_ranges");
-    }
-
-    @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> listOf(Map<String, Object> relays, String key) {
         return (List<Map<String, Object>>) relays.get(key);
     }
@@ -805,9 +759,6 @@ public class RelayService {
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
-        }
-        if (!(relays.get("discipline_ranges") instanceof Map)) {
-            relays.put("discipline_ranges", new LinkedHashMap<>());
         }
         for (String key : new String[] {"days", "relays", "assignments"}) {
             if (!(relays.get(key) instanceof List)) {
