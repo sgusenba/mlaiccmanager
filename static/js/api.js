@@ -106,20 +106,6 @@ export async function deleteCompetitor(id, version) {
     return await apiCall(`/competitors/${id}${versionQuery(version)}`, { method: 'DELETE' });
 }
 
-// Save active disciplines (baseIds: the list the user started from, to detect concurrent changes)
-export async function saveActiveDisciplines(disciplineIds, baseIds) {
-    return await apiCall('/active-disciplines', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discipline_ids: disciplineIds, base_ids: baseIds })
-    });
-}
-
-// Deactivate a single discipline
-export async function deactivateDiscipline(disciplineId) {
-    return await apiCall(`/active-disciplines/${disciplineId}`, { method: 'DELETE' });
-}
-
 // Add start to competitor
 export async function addStart(competitorId, disciplineId) {
     return await apiCall(`/competitors/${competitorId}/starts`, {

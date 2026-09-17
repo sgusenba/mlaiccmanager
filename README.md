@@ -46,8 +46,8 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 ## Data Storage
 
-- **`data.json`** — all competition-specific data (competitors, starts, results, active disciplines). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
-- **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels). Tracked in the repo as shared configuration.
+- **`data.json`** — all competition-specific data (competitors, starts, results). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
+- **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels, shooting distance, and whether the discipline is active for this competition). Tracked in the repo as shared configuration.
 - **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, the discipline-to-range mapping, relay duration), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
 ## Multiple Users
@@ -74,8 +74,8 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
 
 ### Disciplines
-- `GET /api/active-disciplines` — get currently active disciplines
-- `POST /api/active-disciplines` — set active disciplines (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
+- `GET /api/active-disciplines` — get currently active disciplines (the catalog entries with `active: true` in `disciplines.json`)
+- `POST /api/active-disciplines` — set active disciplines, flipping each catalog entry's `active` flag (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
 - `DELETE /api/active-disciplines/{id}` — deactivate a single discipline
 - `GET /api/available-disciplines` — get all available disciplines from config
 - `GET /api/disciplines` — list disciplines

@@ -52,12 +52,7 @@ async function loadCompetitorsData() {
 // Load disciplines data
 async function loadDisciplinesData() {
     try {
-        await Promise.all([
-            loadAvailableDisciplines(),
-            loadActiveDisciplines()
-        ]);
-        const { renderActiveDisciplines } = await import('./modules/disciplines.js');
-        renderActiveDisciplines();
+        await loadAvailableDisciplines();
     } catch (error) {
         console.error('Error loading disciplines data:', error);
     }

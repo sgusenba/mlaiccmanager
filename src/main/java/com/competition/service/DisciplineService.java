@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class DisciplineService {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -20,32 +21,38 @@ public class DisciplineService {
     }
 
     public List<Integer> getActiveDisciplines() throws Exception {
-        return dataService.read(DisciplineService::activeDisciplinesOf);
+        return activeIdsOf(dataService.loadDisciplines());
     }
 
     /**
-     * Replaces the active discipline list. If baseIds (the list the client
-     * started from) is given and no longer matches, someone else changed the
-     * list meanwhile and the save is rejected instead of silently undoing it.
+     * Replaces the active discipline list by flipping each catalog discipline's
+     * "active" flag. If baseIds (the list the client started from) is given and
+     * no longer matches, someone else changed the list meanwhile and the save
+     * is rejected instead of silently undoing it.
      */
     public List<Integer> setActiveDisciplines(List<Integer> disciplineIds, List<Integer> baseIds) throws Exception {
-        return dataService.update(data -> {
-            List<Integer> current = activeDisciplinesOf(data);
+        Set<Integer> desired = new HashSet<>(disciplineIds);
+        return dataService.updateDisciplines(disciplines -> {
+            List<Integer> current = activeIdsOf(disciplines);
             if (baseIds != null && !new HashSet<>(baseIds).equals(new HashSet<>(current))) {
                 throw new ConflictException("Active disciplines were changed by someone else", current);
             }
-            data.put("active_disciplines", disciplineIds);
-            return disciplineIds;
+            for (Discipline d : disciplines) {
+                d.setActive(desired.contains(d.getId()));
+            }
+            return activeIdsOf(disciplines);
         });
     }
 
-    /** Removes a single discipline from the active list, leaving everyone else's changes intact. */
+    /** Deactivates a single discipline, leaving everyone else's changes intact. */
     public List<Integer> deactivateDiscipline(int disciplineId) throws Exception {
-        return dataService.update(data -> {
-            List<Integer> active = new ArrayList<>(activeDisciplinesOf(data));
-            active.removeIf(id -> id == disciplineId);
-            data.put("active_disciplines", active);
-            return active;
+        return dataService.updateDisciplines(disciplines -> {
+            for (Discipline d : disciplines) {
+                if (d.getId() == disciplineId) {
+                    d.setActive(false);
+                }
+            }
+            return activeIdsOf(disciplines);
         });
     }
 
@@ -181,18 +188,19 @@ public class DisciplineService {
             String sd = (String) data.get("shooting_distance");
             d.setShootingDistance(sd != null && !sd.isBlank() ? sd : null);
         }
+        if (data.containsKey("active")) {
+            d.setActive(Boolean.TRUE.equals(data.get("active")));
+        }
     }
 
-    private static List<Integer> activeDisciplinesOf(Map<String, Object> data) {
-        List<Integer> activeDisciplines = new ArrayList<>();
-        if (data.get("active_disciplines") instanceof List<?> rawIds) {
-            for (Object id : rawIds) {
-                if (id instanceof Number) {
-                    activeDisciplines.add(((Number) id).intValue());
-                }
+    private static List<Integer> activeIdsOf(List<Discipline> disciplines) {
+        List<Integer> activeIds = new ArrayList<>();
+        for (Discipline d : disciplines) {
+            if (d.isActive()) {
+                activeIds.add(d.getId());
             }
         }
-        return activeDisciplines;
+        return activeIds;
     }
 
     @SuppressWarnings("unchecked")

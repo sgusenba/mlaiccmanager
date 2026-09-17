@@ -158,6 +158,12 @@ class ConcurrencyAndVersionTest {
 
     @Test
     void activeDisciplineChangesDoNotOverwriteEachOther() throws Exception {
+        Files.writeString(tempDir.resolve("disciplines.json"),
+            "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"A\"},"
+                + "{\"id\":2,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"B\"},"
+                + "{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"C\"},"
+                + "{\"id\":4,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"D\"}]");
+
         disciplineService.setActiveDisciplines(List.of(1, 2, 3), null);
 
         // Two users deactivate different disciplines from the same starting point

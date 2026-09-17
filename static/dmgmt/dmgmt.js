@@ -65,7 +65,7 @@ function categoryBadge(category) {
 function renderTable() {
     const tbody = document.getElementById('discipline-table-body');
     if (!state.disciplines.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
         return;
     }
 
@@ -88,6 +88,9 @@ function renderTable() {
             <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
             <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
+            <td class="px-4 py-2 text-sm">
+                <input type="checkbox" class="active-toggle h-4 w-4 text-green-600 border-gray-300 rounded" data-discipline-id="${d.id}" ${d.active !== false ? 'checked' : ''}>
+            </td>
             <td class="px-4 py-2 text-sm">
                 <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : ''}>
                     <option value="">any distance</option>
@@ -234,9 +237,24 @@ function setupListeners() {
         }
     });
 
-    document.getElementById('discipline-table-body').addEventListener('change', (event) => {
+    document.getElementById('discipline-table-body').addEventListener('change', async (event) => {
         if (event.target.classList.contains('shooting-distance')) {
             document.getElementById('save-distances-btn').classList.remove('hidden');
+        }
+
+        if (event.target.classList.contains('active-toggle')) {
+            const checkbox = event.target;
+            const id = parseInt(checkbox.dataset.disciplineId, 10);
+            const active = checkbox.checked;
+            try {
+                await api(`/available-disciplines/${id}`, 'PUT', { active });
+                const discipline = state.disciplines.find(d => d.id === id);
+                if (discipline) discipline.active = active;
+                showMessage(active ? 'Discipline activated' : 'Discipline deactivated', 'success');
+            } catch (error) {
+                checkbox.checked = !active;
+                showMessage(error.message);
+            }
         }
     });
 }

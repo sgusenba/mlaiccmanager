@@ -89,7 +89,7 @@ public class DataService {
             Map<String, Object> data = objectMapper.convertValue(rootNode, Map.class);
 
             // Ensure all required keys exist
-            String[] requiredKeys = {"competitors", "disciplines", "teams", "active_disciplines", "results"};
+            String[] requiredKeys = {"competitors", "disciplines", "teams", "results"};
             for (String key : requiredKeys) {
                 if (!data.containsKey(key)) {
                     data.put(key, new ArrayList<>());
@@ -209,7 +209,6 @@ public class DataService {
         defaultData.put("competitors", new ArrayList<>());
         defaultData.put("disciplines", new ArrayList<>());
         defaultData.put("teams", new ArrayList<>());
-        defaultData.put("active_disciplines", new ArrayList<>());
         defaultData.put("results", new ArrayList<>());
         return defaultData;
     }
