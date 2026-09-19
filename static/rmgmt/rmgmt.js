@@ -77,6 +77,7 @@ function formatDate(isoDate) {
 
 const duration = () => state.data.config.relay_duration_min;
 const dayById = (id) => state.data.days.find(d => d.id === id);
+const isLocked = (dayId, rangeId) => state.data.locks.some(l => l.day_id === dayId && l.range_id === rangeId);
 
 // Relays in schedule order (days are kept sorted by the server)
 function orderedRelays() {
@@ -164,7 +165,19 @@ function renderSchedule() {
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relay</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                            ${ranges.map(r => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(r.name)}</th>`).join('')}
+                            ${ranges.map(r => {
+                                const locked = isLocked(day.id, r.id);
+                                return `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <span class="inline-flex items-center gap-1">
+                                        ${escapeHtml(r.name)}
+                                        <button type="button" class="lock-toggle-btn no-print ${locked ? 'text-red-600' : 'text-gray-400 hover:text-gray-600'}"
+                                            data-range-id="${escapeHtml(r.id)}" data-locked="${locked}"
+                                            title="${locked ? 'Unlock' : 'Lock'} ${escapeHtml(r.name)} for editing on ${escapeHtml(formatDate(day.date))}">
+                                            ${locked ? '&#128274;' : '&#128275;'}
+                                        </button>
+                                    </span>
+                                </th>`;
+                            }).join('')}
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
                         </tr>
                     </thead>
@@ -218,7 +231,11 @@ function setupScheduleListeners() {
         const dayId = dayEl.dataset.dayId;
         const relayId = event.target.closest('[data-relay-id]')?.dataset.relayId;
 
-        if (button.classList.contains('day-save-btn')) {
+        if (button.classList.contains('lock-toggle-btn')) {
+            const rangeId = button.dataset.rangeId;
+            const locked = button.dataset.locked === 'true';
+            perform(() => api(`/days/${encodeURIComponent(dayId)}/ranges/${encodeURIComponent(rangeId)}/lock`, 'PUT', { locked: !locked }), refreshSchedule);
+        } else if (button.classList.contains('day-save-btn')) {
             const date = dayEl.querySelector('.day-edit-date').value;
             const start = dayEl.querySelector('.day-edit-start').value;
             perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start }), refreshSchedule);
@@ -283,6 +300,7 @@ async function renderRelay() {
 
 function laneBlock(block, available) {
     const taken = block.lanes.filter(l => l.assignment).length;
+    const locked = block.locked;
     const optionsFor = (assignment) => {
         const current = assignment
             ? `<option value="${escapeHtml(assignment.start_id)}" selected>${escapeHtml(startLabel(assignment))}</option>`
@@ -295,7 +313,10 @@ function laneBlock(block, available) {
     return `
         <div class="bg-white rounded-lg shadow-md overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-semibold">${escapeHtml(block.name)}</h3>
+                <h3 class="text-lg font-semibold flex items-center gap-2">
+                    ${escapeHtml(block.name)}
+                    ${locked ? '<span class="no-print text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-full px-2 py-0.5">Locked</span>' : ''}
+                </h3>
                 <span class="text-sm text-gray-600">${taken} / ${block.lane_count} lanes</span>
             </div>
             <table class="min-w-full divide-y divide-gray-100">
@@ -305,7 +326,7 @@ function laneBlock(block, available) {
                         data-assignment-id="${escapeHtml(lane.assignment?.id ?? '')}">
                         <td class="px-3 py-1 text-sm font-medium text-gray-500 w-12 text-right">${lane.lane_no}</td>
                         <td class="px-3 py-1">
-                            <select class="lane-select w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'}">
+                            <select ${locked ? 'disabled' : ''} class="lane-select w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'} ${locked ? 'bg-gray-100 cursor-not-allowed' : ''}">
                                 ${optionsFor(lane.assignment)}
                             </select>
                             <span class="print-only text-sm">${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}</span>

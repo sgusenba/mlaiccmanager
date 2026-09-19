@@ -63,6 +63,12 @@ public class RelayResource {
         });
     }
 
+    @PUT
+    @Path("/days/{dayId}/ranges/{rangeId}/lock")
+    public Response setLock(@PathParam("dayId") String dayId, @PathParam("rangeId") String rangeId, Map<String, Object> request) {
+        return handle("update lock", () -> relayService.setLock(dayId, rangeId, request));
+    }
+
     @POST
     @Path("/days/{id}/relays")
     public Response addRelays(@PathParam("id") String id, Map<String, Object> request) {

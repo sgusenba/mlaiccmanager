@@ -127,6 +127,9 @@ public class RelayService {
     public void deleteDay(String dayId) throws Exception {
         update(relays -> {
             findDay(relays, dayId);
+            if (anyRangeLocked(relays, dayId)) {
+                throw new IllegalArgumentException("Cannot delete day: it has a locked distance");
+            }
             List<Map<String, Object>> relayList = listOf(relays, "relays");
             List<Object> relayIds = new ArrayList<>();
             for (Map<String, Object> relay : relayList) {
@@ -149,6 +152,9 @@ public class RelayService {
         }
         return update(relays -> {
             Map<String, Object> day = findDay(relays, dayId);
+            if (anyRangeLocked(relays, dayId)) {
+                throw new IllegalArgumentException("Cannot add relays: this day has a locked distance");
+            }
             List<Map<String, Object>> relayList = listOf(relays, "relays");
             int sequenceNo = relaysOfDay(relays, dayId).size();
             List<Map<String, Object>> created = new ArrayList<>();
@@ -170,6 +176,9 @@ public class RelayService {
     public void deleteRelay(String relayId) throws Exception {
         update(relays -> {
             Map<String, Object> relay = findRelay(relays, relayId);
+            if (anyRangeLocked(relays, (String) relay.get("day_id"))) {
+                throw new IllegalArgumentException("Cannot delete relay: this day has a locked distance");
+            }
             listOf(relays, "relays").remove(relay);
             listOf(relays, "assignments").removeIf(a -> relayId.equals(a.get("relay_id")));
             Map<String, Object> day = find(listOf(relays, "days"), relay.get("day_id"));
@@ -199,6 +208,7 @@ public class RelayService {
                 }
                 Map<String, Object> block = new LinkedHashMap<>(range);
                 block.put("lanes", lanes);
+                block.put("locked", isLocked(relays, (String) relay.get("day_id"), (String) range.get("id")));
                 blocks.add(block);
             }
 
@@ -260,8 +270,11 @@ public class RelayService {
         String startId = requireString(request, "start_id");
 
         return update(relays -> {
-            findRelay(relays, relayId);
+            Map<String, Object> relay = findRelay(relays, relayId);
             Map<String, Object> range = findRange(relays, rangeId);
+            if (isLocked(relays, (String) relay.get("day_id"), rangeId)) {
+                throw new IllegalArgumentException("This day/distance is locked for editing");
+            }
             int laneCount = RelayRules.intOf(range.get("lane_count"));
             if (laneNo < 1 || laneNo > laneCount) {
                 throw new IllegalArgumentException("Lane must be between 1 and " + laneCount + " for " + range.get("name"));
@@ -317,10 +330,34 @@ public class RelayService {
 
     public void deleteAssignment(String assignmentId) throws Exception {
         update(relays -> {
-            if (!listOf(relays, "assignments").removeIf(a -> assignmentId.equals(a.get("id")))) {
+            Map<String, Object> assignment = find(listOf(relays, "assignments"), assignmentId);
+            if (assignment == null) {
                 throw new RecordNotFoundException("Assignment not found");
             }
+            Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
+            if (relay != null && isLocked(relays, (String) relay.get("day_id"), (String) assignment.get("range_id"))) {
+                throw new IllegalArgumentException("This day/distance is locked for editing");
+            }
+            listOf(relays, "assignments").remove(assignment);
             return null;
+        });
+    }
+
+    /** Locks or unlocks lane editing for one day/distance pair. */
+    public List<Map<String, Object>> setLock(String dayId, String rangeId, Map<String, Object> request) throws Exception {
+        boolean locked = requireBoolean(request, "locked");
+        return update(relays -> {
+            findDay(relays, dayId);
+            findRange(relays, rangeId);
+            List<Map<String, Object>> locks = listOf(relays, "locks");
+            locks.removeIf(l -> dayId.equals(l.get("day_id")) && rangeId.equals(l.get("range_id")));
+            if (locked) {
+                Map<String, Object> lock = new LinkedHashMap<>();
+                lock.put("day_id", dayId);
+                lock.put("range_id", rangeId);
+                locks.add(lock);
+            }
+            return locks;
         });
     }
 
@@ -564,6 +601,25 @@ public class RelayService {
         return range;
     }
 
+    private static boolean isLocked(Map<String, Object> relays, String dayId, String rangeId) {
+        for (Map<String, Object> lock : listOf(relays, "locks")) {
+            if (dayId.equals(lock.get("day_id")) && rangeId.equals(lock.get("range_id"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any range of the day is locked; add/delete relay and delete day touch every range's assignments. */
+    private static boolean anyRangeLocked(Map<String, Object> relays, String dayId) {
+        for (Map<String, Object> lock : listOf(relays, "locks")) {
+            if (dayId.equals(lock.get("day_id"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Map<String, Object> find(List<Map<String, Object>> items, Object id) {
         for (Map<String, Object> item : items) {
             if (Objects.equals(item.get("id"), id)) {
@@ -681,6 +737,14 @@ public class RelayService {
         throw new IllegalArgumentException(key + " must be a number");
     }
 
+    private static boolean requireBoolean(Map<String, Object> request, String key) {
+        Object value = request != null ? request.get(key) : null;
+        if (!(value instanceof Boolean b)) {
+            throw new IllegalArgumentException(key + " must be true or false");
+        }
+        return b;
+    }
+
     private static String requireDate(Map<String, Object> request) {
         String date = requireString(request, "date");
         try {
@@ -756,7 +820,7 @@ public class RelayService {
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }
-        for (String key : new String[] {"days", "relays", "assignments"}) {
+        for (String key : new String[] {"days", "relays", "assignments", "locks"}) {
             if (!(relays.get(key) instanceof List)) {
                 relays.put(key, new ArrayList<>());
             }
