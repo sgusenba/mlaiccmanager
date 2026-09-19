@@ -199,6 +199,46 @@ class RelayServiceTest {
         assertTrue(error.getMessage().contains("team discipline"));
     }
 
+    @Test
+    void lockingADayDistancePairBlocksAssignmentChangesOnlyForThatPair() throws Exception {
+        Map<String, Object> anna = assign(relay1, "m25", 1, "1-52-1");
+        relayService.setLock((String) relayService.getRelay(relay1).get("day_id"), "m25", Map.of("locked", true));
+
+        List<Map<String, Object>> blocks = castRows(relayService.getRelay(relay1).get("ranges"));
+        Map<String, Object> lockedBlock = blocks.stream().filter(b -> "m25".equals(b.get("id"))).findFirst().orElseThrow();
+        assertEquals(true, lockedBlock.get("locked"));
+
+        IllegalArgumentException assignError = assertThrows(IllegalArgumentException.class,
+            () -> assign(relay1, "m25", 2, "2-52-1"));
+        assertEquals("This day/distance is locked for editing", assignError.getMessage());
+
+        IllegalArgumentException deleteError = assertThrows(IllegalArgumentException.class,
+            () -> relayService.deleteAssignment((String) anna.get("id")));
+        assertEquals("This day/distance is locked for editing", deleteError.getMessage());
+
+        // other ranges/relays of the same day are unaffected (relay2 is on the same day as relay1)
+        assign(relay2, "m50", 1, "1-3-1");
+
+        relayService.setLock((String) relayService.getRelay(relay1).get("day_id"), "m25", Map.of("locked", false));
+        assign(relay1, "m25", 2, "2-52-1");
+    }
+
+    @Test
+    void lockingAnyRangeOfADayBlocksAddingOrDeletingRelaysAndDeletingTheDay() throws Exception {
+        String dayId = (String) relayService.getRelay(relay1).get("day_id");
+        relayService.setLock(dayId, "m50", Map.of("locked", true));
+
+        assertThrows(IllegalArgumentException.class, () -> relayService.addRelays(dayId, Map.of("count", 1)));
+        assertThrows(IllegalArgumentException.class, () -> relayService.deleteRelay(relay1));
+        assertThrows(IllegalArgumentException.class, () -> relayService.deleteDay(dayId));
+
+        // day date/time can still be edited while locked
+        relayService.updateDay(dayId, Map.of("date", "2026-10-04", "start_time", "10:00"));
+
+        relayService.setLock(dayId, "m50", Map.of("locked", false));
+        relayService.addRelays(dayId, Map.of("count", 1));
+    }
+
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> castRows(Object value) {
         return (List<Map<String, Object>>) value;
