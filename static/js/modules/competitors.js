@@ -45,6 +45,9 @@ export function renderCompetitors() {
             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${competitor.phone || 'Not provided'}
             </td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${competitor.country || 'Not specified'}
+            </td>
             <td class="px-4 py-4 text-sm text-gray-500">
                 ${competitor.address || 'Not provided'}
             </td>
@@ -134,6 +137,7 @@ export async function saveCompetitor(event) {
         club: getElementValue('competitor-club'),
         email: getElementValue('competitor-email'),
         phone: getElementValue('competitor-phone'),
+        country: getElementValue('competitor-country'),
         address: getElementValue('competitor-address')
         // starts are managed in the Starts section and never sent from this form
     };
@@ -185,6 +189,7 @@ function fillCompetitorForm(competitor) {
     setElementValue('competitor-club', competitor.club || '');
     setElementValue('competitor-email', competitor.email || '');
     setElementValue('competitor-phone', competitor.phone || '');
+    setElementValue('competitor-country', competitor.country || '');
     setElementValue('competitor-address', competitor.address || '');
 }
 

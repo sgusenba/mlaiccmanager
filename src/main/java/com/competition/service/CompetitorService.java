@@ -68,6 +68,7 @@ public class CompetitorService {
             existingData.put("email", competitor.getEmail());
             existingData.put("phone", competitor.getPhone());
             existingData.put("address", competitor.getAddress());
+            existingData.put("country", competitor.getCountry());
             DataService.bumpVersion(existingData);
 
             return mapToCompetitor(existingData);
@@ -124,6 +125,7 @@ public class CompetitorService {
         competitor.setEmail((String) data.get("email"));
         competitor.setPhone((String) data.get("phone"));
         competitor.setAddress((String) data.get("address"));
+        competitor.setCountry((String) data.get("country"));
         competitor.setYearOfBirth(data.get("year_of_birth") != null ? (String) data.get("year_of_birth") : "");
         competitor.setCreatedAt((String) data.get("created_at"));
         competitor.setVersion(DataService.getVersion(data));
@@ -155,6 +157,7 @@ public class CompetitorService {
         data.put("email", competitor.getEmail());
         data.put("phone", competitor.getPhone());
         data.put("address", competitor.getAddress());
+        data.put("country", competitor.getCountry());
         data.put("year_of_birth", competitor.getYearOfBirth());
         data.put("created_at", competitor.getCreatedAt());
         data.put("version", competitor.getVersion() != null ? competitor.getVersion() : 0);
