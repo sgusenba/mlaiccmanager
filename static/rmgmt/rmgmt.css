@@ -3,6 +3,12 @@
     display: none;
 }
 
+/* Controls of a locked day */
+#days-list :is(button, input):disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 @media print {
     .lane-select {
         display: none !important;

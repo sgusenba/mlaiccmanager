@@ -77,7 +77,6 @@ function formatDate(isoDate) {
 
 const duration = () => state.data.config.relay_duration_min;
 const dayById = (id) => state.data.days.find(d => d.id === id);
-const isLocked = (dayId, rangeId) => state.data.locks.some(l => l.day_id === dayId && l.range_id === rangeId);
 
 // Relays in schedule order (days are kept sorted by the server)
 function orderedRelays() {
@@ -104,7 +103,7 @@ async function loadData() {
 
 // --- navigation ------------------------------------------------------------
 
-const sections = ['schedule', 'assignment', 'overview'];
+const sections = ['schedule', 'assignment', 'overview', 'settings'];
 
 async function showSection(name) {
     if (!sections.includes(name)) name = 'schedule';
@@ -116,6 +115,7 @@ async function showSection(name) {
         if (name === 'schedule') await refreshSchedule();
         if (name === 'assignment') await refreshAssignment();
         if (name === 'overview') await refreshOverview();
+        if (name === 'settings') await refreshSettings();
     } catch (error) {
         console.error(error);
         showMessage(`Could not load data: ${error.message}`);
@@ -131,8 +131,6 @@ async function refreshSchedule() {
 
 function renderSchedule() {
     const { config, ranges, days, assignments } = state.data;
-    document.getElementById('relay-duration').value = config.relay_duration_min;
-    renderConfigLock(config.locked, ranges);
 
     const filled = new Map();
     assignments.forEach(a => {
@@ -144,18 +142,26 @@ function renderSchedule() {
     document.getElementById('days-list').innerHTML = days.map(day => {
         const relays = state.data.relays.filter(r => r.day_id === day.id).sort((a, b) => a.sequence_no - b.sequence_no);
         const lastEnd = relays.length ? addMinutes(relays[relays.length - 1].start_time, config.relay_duration_min) : null;
+        const locked = day.locked === true;
+        const off = locked ? 'disabled' : '';
         return `
         <div class="bg-white rounded-lg shadow-md p-6" data-day-id="${escapeHtml(day.id)}">
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                 <div>
                     <h3 class="text-lg font-semibold">${escapeHtml(formatDate(day.date))}</h3>
-                    <p class="text-sm text-gray-600">Start ${escapeHtml(day.start_time)} · ${relays.length} relay${relays.length === 1 ? '' : 's'}${lastEnd ? ` · ends ${lastEnd}` : ''}</p>
+                    <p class="text-sm text-gray-600">Start ${escapeHtml(day.start_time)} · ${day.break_min ?? 0} min break · ${relays.length} relay${relays.length === 1 ? '' : 's'}${lastEnd ? ` · ends ${lastEnd}` : ''}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 no-print">
-                    <input type="date" class="day-edit-date px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.date)}" aria-label="Date">
-                    <input type="time" class="day-edit-start px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.start_time)}" aria-label="Start time">
-                    <button class="day-save-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Update</button>
-                    <button class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">Delete day</button>
+                    <button type="button" class="day-lock-btn text-sm px-2 py-1 border rounded-md ${locked
+                        ? 'text-red-600 border-red-200 bg-red-50' : 'text-green-700 border-green-200 bg-green-50'}"
+                        data-locked="${locked}" title="${locked ? 'Unlock' : 'Lock'} this day for editing">
+                        ${locked ? '&#128274; Locked' : '&#128275; Unlocked'}
+                    </button>
+                    <input type="date" ${off} class="day-edit-date px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.date)}" aria-label="Date">
+                    <input type="time" ${off} class="day-edit-start px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.start_time)}" aria-label="Start time">
+                    <input type="number" ${off} class="day-edit-break px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="0" max="1440" value="${day.break_min ?? 0}" aria-label="Break between relays (min)" title="Break between relays (min)">
+                    <button ${off} class="day-save-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Update</button>
+                    <button ${off} class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">Delete day</button>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -164,19 +170,7 @@ function renderSchedule() {
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relay</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                            ${ranges.map(r => {
-                                const locked = isLocked(day.id, r.id);
-                                return `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <span class="inline-flex items-center gap-1">
-                                        ${escapeHtml(r.name)}
-                                        <button type="button" class="lock-toggle-btn no-print ${locked ? 'text-red-600' : 'text-gray-400 hover:text-gray-600'}"
-                                            data-range-id="${escapeHtml(r.id)}" data-locked="${locked}"
-                                            title="${locked ? 'Unlock' : 'Lock'} ${escapeHtml(r.name)} for editing on ${escapeHtml(formatDate(day.date))}">
-                                            ${locked ? '&#128274;' : '&#128275;'}
-                                        </button>
-                                    </span>
-                                </th>`;
-                            }).join('')}
+                            ${ranges.map(r => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(r.name)}</th>`).join('')}
                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
                         </tr>
                     </thead>
@@ -191,7 +185,7 @@ function renderSchedule() {
                             }).join('')}
                             <td class="px-4 py-2 text-sm whitespace-nowrap no-print">
                                 <button class="relay-open-btn text-blue-600 hover:text-blue-800 mr-3">Assign lanes</button>
-                                <button class="relay-delete-btn text-red-600 hover:text-red-800">Delete</button>
+                                <button ${off} class="relay-delete-btn text-red-600 hover:text-red-800">Delete</button>
                             </td>
                         </tr>`).join('')}
                         ${relays.length === 0 ? `<tr><td colspan="${3 + ranges.length}" class="px-4 py-4 text-sm text-gray-500 text-center">No relays on this day yet.</td></tr>` : ''}
@@ -199,11 +193,24 @@ function renderSchedule() {
                 </table>
             </div>
             <div class="flex items-center gap-2 mt-4 no-print">
-                <input type="number" class="relay-count px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="1" max="100" value="1" aria-label="Number of relays">
-                <button class="relay-add-btn bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700">Add relays</button>
+                <input type="number" ${off} class="relay-count px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="1" max="100" value="1" aria-label="Number of relays">
+                <button ${off} class="relay-add-btn bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700">Add relays</button>
             </div>
         </div>`;
     }).join('');
+}
+
+// --- settings --------------------------------------------------------------
+
+async function refreshSettings() {
+    await loadData();
+    renderSettings();
+}
+
+function renderSettings() {
+    const { config, ranges } = state.data;
+    document.getElementById('relay-duration').value = config.relay_duration_min;
+    renderConfigLock(config.locked, ranges);
 }
 
 function renderConfigLock(locked, ranges) {
@@ -238,26 +245,27 @@ function setupScheduleListeners() {
         perform(async () => {
             await api('/config', 'PUT', { relay_duration_min: minutes });
             showMessage('Relay duration saved, start times recalculated', 'success');
-        }, refreshSchedule);
+        }, refreshSettings);
     });
 
     document.getElementById('day-form').addEventListener('submit', (event) => {
         event.preventDefault();
         const date = document.getElementById('day-date').value;
         const start = document.getElementById('day-start').value;
-        perform(() => api('/days', 'POST', { date, start_time: start }), refreshSchedule);
+        const breakMin = parseInt(document.getElementById('day-break').value, 10);
+        perform(() => api('/days', 'POST', { date, start_time: start, break_min: breakMin }), refreshSchedule);
     });
 
     document.getElementById('config-lock-btn').addEventListener('click', () => {
         const locked = document.getElementById('config-lock-btn').dataset.locked === 'true';
-        perform(() => api('/config/lock', 'PUT', { locked: !locked }), refreshSchedule);
+        perform(() => api('/config/lock', 'PUT', { locked: !locked }), refreshSettings);
     });
 
     document.getElementById('range-add-btn').addEventListener('click', () => {
         const name = document.getElementById('range-name').value.trim();
         const laneCount = parseInt(document.getElementById('range-lane-count').value, 10);
         if (!name || !laneCount) return;
-        perform(() => api('/ranges', 'POST', { name, lane_count: laneCount }), refreshSchedule);
+        perform(() => api('/ranges', 'POST', { name, lane_count: laneCount }), refreshSettings);
     });
 
     document.getElementById('ranges-list').addEventListener('click', (event) => {
@@ -269,10 +277,10 @@ function setupScheduleListeners() {
         if (button.classList.contains('range-save-btn')) {
             const name = rangeEl.querySelector('.range-edit-name').value;
             const laneCount = parseInt(rangeEl.querySelector('.range-edit-lanes').value, 10);
-            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT', { name, lane_count: laneCount }), refreshSchedule);
+            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT', { name, lane_count: laneCount }), refreshSettings);
         } else if (button.classList.contains('range-delete-btn')) {
             if (!confirm('Delete this distance? Only possible if no lanes are assigned on it.')) return;
-            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'DELETE'), refreshSchedule);
+            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'DELETE'), refreshSettings);
         }
     });
 
@@ -283,14 +291,14 @@ function setupScheduleListeners() {
         const dayId = dayEl.dataset.dayId;
         const relayId = event.target.closest('[data-relay-id]')?.dataset.relayId;
 
-        if (button.classList.contains('lock-toggle-btn')) {
-            const rangeId = button.dataset.rangeId;
+        if (button.classList.contains('day-lock-btn')) {
             const locked = button.dataset.locked === 'true';
-            perform(() => api(`/days/${encodeURIComponent(dayId)}/ranges/${encodeURIComponent(rangeId)}/lock`, 'PUT', { locked: !locked }), refreshSchedule);
+            perform(() => api(`/days/${encodeURIComponent(dayId)}/lock`, 'PUT', { locked: !locked }), refreshSchedule);
         } else if (button.classList.contains('day-save-btn')) {
             const date = dayEl.querySelector('.day-edit-date').value;
             const start = dayEl.querySelector('.day-edit-start').value;
-            perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start }), refreshSchedule);
+            const breakMin = parseInt(dayEl.querySelector('.day-edit-break').value, 10);
+            perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start, break_min: breakMin }), refreshSchedule);
         } else if (button.classList.contains('day-delete-btn')) {
             if (!confirm('Delete this day with all its relays and lane assignments?')) return;
             perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'DELETE'), refreshSchedule);
