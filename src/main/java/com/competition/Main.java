@@ -30,9 +30,13 @@ public class Main {
         jerseyServlet.setInitOrder(0);
         context.addServlet(jerseyServlet, "/api/*");
 
-        // Serve static files
+        // Serve static files. "no-cache" makes browsers revalidate on every load
+        // (a cheap 304 when unchanged), so an update never runs stale JS/CSS
+        // against a newer API.
         context.setResourceBase(System.getProperty("user.dir") + "/static");
-        context.addServlet(new ServletHolder(new org.eclipse.jetty.servlet.DefaultServlet()), "/*");
+        ServletHolder staticFiles = new ServletHolder(new org.eclipse.jetty.servlet.DefaultServlet());
+        staticFiles.setInitParameter("cacheControl", "no-cache");
+        context.addServlet(staticFiles, "/*");
 
         server.setHandler(context);
 
