@@ -57,9 +57,10 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 
 ## Data Storage
 
-- **`data.json`** — all competition-specific data (competitors, starts, results). Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it.
-- **`disciplines.json`** — pre-configured MLAIC discipline definitions (event names, categories, levels, shooting distance, and whether the discipline is active for this competition). Tracked in the repo as shared configuration.
-- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, the discipline-to-range mapping, relay duration), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
+- **`data.json`** — competitors (with their starts) and results. Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it. Ids that follow from other data are not stored: a start's discipline comes from the key it is filed under, and a result's competitor and discipline from its start.
+- **`disciplines.json`** — the MLAIC discipline catalog (event names, categories, levels, default shooting distance). Tracked in the repo, shipped with every release and replaced on every deploy, so the app never writes to it.
+- **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
+- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration, locks), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
 ## Multiple Users
 
@@ -85,14 +86,10 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
 
 ### Disciplines
-- `GET /api/active-disciplines` — get currently active disciplines (the catalog entries with `active: true` in `disciplines.json`)
+- `GET /api/active-disciplines` — get currently active disciplines (stored in `competition.json`)
 - `POST /api/active-disciplines` — set active disciplines, flipping each catalog entry's `active` flag (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
 - `DELETE /api/active-disciplines/{id}` — deactivate a single discipline
-- `GET /api/available-disciplines` — get all available disciplines from config
-- `GET /api/disciplines` — list disciplines
-- `POST /api/disciplines` — create a discipline
-- `PUT /api/disciplines/{id}` — update a discipline
-- `DELETE /api/disciplines/{id}` — delete a discipline
+- `GET /api/available-disciplines` — get all disciplines (the catalog with this competition's changes applied)
 
 ### Results (`/api/results`)
 - `GET /api/results` — list results (optional discipline filter)
@@ -111,7 +108,7 @@ Backs the standalone page at `/rmgmt` and stores everything in `relays.json`.
 - A **relay** (Durchgang) is one time slot in which all **ranges** fire at once. A range is a lane block: 25m with 15 lanes, 50m with 12, 100m with 8 (ids `m25`/`m50`/`m100`, lane counts editable in `relays.json`). Ranges are not the MLAIC disciplines — those keep living in `disciplines.json`.
 - The relay duration is a single meet-wide value, so a day's relay times follow from its start time.
 - A lane holds one **registered start** (e.g. `1-52-1`), created as usual in the competition management. `relays.json` only stores the start id; competitor and discipline are resolved from `data.json` on read.
-- Each MLAIC discipline can be mapped to the range it fires on. A lane then only offers starts of that range; a discipline left on "any range" is offered everywhere.
+- Each MLAIC discipline can be mapped to the range it fires on. A lane then only offers starts of that range; a discipline left on "any range" is offered everywhere. A range cannot be deleted while a discipline is still mapped to it.
 
 Two rules are enforced on the server and also drive the lane dropdowns, so conflicting starts are not offered:
 

@@ -23,7 +23,8 @@ class StartIdTest {
 
     @BeforeEach
     void setUp() {
-        DataService dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString());
+        DataService dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
+            tempDir.resolve("competition.json").toString());
         competitorService = new CompetitorService(dataService);
         startService = new StartService(dataService);
         resultService = new ResultService(dataService, new DisciplineService(dataService));

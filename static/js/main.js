@@ -2,7 +2,6 @@
 
 import { initializeApp } from './navigation.js';
 import { setupCompetitorEventListeners } from './modules/competitors.js';
-import { setupDisciplineEventListeners } from './modules/disciplines.js';
 import { setupStartsEventListeners } from './modules/starts.js';
 import { setupResultsEventListeners } from './modules/results.js';
 import { setupRankingEventListeners } from './modules/ranking.js';
@@ -15,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup event listeners for each section
     setupCompetitorEventListeners();
-    setupDisciplineEventListeners();
     setupStartsEventListeners();
     setupResultsEventListeners();
     setupRankingEventListeners();

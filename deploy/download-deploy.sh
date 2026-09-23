@@ -73,6 +73,12 @@ log "Deploying to $RUN_DIR"
 mkdir -p "$RUN_DIR/logs"
 rm -rf "$RUN_DIR/static"
 cp -r "$TMP_DIR/extract/static" "$RUN_DIR/static"
+# Before competition.json existed, disciplines.json was edited at runtime.
+# Keep that copy once so the app can carry the edits over on its next start.
+if [ ! -f "$RUN_DIR/competition.json" ] && [ -f "$RUN_DIR/disciplines.json" ] \
+   && [ ! -f "$RUN_DIR/disciplines.previous.json" ]; then
+  cp "$RUN_DIR/disciplines.json" "$RUN_DIR/disciplines.previous.json"
+fi
 cp "$TMP_DIR/extract/disciplines.json" "$RUN_DIR/disciplines.json"
 cp "$TMP_DIR/extract/mlaiccmanager.jar" "$RUN_DIR/mlaiccmanager.jar"
 echo "$NEW_SHA" > "$STATE_FILE"

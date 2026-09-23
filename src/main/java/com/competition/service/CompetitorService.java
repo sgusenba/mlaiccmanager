@@ -40,7 +40,6 @@ public class CompetitorService {
             competitor.setId(dataService.getNextId(competitorsData));
             competitor.setCreatedAt(LocalDateTime.now().format(formatter));
             competitor.setStarts(new HashMap<>());
-            competitor.setRelayNumber(null);
             competitor.setVersion(1);
 
             competitorsData.add(mapFromCompetitor(competitor));
@@ -127,8 +126,6 @@ public class CompetitorService {
         competitor.setAddress((String) data.get("address"));
         competitor.setYearOfBirth(data.get("year_of_birth") != null ? (String) data.get("year_of_birth") : "");
         competitor.setCreatedAt((String) data.get("created_at"));
-        competitor.setTeamId(data.get("team_id") != null ? ((Number) data.get("team_id")).intValue() : null);
-        competitor.setRelayNumber(data.get("relay_number") != null ? ((Number) data.get("relay_number")).intValue() : null);
         competitor.setVersion(DataService.getVersion(data));
 
         // Map starts
@@ -160,9 +157,6 @@ public class CompetitorService {
         data.put("address", competitor.getAddress());
         data.put("year_of_birth", competitor.getYearOfBirth());
         data.put("created_at", competitor.getCreatedAt());
-        data.put("team_id", competitor.getTeamId());
-        data.put("relay_number", competitor.getRelayNumber());
-        data.put("disciplines", competitor.getDisciplines() != null ? competitor.getDisciplines() : new ArrayList<>());
         data.put("version", competitor.getVersion() != null ? competitor.getVersion() : 0);
 
         // Map starts
