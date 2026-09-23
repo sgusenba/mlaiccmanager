@@ -37,7 +37,8 @@ class RelayServiceTest {
                 + "," + competitor(2, "Ben", "\"52\":[" + start("2-52-1", 1, 52) + "]")
                 + "],\"results\":[],\"disciplines\":[],\"teams\":[],\"active_disciplines\":[3,52,31]}");
 
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString());
+        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
+            tempDir.resolve("competition.json").toString());
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
 
         Map<String, Object> day = relayService.createDay(Map.of("date", "2026-10-03", "start_time", "09:00"));
@@ -270,6 +271,19 @@ class RelayServiceTest {
         assertTrue(deleteError.getMessage().contains("lane(s) are assigned on it"));
 
         relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 5));
+    }
+
+    @Test
+    void rangeCannotBeDeletedWhileADisciplineFiresOnIt() throws Exception {
+        relayService.setConfigLock(Map.of("locked", false));
+        setShootingDistances("3", "m100");
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+            () -> relayService.deleteRange("m100"));
+        assertTrue(error.getMessage().contains("No 3 Minie"));
+
+        setShootingDistances("3", "");
+        relayService.deleteRange("m100");
     }
 
     @SuppressWarnings("unchecked")

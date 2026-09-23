@@ -33,7 +33,8 @@ class ConcurrencyAndVersionTest {
 
     @BeforeEach
     void setUp() {
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString());
+        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
+            tempDir.resolve("competition.json").toString());
         competitorService = new CompetitorService(dataService);
         startService = new StartService(dataService);
         disciplineService = new DisciplineService(dataService);

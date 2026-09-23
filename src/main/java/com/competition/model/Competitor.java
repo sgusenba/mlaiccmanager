@@ -1,8 +1,11 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
+// Older clients may still send the removed disciplines/team_id/relay_number fields
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Competitor {
     @JsonProperty("id")
     private int id;
@@ -25,17 +28,8 @@ public class Competitor {
     @JsonProperty("address")
     private String address;
     
-    @JsonProperty("disciplines")
-    private java.util.List<Integer> disciplines;
-    
     @JsonProperty("starts")
     private Map<String, java.util.List<Start>> starts;
-    
-    @JsonProperty("team_id")
-    private Integer teamId;
-    
-    @JsonProperty("relay_number")
-    private Integer relayNumber;
     
     @JsonProperty("created_at")
     private String createdAt;
@@ -76,17 +70,10 @@ public class Competitor {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    public java.util.List<Integer> getDisciplines() { return disciplines; }
-    public void setDisciplines(java.util.List<Integer> disciplines) { this.disciplines = disciplines; }
-
     public Map<String, java.util.List<Start>> getStarts() { return starts; }
     public void setStarts(Map<String, java.util.List<Start>> starts) { this.starts = starts; }
 
-    public Integer getTeamId() { return teamId; }
-    public void setTeamId(Integer teamId) { this.teamId = teamId; }
 
-    public Integer getRelayNumber() { return relayNumber; }
-    public void setRelayNumber(Integer relayNumber) { this.relayNumber = relayNumber; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

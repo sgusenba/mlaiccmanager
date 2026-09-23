@@ -148,6 +148,18 @@ public class RelayService {
             if (assigned > 0) {
                 throw new IllegalArgumentException("Cannot delete " + range.get("name") + ": " + assigned + " lane(s) are assigned on it");
             }
+            // Otherwise their starts could no longer be placed anywhere
+            List<String> mapped = new ArrayList<>();
+            for (Discipline discipline : dataService.loadDisciplines()) {
+                if (rangeId.equals(discipline.getShootingDistance())) {
+                    mapped.add(discipline.getEvent());
+                }
+            }
+            if (!mapped.isEmpty()) {
+                throw new IllegalArgumentException("Cannot delete " + range.get("name") + ": " + mapped.size()
+                    + " discipline(s) fire on it (" + String.join(", ", mapped.subList(0, Math.min(5, mapped.size())))
+                    + (mapped.size() > 5 ? ", …" : "") + "). Change their shooting distance first");
+            }
             listOf(relays, "ranges").remove(range);
             listOf(relays, "locks").removeIf(l -> rangeId.equals(l.get("range_id")));
             return null;

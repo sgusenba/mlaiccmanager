@@ -103,7 +103,6 @@ export async function showCompetitorForm() {
     const disciplinesModule = await import('./disciplines.js');
     await disciplinesModule.loadAvailableDisciplines();
     await disciplinesModule.loadActiveDisciplines();
-    disciplinesModule.populateCompetitorDisciplines();
 }
 
 // Hide competitor form
