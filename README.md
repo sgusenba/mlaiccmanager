@@ -78,6 +78,8 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 
 ## API Endpoints
 
+The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml); with the server running, browse it with Swagger UI at `http://localhost:5000/swagger/`.
+
 ### Competitors (`/api/competitors`)
 - `GET /api/competitors` — list all competitors
 - `POST /api/competitors` — create a competitor (or update it when `id` is set; send `version`)
