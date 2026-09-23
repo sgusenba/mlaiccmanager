@@ -150,7 +150,8 @@ class DataSeparationTest {
         assertEquals(1, ((Number) served.get("competitor_id")).intValue());
         assertEquals(2, ((Number) served.get("discipline_id")).intValue());
 
-        Map<String, Object> ranking = new RankingService(dataService, disciplineService).getRanking(2);
+        Map<String, Object> ranking = new RankingService(dataService, disciplineService,
+            new TeamService(tempDir.resolve("teams.json").toString(), dataService)).getRanking(2);
         assertEquals(1, ((List<?>) ranking.get("rankings")).size());
 
         StartService startService = new StartService(dataService);

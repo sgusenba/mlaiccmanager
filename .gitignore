@@ -21,6 +21,8 @@ logs/
 data.json
 # Relay management runtime data (meet days, relays, lane assignments)
 relays.json
+# Team management runtime data (teams of the team disciplines)
+teams.json
 # This competition's changes to the discipline catalog (active list, overrides)
 competition.json
 disciplines.previous.json*

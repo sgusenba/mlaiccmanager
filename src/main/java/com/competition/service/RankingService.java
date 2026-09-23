@@ -10,16 +10,19 @@ public class RankingService {
 
     private DataService dataService;
     private DisciplineService disciplineService;
+    private TeamService teamService;
 
-    public RankingService(DataService dataService, DisciplineService disciplineService) {
+    public RankingService(DataService dataService, DisciplineService disciplineService, TeamService teamService) {
         this.dataService = dataService;
         this.disciplineService = disciplineService;
+        this.teamService = teamService;
     }
 
     /**
      * Detailed ranking for a single discipline, mirroring the Python
      * get_ranking() handler: top-4 results per competitor, frequency
-     * counts (rings 1-10), and override-value tie-breaking.
+     * counts (rings 1-10), and override-value tie-breaking (lower wins).
+     * A team discipline gets the team ranking instead.
      * Returns null if the discipline does not exist (caller maps to 404).
      */
     public Map<String, Object> getRanking(int disciplineId) throws Exception {
@@ -27,18 +30,22 @@ public class RankingService {
         if (discipline == null) {
             return null;
         }
+        if (TeamService.isTeamDiscipline(discipline)) {
+            return teamService.getRanking(disciplineId);
+        }
 
         List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
 
         Map<String, Object> response = new LinkedHashMap<>();
+        response.put("kind", "individual");
         response.put("discipline", buildDisciplineInfo(discipline));
         response.put("rankings", disciplineResults.isEmpty() ? new ArrayList<>() : buildRankings(disciplineResults));
         return response;
     }
 
     /**
-     * Ranking for every active discipline that currently has results,
-     * mirroring the Python get_all_ranking() handler.
+     * Ranking for every active discipline that currently has results (team
+     * disciplines: teams), mirroring the Python get_all_ranking() handler.
      */
     public Map<Integer, Object> getAllRankings() throws Exception {
         List<Integer> activeDisciplines = disciplineService.getActiveDisciplines();
@@ -49,6 +56,12 @@ public class RankingService {
             if (discipline == null) {
                 continue;
             }
+            if (TeamService.isTeamDiscipline(discipline)) {
+                if (teamService.hasTeams(disciplineId)) {
+                    allRankings.put(disciplineId, teamService.getRanking(disciplineId));
+                }
+                continue;
+            }
 
             List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
             if (disciplineResults.isEmpty()) {
@@ -56,6 +69,7 @@ public class RankingService {
             }
 
             Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("kind", "individual");
             entry.put("discipline", buildDisciplineInfo(discipline));
             entry.put("rankings", buildRankings(disciplineResults));
 
@@ -141,13 +155,13 @@ public class RankingService {
     private CompetitorAggregate aggregate(Map<String, Object> competitorData, List<Map<String, Object>> results) {
         // Sort this competitor's results by value, highest first
         List<Map<String, Object>> sortedResults = results.stream()
-            .sorted((a, b) -> Double.compare(numericValue(b.get("value")), numericValue(a.get("value"))))
+            .sorted((a, b) -> Double.compare(Scoring.score(b), Scoring.score(a)))
             .collect(Collectors.toList());
 
         List<Map<String, Object>> topResults = sortedResults.stream().limit(4).collect(Collectors.toList());
 
         List<Double> resultTotals = topResults.stream()
-            .map(r -> numericValue(r.get("value")))
+            .map(Scoring::score)
             .collect(Collectors.toCollection(ArrayList::new));
         while (resultTotals.size() < 4) {
             resultTotals.add(0.0);
@@ -155,20 +169,13 @@ public class RankingService {
 
         double totalSum = resultTotals.stream().mapToDouble(Double::doubleValue).sum();
 
-        Map<String, Integer> freqCounts = new LinkedHashMap<>();
-        for (int i = 1; i <= 10; i++) {
-            freqCounts.put(String.valueOf(i), 0);
-        }
+        int[] rings = Scoring.newRingCounts();
         for (Map<String, Object> result : results) {
-            Object entriesObj = result.get("entries");
-            if (entriesObj instanceof List) {
-                for (Object entry : (List<?>) entriesObj) {
-                    String key = String.valueOf(entry);
-                    if (freqCounts.containsKey(key)) {
-                        freqCounts.put(key, freqCounts.get(key) + 1);
-                    }
-                }
-            }
+            Scoring.addRingCounts(result, rings);
+        }
+        Map<String, Integer> freqCounts = new LinkedHashMap<>();
+        for (int i = 1; i <= Scoring.MAX_RING; i++) {
+            freqCounts.put(String.valueOf(i), rings[i]);
         }
 
         Map<String, Object> bestResult = topResults.isEmpty() ? null : topResults.get(0);
@@ -200,7 +207,8 @@ public class RankingService {
         for (int i = 10; i >= 1; i--) {
             key[idx++] = freqCounts.getOrDefault(String.valueOf(i), 0);
         }
-        key[14] = overrideValue != null ? overrideValue : -1;
+        // Tie-break (distance of the furthest shot): the lower value wins
+        key[14] = Scoring.tieBreakKey(overrideValue);
         return key;
     }
 
@@ -212,10 +220,6 @@ public class RankingService {
             }
         }
         return 0;
-    }
-
-    private double numericValue(Object value) {
-        return value instanceof Number ? ((Number) value).doubleValue() : 0.0;
     }
 
     private Ranking toRanking(CompetitorAggregate aggregate, int rank) {

@@ -27,7 +27,10 @@ public class Competitor {
     
     @JsonProperty("address")
     private String address;
-    
+
+    @JsonProperty("country")
+    private String country;
+
     @JsonProperty("starts")
     private Map<String, java.util.List<Start>> starts;
     
@@ -69,6 +72,9 @@ public class Competitor {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
 
     public Map<String, java.util.List<Start>> getStarts() { return starts; }
     public void setStarts(Map<String, java.util.List<Start>> starts) { this.starts = starts; }
