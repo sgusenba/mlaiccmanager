@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mlaiccmanager",
+      "runtimeExecutable": "java",
+      "runtimeArgs": ["-jar", "target/mlaiccmanager-1.0.0-shaded.jar"],
+      "port": 5000
+    }
+  ]
+}

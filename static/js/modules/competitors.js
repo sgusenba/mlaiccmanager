@@ -2,6 +2,7 @@
 
 import { getState, setState, updateState } from '../config.js';
 import { loadCompetitors, saveCompetitor as apiSaveCompetitor, deleteCompetitor as apiDeleteCompetitor } from '../api.js';
+import { getCountryNames } from '../countries.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, clearForm } from '../utils.js';
 
 // Render competitors table
@@ -189,6 +190,11 @@ function fillCompetitorForm(competitor) {
     setElementValue('competitor-club', competitor.club || '');
     setElementValue('competitor-email', competitor.email || '');
     setElementValue('competitor-phone', competitor.phone || '');
+    // Keep countries saved before the dropdown existed selectable
+    const countrySelect = document.getElementById('competitor-country');
+    if (competitor.country && ![...countrySelect.options].some(o => o.value === competitor.country)) {
+        countrySelect.add(new Option(competitor.country, competitor.country));
+    }
     setElementValue('competitor-country', competitor.country || '');
     setElementValue('competitor-address', competitor.address || '');
 }
@@ -272,6 +278,11 @@ export function setupCompetitorEventListeners() {
     const yearOfBirthInput = document.getElementById('competitor-year-of-birth');
     if (yearOfBirthInput) {
         yearOfBirthInput.max = new Date().getFullYear();
+    }
+
+    const countrySelect = document.getElementById('competitor-country');
+    if (countrySelect) {
+        getCountryNames().forEach(name => countrySelect.add(new Option(name, name)));
     }
 
     // Competitor form
