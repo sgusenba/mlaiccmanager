@@ -273,8 +273,9 @@ paths:
       tags: [Disciplines]
       summary: Map disciplines to the range they fire on
       description: |
-        Keys are discipline ids, values range ids (e.g. `m25`). A discipline mapped to
-        `null`/empty may be assigned to any range.
+        Keys are discipline ids, values range ids (e.g. `m25`). Only the listed
+        disciplines change; a discipline left out or set to `null` keeps its range, an
+        empty string clears it so the discipline may be assigned to any range.
       operationId: updateShootingDistances
       requestBody:
         required: true
