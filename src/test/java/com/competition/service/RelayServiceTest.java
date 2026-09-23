@@ -41,7 +41,7 @@ class RelayServiceTest {
             tempDir.resolve("competition.json").toString());
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
 
-        Map<String, Object> day = relayService.createDay(Map.of("date", "2026-10-03", "start_time", "09:00"));
+        Map<String, Object> day = relayService.createDay(Map.of("date", "2026-10-03", "start_time", "09:00", "break_min", 0));
         List<Map<String, Object>> relays = relayService.addRelays((String) day.get("id"), Map.of("count", 2));
         relay1 = (String) relays.get(0).get("id");
         relay2 = (String) relays.get(1).get("id");
@@ -92,6 +92,26 @@ class RelayServiceTest {
 
         assertTrue(Files.readString(tempDir.resolve("relays.json")).contains("\"relay_duration_min\" : 15"));
         assertFalse(Files.readString(tempDir.resolve("data.json")).contains("relay"));
+    }
+
+    @Test
+    void breakBetweenRelaysDefaultsTo15AndShiftsStartTimes() throws Exception {
+        Map<String, Object> day = relayService.createDay(Map.of("date", "2026-10-05", "start_time", "09:00"));
+        String dayId = (String) day.get("id");
+        assertEquals(15, day.get("break_min"));
+        List<Map<String, Object>> relays = relayService.addRelays(dayId, Map.of("count", 2));
+        String second = (String) relays.get(1).get("id");
+        assertEquals("09:25", relayService.getRelay(second).get("start_time"));
+
+        relayService.updateDay(dayId, Map.of("date", "2026-10-05", "start_time", "09:00", "break_min", 5));
+        assertEquals("09:15", relayService.getRelay(second).get("start_time"));
+
+        // omitting break_min on update keeps the day's current break
+        relayService.updateDay(dayId, Map.of("date", "2026-10-05", "start_time", "10:00"));
+        assertEquals("10:15", relayService.getRelay(second).get("start_time"));
+
+        assertThrows(IllegalArgumentException.class, () ->
+            relayService.updateDay(dayId, Map.of("date", "2026-10-05", "start_time", "09:00", "break_min", -1)));
     }
 
     @Test
@@ -202,43 +222,50 @@ class RelayServiceTest {
     }
 
     @Test
-    void lockingADayDistancePairBlocksAssignmentChangesOnlyForThatPair() throws Exception {
+    void lockingADayBlocksLaneChangesRelayChangesAndDayEdits() throws Exception {
         Map<String, Object> anna = assign(relay1, "m25", 1, "1-52-1");
-        relayService.setLock((String) relayService.getRelay(relay1).get("day_id"), "m25", Map.of("locked", true));
+        String dayId = (String) relayService.getRelay(relay1).get("day_id");
+        Map<String, Object> day = relayService.setDayLock(dayId, Map.of("locked", true));
+        assertEquals(true, day.get("locked"));
 
         List<Map<String, Object>> blocks = castRows(relayService.getRelay(relay1).get("ranges"));
-        Map<String, Object> lockedBlock = blocks.stream().filter(b -> "m25".equals(b.get("id"))).findFirst().orElseThrow();
-        assertEquals(true, lockedBlock.get("locked"));
+        assertTrue(blocks.stream().allMatch(b -> Boolean.TRUE.equals(b.get("locked"))));
 
         IllegalArgumentException assignError = assertThrows(IllegalArgumentException.class,
-            () -> assign(relay1, "m25", 2, "2-52-1"));
-        assertEquals("This day/distance is locked for editing", assignError.getMessage());
-
-        IllegalArgumentException deleteError = assertThrows(IllegalArgumentException.class,
-            () -> relayService.deleteAssignment((String) anna.get("id")));
-        assertEquals("This day/distance is locked for editing", deleteError.getMessage());
-
-        // other ranges/relays of the same day are unaffected (relay2 is on the same day as relay1)
-        assign(relay2, "m50", 1, "1-3-1");
-
-        relayService.setLock((String) relayService.getRelay(relay1).get("day_id"), "m25", Map.of("locked", false));
-        assign(relay1, "m25", 2, "2-52-1");
-    }
-
-    @Test
-    void lockingAnyRangeOfADayBlocksAddingOrDeletingRelaysAndDeletingTheDay() throws Exception {
-        String dayId = (String) relayService.getRelay(relay1).get("day_id");
-        relayService.setLock(dayId, "m50", Map.of("locked", true));
-
+            () -> assign(relay2, "m50", 1, "1-3-1"));
+        assertEquals("Cannot change lanes: 2026-10-03 is locked. Unlock the day to make changes.", assignError.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> relayService.deleteAssignment((String) anna.get("id")));
         assertThrows(IllegalArgumentException.class, () -> relayService.addRelays(dayId, Map.of("count", 1)));
         assertThrows(IllegalArgumentException.class, () -> relayService.deleteRelay(relay1));
         assertThrows(IllegalArgumentException.class, () -> relayService.deleteDay(dayId));
+        assertThrows(IllegalArgumentException.class,
+            () -> relayService.updateDay(dayId, Map.of("date", "2026-10-04", "start_time", "10:00")));
 
-        // day date/time can still be edited while locked
-        relayService.updateDay(dayId, Map.of("date", "2026-10-04", "start_time", "10:00"));
+        // other days are unaffected
+        Map<String, Object> otherDay = relayService.createDay(Map.of("date", "2026-10-04", "start_time", "09:00"));
+        String otherRelay = (String) relayService.addRelays((String) otherDay.get("id"), Map.of("count", 1)).get(0).get("id");
+        assign(otherRelay, "m50", 1, "1-3-1");
 
-        relayService.setLock(dayId, "m50", Map.of("locked", false));
+        relayService.setDayLock(dayId, Map.of("locked", false));
+        assign(relay1, "m25", 2, "2-52-1");
         relayService.addRelays(dayId, Map.of("count", 1));
+    }
+
+    @Test
+    void oldDistanceLocksBecomeLockedDays() throws Exception {
+        Path oldFile = tempDir.resolve("old-relays.json");
+        Files.writeString(oldFile, """
+            {"days": [{"id": "day1", "date": "2026-10-03", "start_time": "09:00"},
+                      {"id": "day2", "date": "2026-10-04", "start_time": "09:00"}],
+             "locks": [{"day_id": "day1", "range_id": "m25"}]}
+            """);
+        RelayService migrated = new RelayService(oldFile.toString(), dataService);
+        migrated.addRelays("day2", Map.of("count", 1));
+
+        assertThrows(IllegalArgumentException.class, () -> migrated.addRelays("day1", Map.of("count", 1)));
+        String saved = Files.readString(oldFile);
+        assertFalse(saved.contains("\"locks\""));
+        assertTrue(saved.contains("\"locked\" : true"));
     }
 
     @Test

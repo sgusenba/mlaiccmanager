@@ -60,7 +60,7 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 - **`data.json`** — competitors (with their starts) and results. Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it. Ids that follow from other data are not stored: a start's discipline comes from the key it is filed under, and a result's competitor and discipline from its start.
 - **`disciplines.json`** — the MLAIC discipline catalog (event names, categories, levels, default shooting distance). Tracked in the repo, shipped with every release and replaced on every deploy, so the app never writes to it.
 - **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
-- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration, locks), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
+- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration, locked days), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
 ## Multiple Users
 
@@ -118,7 +118,8 @@ Two rules are enforced on the server and also drive the lane dropdowns, so confl
 - `GET /api/rmgmt` — config, ranges, disciplines with their range, days, relays and assignments in one response
 - `PUT /api/rmgmt/config` — set `relay_duration_min` (recalculates every day's start times)
 - `PUT /api/rmgmt/discipline-ranges` — replace the discipline-to-range mapping, e.g. `{"discipline_ranges": {"52": "m25"}}` (a discipline left out, or set to `null`, may be assigned to any range)
-- `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days (deleting a day removes its relays and assignments)
+- `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days with `date`, `start_time` and `break_min` (minutes between relays, default 15 on create, kept on update when omitted); deleting a day removes its relays and assignments
+- `PUT /api/rmgmt/days/{id}/lock` — lock or unlock a whole day, e.g. `{"locked": true}`; a locked day's date/time, relays and lane assignments cannot be changed
 - `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
 - `GET /api/rmgmt/relays/{id}` — relay detail: one lane block per range with its current assignments
 - `DELETE /api/rmgmt/relays/{id}` — delete a relay and its assignments; later relays of the day move up

@@ -45,17 +45,19 @@ public final class RelayRules {
 
     /**
      * Numbers the day's relays 1..n in their current order and sets each start
-     * time from the day's start time and the meet-wide relay duration.
+     * time from the day's start time, the meet-wide relay duration and the
+     * day's break between relays (missing break = 0, relays back to back).
      */
     public static void recomputeDaySchedule(Map<String, Object> day, List<Map<String, Object>> relaysOfDay,
                                             int relayDurationMin) {
         relaysOfDay.sort(Comparator.comparingInt(r -> intOf(r.get("sequence_no"))));
         LocalTime time = LocalTime.parse((String) day.get("start_time"), TIME_FORMAT);
+        int stepMin = relayDurationMin + intOf(day.get("break_min"));
         int sequenceNo = 1;
         for (Map<String, Object> relay : relaysOfDay) {
             relay.put("sequence_no", sequenceNo++);
             relay.put("start_time", time.format(TIME_FORMAT));
-            time = time.plusMinutes(relayDurationMin);
+            time = time.plusMinutes(stepMin);
         }
     }
 
