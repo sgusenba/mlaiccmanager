@@ -4,6 +4,18 @@ import { getState, setState } from '../config.js';
 import { saveResult as apiSaveResult, deleteResult as apiDeleteResult, loadResults, loadCompetitors } from '../api.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, scrollToElement } from '../utils.js';
 
+// A result's score is the sum of its shots; older results stored the override as value
+function resultScore(result) {
+    if (Array.isArray(result.entries) && result.entries.length > 0) {
+        return result.entries.reduce((sum, entry) => sum + (Number(entry) || 0), 0);
+    }
+    return result.value;
+}
+
+function hasTieBreak(result) {
+    return result.override_value !== null && result.override_value !== undefined;
+}
+
 // Render results table
 export function renderResults() {
     const tbody = document.getElementById('results-table-body');
@@ -60,13 +72,11 @@ export function renderResults() {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900">
-                        ${result.override_value !== null ? `
-                            <span class="line-through text-gray-400">${result.value}</span>
-                            <span class="text-green-600 font-bold">${result.override_value}*</span>
-                        ` : `
-                            <span>${result.value}</span>
-                        `}
+                        <span>${resultScore(result)}</span>
                         <span class="text-gray-500 ml-1">points</span>
+                        ${hasTieBreak(result) ? `
+                            <div class="text-xs text-gray-500" title="Tie-break: distance of the furthest shot, lower wins">Tie-break: ${result.override_value}</div>
+                        ` : ''}
                     </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -227,8 +237,8 @@ function displaySelectedStart(start) {
             <div class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-200 rounded-md">
                 <h4 class="font-semibold text-yellow-800">Existing Result Found</h4>
                 <div class="grid grid-cols-2 gap-4 text-sm mt-2">
-                    <div><strong>Value:</strong> ${existingResult.value}</div>
-                    <div><strong>Override:</strong> ${existingResult.override_value || 'None'}</div>
+                    <div><strong>Value:</strong> ${resultScore(existingResult)}</div>
+                    <div><strong>Tie-break:</strong> ${hasTieBreak(existingResult) ? existingResult.override_value : 'None'}</div>
                     <div><strong>Notes:</strong> ${existingResult.notes || 'None'}</div>
                 </div>
             </div>
@@ -259,14 +269,14 @@ function displaySelectedStart(start) {
                 <div class="bg-gray-50 p-3 rounded-md">
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-medium text-gray-700">Total Sum:</span>
-                        <span id="result-sum" class="text-lg font-bold text-blue-600">${existingResult ? existingResult.value : '0'}</span>
+                        <span id="result-sum" class="text-lg font-bold text-blue-600">${existingResult ? resultScore(existingResult) : '0'}</span>
                     </div>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Override Value (for tie-breaking)</label>
-                        <input type="number" id="result-override" step="any" value="${existingResult && existingResult.override_value ? existingResult.override_value : ''}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Use only for tie-breaking">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tie-break (lower wins)</label>
+                        <input type="number" id="result-override" step="any" min="0" value="${existingResult && hasTieBreak(existingResult) ? existingResult.override_value : ''}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Distance of the furthest shot, only for ties">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -375,18 +385,17 @@ async function saveResult(event) {
         totalSum += value;
     }
     
-    const overrideValue = parseFloat(getElementValue('result-override')) || null;
+    // Tie-break only decides between equal scores (lower wins); it never replaces the sum
+    const overrideText = String(getElementValue('result-override') ?? '').trim();
+    const overrideValue = overrideText === '' || isNaN(parseFloat(overrideText)) ? null : parseFloat(overrideText);
     const notes = getElementValue('result-notes');
-    
-    // Smart logic: if override value is provided, use it; otherwise use sum
-    const finalValue = overrideValue !== null && overrideValue !== '' ? overrideValue : totalSum;
     
     const currentEditingResultId = getState('currentEditingResultId');
     const data = {
         competitor_id: selectedStart.competitor.id,
         discipline_id: selectedStart.discipline_id,
         start_id: selectedStart.generated_id,
-        value: finalValue,
+        value: totalSum,
         entries: entries,
         override_value: overrideValue,
         notes: notes
