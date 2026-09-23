@@ -87,11 +87,70 @@ public class RelayService {
             throw new IllegalArgumentException("relay_duration_min must be between 1 and 1440");
         }
         return update(relays -> {
+            requireConfigUnlocked(relays);
             configOf(relays).put("relay_duration_min", duration);
             for (Map<String, Object> day : listOf(relays, "days")) {
                 recompute(relays, day);
             }
             return configOf(relays);
+        });
+    }
+
+    /** Locks or unlocks the relay duration and ranges (lanes-per-relay) configuration. Defaults to locked. */
+    public Map<String, Object> setConfigLock(Map<String, Object> request) throws Exception {
+        boolean locked = requireBoolean(request, "locked");
+        return update(relays -> {
+            configOf(relays).put("locked", locked);
+            return configOf(relays);
+        });
+    }
+
+    /** Adds a new range (distance). Blocked while the configuration is locked. */
+    public Map<String, Object> createRange(Map<String, Object> request) throws Exception {
+        String name = requireString(request, "name");
+        int laneCount = requireLaneCount(request);
+        return update(relays -> {
+            requireConfigUnlocked(relays);
+            List<Map<String, Object>> ranges = listOf(relays, "ranges");
+            Map<String, Object> range = new LinkedHashMap<>();
+            range.put("id", nextId(ranges, "range"));
+            range.put("name", name);
+            range.put("lane_count", laneCount);
+            ranges.add(range);
+            return range;
+        });
+    }
+
+    /** Renames a range or changes its lane count. Blocked while locked, or if shrinking would orphan an assigned lane. */
+    public Map<String, Object> updateRange(String rangeId, Map<String, Object> request) throws Exception {
+        String name = requireString(request, "name");
+        int laneCount = requireLaneCount(request);
+        return update(relays -> {
+            requireConfigUnlocked(relays);
+            Map<String, Object> range = findRange(relays, rangeId);
+            int highestAssignedLane = highestAssignedLane(relays, rangeId);
+            if (laneCount < highestAssignedLane) {
+                throw new IllegalArgumentException("Cannot shrink " + range.get("name") + " to " + laneCount
+                    + " lanes: lane " + highestAssignedLane + " is still assigned");
+            }
+            range.put("name", name);
+            range.put("lane_count", laneCount);
+            return range;
+        });
+    }
+
+    /** Deletes a range. Blocked while locked, or if any lane is still assigned on it. */
+    public void deleteRange(String rangeId) throws Exception {
+        update(relays -> {
+            requireConfigUnlocked(relays);
+            Map<String, Object> range = findRange(relays, rangeId);
+            long assigned = listOf(relays, "assignments").stream().filter(a -> rangeId.equals(a.get("range_id"))).count();
+            if (assigned > 0) {
+                throw new IllegalArgumentException("Cannot delete " + range.get("name") + ": " + assigned + " lane(s) are assigned on it");
+            }
+            listOf(relays, "ranges").remove(range);
+            listOf(relays, "locks").removeIf(l -> rangeId.equals(l.get("range_id")));
+            return null;
         });
     }
 
@@ -620,6 +679,22 @@ public class RelayService {
         return false;
     }
 
+    private static void requireConfigUnlocked(Map<String, Object> relays) {
+        if (Boolean.TRUE.equals(configOf(relays).get("locked"))) {
+            throw new IllegalArgumentException("Relay configuration is locked. Unlock it to make changes.");
+        }
+    }
+
+    private static int highestAssignedLane(Map<String, Object> relays, String rangeId) {
+        int max = 0;
+        for (Map<String, Object> a : listOf(relays, "assignments")) {
+            if (rangeId.equals(a.get("range_id"))) {
+                max = Math.max(max, RelayRules.intOf(a.get("lane_no")));
+            }
+        }
+        return max;
+    }
+
     private static Map<String, Object> find(List<Map<String, Object>> items, Object id) {
         for (Map<String, Object> item : items) {
             if (Objects.equals(item.get("id"), id)) {
@@ -745,6 +820,14 @@ public class RelayService {
         return b;
     }
 
+    private static int requireLaneCount(Map<String, Object> request) {
+        int laneCount = requireInt(request, "lane_count");
+        if (laneCount < 1 || laneCount > 200) {
+            throw new IllegalArgumentException("lane_count must be between 1 and 200");
+        }
+        return laneCount;
+    }
+
     private static String requireDate(Map<String, Object> request) {
         String date = requireString(request, "date");
         try {
@@ -817,6 +900,7 @@ public class RelayService {
             relays.put("config", new LinkedHashMap<>());
         }
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
+        configOf(relays).putIfAbsent("locked", true);
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }

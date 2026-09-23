@@ -132,8 +132,7 @@ async function refreshSchedule() {
 function renderSchedule() {
     const { config, ranges, days, assignments } = state.data;
     document.getElementById('relay-duration').value = config.relay_duration_min;
-    document.getElementById('range-summary').textContent =
-        'Lanes per relay: ' + ranges.map(r => `${r.name} × ${r.lane_count}`).join(', ');
+    renderConfigLock(config.locked, ranges);
 
     const filled = new Map();
     assignments.forEach(a => {
@@ -207,6 +206,31 @@ function renderSchedule() {
     }).join('');
 }
 
+function renderConfigLock(locked, ranges) {
+    document.getElementById('relay-duration').disabled = locked;
+    document.getElementById('config-form').querySelector('button[type="submit"]').disabled = locked;
+
+    const lockBtn = document.getElementById('config-lock-btn');
+    lockBtn.textContent = locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked';
+    lockBtn.dataset.locked = locked;
+    lockBtn.className = `no-print shrink-0 text-sm px-2 py-1 border rounded-md ${locked
+        ? 'text-red-600 border-red-200 bg-red-50' : 'text-green-700 border-green-200 bg-green-50'}`;
+
+    document.getElementById('ranges-list').innerHTML = ranges.map(r => `
+        <div class="flex flex-wrap items-end gap-2" data-range-id="${escapeHtml(r.id)}">
+            <input type="text" class="range-edit-name px-2 py-1 border border-gray-300 rounded-md text-sm w-28"
+                value="${escapeHtml(r.name)}" ${locked ? 'disabled' : ''} aria-label="Distance name">
+            <input type="number" class="range-edit-lanes px-2 py-1 border border-gray-300 rounded-md text-sm w-20"
+                min="1" max="200" value="${r.lane_count}" ${locked ? 'disabled' : ''} aria-label="Lanes">
+            <button type="button" class="range-save-btn no-print px-2 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50" ${locked ? 'disabled' : ''}>Update</button>
+            <button type="button" class="range-delete-btn no-print px-2 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50" ${locked ? 'disabled' : ''}>Delete</button>
+        </div>`).join('');
+
+    document.getElementById('range-name').disabled = locked;
+    document.getElementById('range-lane-count').disabled = locked;
+    document.getElementById('range-add-btn').disabled = locked;
+}
+
 function setupScheduleListeners() {
     document.getElementById('config-form').addEventListener('submit', (event) => {
         event.preventDefault();
@@ -222,6 +246,34 @@ function setupScheduleListeners() {
         const date = document.getElementById('day-date').value;
         const start = document.getElementById('day-start').value;
         perform(() => api('/days', 'POST', { date, start_time: start }), refreshSchedule);
+    });
+
+    document.getElementById('config-lock-btn').addEventListener('click', () => {
+        const locked = document.getElementById('config-lock-btn').dataset.locked === 'true';
+        perform(() => api('/config/lock', 'PUT', { locked: !locked }), refreshSchedule);
+    });
+
+    document.getElementById('range-add-btn').addEventListener('click', () => {
+        const name = document.getElementById('range-name').value.trim();
+        const laneCount = parseInt(document.getElementById('range-lane-count').value, 10);
+        if (!name || !laneCount) return;
+        perform(() => api('/ranges', 'POST', { name, lane_count: laneCount }), refreshSchedule);
+    });
+
+    document.getElementById('ranges-list').addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        const rangeEl = event.target.closest('[data-range-id]');
+        if (!button || !rangeEl) return;
+        const rangeId = rangeEl.dataset.rangeId;
+
+        if (button.classList.contains('range-save-btn')) {
+            const name = rangeEl.querySelector('.range-edit-name').value;
+            const laneCount = parseInt(rangeEl.querySelector('.range-edit-lanes').value, 10);
+            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT', { name, lane_count: laneCount }), refreshSchedule);
+        } else if (button.classList.contains('range-delete-btn')) {
+            if (!confirm('Delete this distance? Only possible if no lanes are assigned on it.')) return;
+            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'DELETE'), refreshSchedule);
+        }
     });
 
     document.getElementById('days-list').addEventListener('click', (event) => {

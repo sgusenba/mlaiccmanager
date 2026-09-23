@@ -69,6 +69,33 @@ public class RelayResource {
         return handle("update lock", () -> relayService.setLock(dayId, rangeId, request));
     }
 
+    @PUT
+    @Path("/config/lock")
+    public Response setConfigLock(Map<String, Object> request) {
+        return handle("update config lock", () -> relayService.setConfigLock(request));
+    }
+
+    @POST
+    @Path("/ranges")
+    public Response createRange(Map<String, Object> request) {
+        return handle("create range", () -> relayService.createRange(request));
+    }
+
+    @PUT
+    @Path("/ranges/{id}")
+    public Response updateRange(@PathParam("id") String id, Map<String, Object> request) {
+        return handle("update range", () -> relayService.updateRange(id, request));
+    }
+
+    @DELETE
+    @Path("/ranges/{id}")
+    public Response deleteRange(@PathParam("id") String id) {
+        return handle("delete range", () -> {
+            relayService.deleteRange(id);
+            return null;
+        });
+    }
+
     @POST
     @Path("/days/{id}/relays")
     public Response addRelays(@PathParam("id") String id, Map<String, Object> request) {

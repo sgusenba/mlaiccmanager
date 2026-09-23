@@ -80,6 +80,7 @@ class RelayServiceTest {
         assertEquals("09:00", relayService.getRelay(relay1).get("start_time"));
         assertEquals("09:10", relayService.getRelay(relay2).get("start_time"));
 
+        relayService.setConfigLock(Map.of("locked", false));
         relayService.updateConfig(Map.of("relay_duration_min", 15));
         assertEquals("09:15", relayService.getRelay(relay2).get("start_time"));
 
@@ -237,6 +238,38 @@ class RelayServiceTest {
 
         relayService.setLock(dayId, "m50", Map.of("locked", false));
         relayService.addRelays(dayId, Map.of("count", 1));
+    }
+
+    @Test
+    void configStartsLockedAndBlocksDurationAndRangeChangesUntilUnlocked() throws Exception {
+        assertEquals(true, ((Map<?, ?>) relayService.getAll().get("config")).get("locked"));
+
+        assertThrows(IllegalArgumentException.class, () -> relayService.updateConfig(Map.of("relay_duration_min", 20)));
+        assertThrows(IllegalArgumentException.class, () -> relayService.createRange(Map.of("name", "200m", "lane_count", 6)));
+        assertThrows(IllegalArgumentException.class, () -> relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 10)));
+        assertThrows(IllegalArgumentException.class, () -> relayService.deleteRange("m100"));
+
+        relayService.setConfigLock(Map.of("locked", false));
+        relayService.updateConfig(Map.of("relay_duration_min", 20));
+        Map<String, Object> created = relayService.createRange(Map.of("name", "200m", "lane_count", 6));
+        relayService.updateRange((String) created.get("id"), Map.of("name", "200m", "lane_count", 5));
+        relayService.deleteRange((String) created.get("id"));
+    }
+
+    @Test
+    void rangeCannotShrinkBelowOrDeleteWithAnAssignedLane() throws Exception {
+        relayService.setConfigLock(Map.of("locked", false));
+        assign(relay1, "m25", 5, "1-52-1");
+
+        IllegalArgumentException shrinkError = assertThrows(IllegalArgumentException.class,
+            () -> relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 4)));
+        assertTrue(shrinkError.getMessage().contains("lane 5 is still assigned"));
+
+        IllegalArgumentException deleteError = assertThrows(IllegalArgumentException.class,
+            () -> relayService.deleteRange("m25"));
+        assertTrue(deleteError.getMessage().contains("lane(s) are assigned on it"));
+
+        relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 5));
     }
 
     @SuppressWarnings("unchecked")
