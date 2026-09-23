@@ -1,0 +1,1371 @@
+openapi: 3.0.3
+info:
+  title: MLAIC Competition Manager API
+  description: |
+    REST API of the competition management system (competitors, starts, disciplines,
+    results, rankings, teams and relay management).
+
+    **Optimistic locking:** competitors, results and teams carry a `version` that is
+    incremented on every save. Send the version you loaded back on update/delete; if
+    someone else saved in the meantime the request is rejected with `409` and the
+    response contains the `current` record.
+  version: "1.0"
+servers:
+  - url: /api
+    description: This server
+  - url: http://localhost:5000/api
+    description: Local development
+tags:
+  - name: Competitors
+  - name: Starts
+  - name: Disciplines
+  - name: Results
+  - name: Rankings
+  - name: Teams
+  - name: Relay management
+    description: Backs the `/rmgmt` page; data lives in `relays.json`.
+  - name: Build info
+
+paths:
+  # ---------------------------------------------------------------- Competitors
+  /competitors:
+    get:
+      tags: [Competitors]
+      summary: List all competitors
+      operationId: getAllCompetitors
+      responses:
+        "200":
+          description: All competitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Competitor" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Competitors]
+      summary: Create a competitor (or update it when `id` > 0)
+      operationId: createOrUpdateCompetitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Competitor" }
+      responses:
+        "200":
+          description: The created or updated competitor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Competitor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /competitors/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    put:
+      tags: [Competitors]
+      summary: Update a competitor's details
+      description: Send `version`. Starts are not changed by this call.
+      operationId: updateCompetitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Competitor" }
+      responses:
+        "200":
+          description: The updated competitor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Competitor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Competitors]
+      summary: Delete a competitor
+      operationId: deleteCompetitor
+      parameters:
+        - $ref: "#/components/parameters/Version"
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # --------------------------------------------------------------------- Starts
+  /competitors/{competitorId}/starts:
+    parameters:
+      - name: competitorId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Starts]
+      summary: Register a start for a competitor
+      description: |
+        The start id is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`).
+        Returns `409` if the id is already used by any start or result.
+      operationId: createStart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [discipline_id]
+              properties:
+                discipline_id: { type: integer, example: 52 }
+      responses:
+        "200":
+          description: The created start
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Start" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /competitors/{competitorId}/starts/{generatedId}:
+    parameters:
+      - name: competitorId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: generatedId
+        in: path
+        required: true
+        schema: { type: string, example: "1-52-1" }
+    delete:
+      tags: [Starts]
+      summary: Delete a start
+      operationId: deleteStart
+      responses:
+        "204": { description: Deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ---------------------------------------------------------------- Disciplines
+  /active-disciplines:
+    get:
+      tags: [Disciplines]
+      summary: Get the ids of the active disciplines
+      operationId: getActiveDisciplines
+      responses:
+        "200":
+          description: Active discipline ids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdList" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Disciplines]
+      summary: Set the active disciplines
+      description: |
+        Flips each catalog entry's `active` flag. Optionally send `base_ids` (the list
+        the change is based on); returns `409` if it changed in the meantime.
+      operationId: setActiveDisciplines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                discipline_ids:
+                  type: array
+                  items: { type: integer }
+                base_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: The new active discipline ids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdList" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /active-disciplines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    delete:
+      tags: [Disciplines]
+      summary: Deactivate a single discipline
+      operationId: deactivateDiscipline
+      responses:
+        "200":
+          description: The remaining active discipline ids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdList" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /available-disciplines:
+    get:
+      tags: [Disciplines]
+      summary: Get the discipline catalog
+      description: The catalog with this competition's changes applied.
+      operationId: getAvailableDisciplines
+      responses:
+        "200":
+          description: All disciplines
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Discipline" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Disciplines]
+      summary: Add a discipline to the catalog
+      operationId: createCatalogDiscipline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisciplineInput" }
+      responses:
+        "201":
+          description: The created discipline
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Discipline" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /available-disciplines/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    put:
+      tags: [Disciplines]
+      summary: Update a catalog discipline
+      description: Only the fields present in the request are changed.
+      operationId: updateCatalogDiscipline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisciplineInput" }
+      responses:
+        "200":
+          description: The updated discipline
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Discipline" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Disciplines]
+      summary: Delete a catalog discipline
+      operationId: deleteCatalogDiscipline
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /available-disciplines/shooting-distances:
+    put:
+      tags: [Disciplines]
+      summary: Map disciplines to the range they fire on
+      description: |
+        Keys are discipline ids, values range ids (e.g. `m25`). Only the listed
+        disciplines change; a discipline left out or set to `null` keeps its range, an
+        empty string clears it so the discipline may be assigned to any range.
+      operationId: updateShootingDistances
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shooting_distances]
+              properties:
+                shooting_distances:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    nullable: true
+                  example: { "52": "m25", "53": "m50" }
+      responses:
+        "200":
+          description: The updated disciplines
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Discipline" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # -------------------------------------------------------------------- Results
+  /results:
+    get:
+      tags: [Results]
+      summary: List results
+      operationId: getResults
+      parameters:
+        - name: discipline_id
+          in: query
+          required: false
+          description: Only results of this discipline
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Results enriched with competitor and event names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ResultView" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Results]
+      summary: Create a result (or update it when `id` > 0)
+      operationId: createOrUpdateResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Result" }
+      responses:
+        "200":
+          description: The created or updated result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Result" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /results/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    put:
+      tags: [Results]
+      summary: Update a result
+      operationId: updateResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Result" }
+      responses:
+        "200":
+          description: The updated result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Result" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Results]
+      summary: Delete a result
+      operationId: deleteResult
+      parameters:
+        - $ref: "#/components/parameters/Version"
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ------------------------------------------------------------------- Rankings
+  /ranking:
+    get:
+      tags: [Rankings]
+      summary: Rankings of all disciplines that have results
+      operationId: getAllRankings
+      responses:
+        "200":
+          description: Rankings keyed by discipline id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/DisciplineRanking" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /ranking/{disciplineId}:
+    parameters:
+      - $ref: "#/components/parameters/DisciplineId"
+    get:
+      tags: [Rankings]
+      summary: Ranking of one discipline
+      description: For team disciplines this returns the team ranking (`kind` = `team`).
+      operationId: getRanking
+      responses:
+        "200":
+          description: The ranking
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DisciplineRanking"
+                  - $ref: "#/components/schemas/TeamRanking"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ---------------------------------------------------------------------- Teams
+  /teams:
+    get:
+      tags: [Teams]
+      summary: List teams with resolved members
+      operationId: getTeams
+      parameters:
+        - name: discipline_id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Team" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Teams]
+      summary: Create a team
+      operationId: createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [discipline_id]
+                  properties:
+                    discipline_id: { type: integer }
+                - $ref: "#/components/schemas/TeamInput"
+      responses:
+        "200":
+          description: The created team
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Team" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /teams/disciplines:
+    get:
+      tags: [Teams]
+      summary: All team disciplines
+      description: Each with its team size and the individual disciplines its members may come from.
+      operationId: getTeamDisciplines
+      responses:
+        "200":
+          description: Team disciplines
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TeamDisciplineInfo" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /teams/candidates:
+    get:
+      tags: [Teams]
+      summary: Competitors with starts eligible for a team discipline
+      operationId: getTeamCandidates
+      parameters:
+        - name: discipline_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Candidates, plus the team they are already in
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TeamCandidate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /teams/ranking/{disciplineId}:
+    parameters:
+      - $ref: "#/components/parameters/DisciplineId"
+    get:
+      tags: [Teams]
+      summary: Ranked teams of a team discipline
+      operationId: getTeamRanking
+      responses:
+        "200":
+          description: The team ranking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamRanking" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /teams/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    get:
+      tags: [Teams]
+      summary: Get one team
+      operationId: getTeam
+      responses:
+        "200":
+          description: The team
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Team" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    put:
+      tags: [Teams]
+      summary: Update a team's name, members, tie-break and notes
+      operationId: updateTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/TeamInput"
+                - type: object
+                  properties:
+                    version: { type: integer }
+      responses:
+        "200":
+          description: The updated team
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Team" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Teams]
+      summary: Delete a team
+      operationId: deleteTeam
+      parameters:
+        - $ref: "#/components/parameters/Version"
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ----------------------------------------------------------- Relay management
+  /rmgmt:
+    get:
+      tags: [Relay management]
+      summary: All relay data in one response
+      description: Config, ranges, days, relays and assignments.
+      operationId: getRelayData
+      responses:
+        "200":
+          description: Relay data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayData" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/config:
+    put:
+      tags: [Relay management]
+      summary: Set the relay duration
+      description: Recalculates every day's relay start times. Blocked while the config is locked.
+      operationId: updateRelayConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relay_duration_min]
+              properties:
+                relay_duration_min: { type: integer, minimum: 1, maximum: 1440 }
+      responses:
+        "200":
+          description: The relay config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/config/lock:
+    put:
+      tags: [Relay management]
+      summary: Lock or unlock the relay duration and ranges configuration
+      operationId: setRelayConfigLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LockRequest" }
+      responses:
+        "200":
+          description: The relay config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/ranges:
+    post:
+      tags: [Relay management]
+      summary: Add a range
+      description: Blocked while the config is locked.
+      operationId: createRange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RangeInput" }
+      responses:
+        "200":
+          description: The created range
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Range" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/ranges/{id}:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+    put:
+      tags: [Relay management]
+      summary: Update a range
+      operationId: updateRange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RangeInput" }
+      responses:
+        "200":
+          description: The updated range
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Range" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Relay management]
+      summary: Delete a range
+      description: Not possible while a discipline is still mapped to it.
+      operationId: deleteRange
+      responses:
+        "204": { description: Deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/days:
+    post:
+      tags: [Relay management]
+      summary: Add a meet day
+      operationId: createDay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DayInput" }
+      responses:
+        "200":
+          description: The created day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Day" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/days/{id}:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+    put:
+      tags: [Relay management]
+      summary: Update a meet day
+      description: "`break_min` is kept when omitted."
+      operationId: updateDay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DayInput" }
+      responses:
+        "200":
+          description: The updated day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Day" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Relay management]
+      summary: Delete a meet day with its relays and assignments
+      operationId: deleteDay
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/days/{dayId}/lock:
+    parameters:
+      - name: dayId
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Relay management]
+      summary: Lock or unlock a whole day
+      description: A locked day's date/time, relays and lane assignments cannot be changed.
+      operationId: setDayLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LockRequest" }
+      responses:
+        "200":
+          description: The day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Day" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/days/{id}/relays:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+    post:
+      tags: [Relay management]
+      summary: Append relays to a day
+      operationId: addRelays
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count: { type: integer, minimum: 1, default: 1 }
+      responses:
+        "200":
+          description: The created relays
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Relay" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/relays/{id}:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+    get:
+      tags: [Relay management]
+      summary: Relay detail with one lane block per range
+      operationId: getRelay
+      responses:
+        "200":
+          description: Relay detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Relay management]
+      summary: Delete a relay and its assignments
+      description: Later relays of the day move up.
+      operationId: deleteRelay
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/relays/{id}/available-starts:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+      - name: range_id
+        in: query
+        required: true
+        schema: { type: string, example: m25 }
+    get:
+      tags: [Relay management]
+      summary: Registered starts that may take a lane in this relay and range
+      operationId: getAvailableStarts
+      responses:
+        "200":
+          description: Available starts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StartSummary" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/assignments:
+    post:
+      tags: [Relay management]
+      summary: Put a start in a lane
+      description: |
+        Returns `409` with the reason on a rule violation (a start takes at most one
+        lane; a competitor has at most one lane per relay) and `400` if the start's
+        discipline fires on another range. Send `expected_assignment_id` (the
+        assignment the user saw, `null` for an empty lane) to get a `409` if someone
+        else changed that lane in the meantime.
+      operationId: assignLane
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relay_id, range_id, lane_no, start_id]
+              properties:
+                relay_id: { type: string }
+                range_id: { type: string, example: m25 }
+                lane_no: { type: integer, minimum: 1 }
+                start_id: { type: string, example: "1-52-1" }
+                expected_assignment_id: { type: string, nullable: true }
+      responses:
+        "200":
+          description: The resolved assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResolvedAssignment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/assignments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/StringId"
+    delete:
+      tags: [Relay management]
+      summary: Clear a lane
+      operationId: deleteAssignment
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/competitors/{id}/schedule:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    get:
+      tags: [Relay management]
+      summary: One competitor's lanes over the whole meet
+      operationId: getCompetitorSchedule
+      responses:
+        "200":
+          description: Schedule entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ScheduleEntry" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/overview:
+    get:
+      tags: [Relay management]
+      summary: Scheduling overview of every competitor
+      description: |
+        Every competitor's starts, where each is scheduled, which still need a lane,
+        plus any rule violation found in the stored data.
+      operationId: getRelayOverview
+      responses:
+        "200":
+          description: Overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayOverview" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ----------------------------------------------------------------- Build info
+  /build-info:
+    get:
+      tags: [Build info]
+      summary: Build timestamp of the running server
+      operationId: getBuildInfo
+      responses:
+        "200":
+          description: Build info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildTime:
+                    type: string
+                    nullable: true
+                    description: "`null` when not built with Maven resource filtering"
+
+components:
+  parameters:
+    IntId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    StringId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    DisciplineId:
+      name: disciplineId
+      in: path
+      required: true
+      schema: { type: integer }
+    Version:
+      name: version
+      in: query
+      required: false
+      description: The version the client loaded; the delete is rejected with 409 if it is stale.
+      schema: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Record not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Stale save or rule violation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ConflictError" }
+    ServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    ConflictError:
+      type: object
+      properties:
+        error: { type: string }
+        current:
+          nullable: true
+          description: The record as currently stored (`null` if it was deleted or not applicable).
+    IdList:
+      type: array
+      items: { type: integer }
+    LockRequest:
+      type: object
+      required: [locked]
+      properties:
+        locked: { type: boolean }
+
+    Start:
+      type: object
+      properties:
+        generated_id: { type: string, example: "1-52-1" }
+        start_number: { type: integer }
+        discipline_id: { type: integer }
+        status: { type: string, example: registered }
+
+    Competitor:
+      type: object
+      properties:
+        id: { type: integer, description: "0 or absent to create" }
+        name: { type: string }
+        gender: { type: string }
+        club: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        country: { type: string }
+        year_of_birth: { type: string }
+        starts:
+          type: object
+          description: Starts keyed by discipline id
+          additionalProperties:
+            type: array
+            items: { $ref: "#/components/schemas/Start" }
+        created_at: { type: string }
+        version: { type: integer }
+
+    Discipline:
+      type: object
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        level: { type: string, description: "e.g. `individual` or `team`" }
+        type: { type: string }
+        event: { type: string }
+        scoring_type: { type: string }
+        unit: { type: string }
+        description: { type: string }
+        created_at: { type: string }
+        based_on: { type: string, description: Event a team discipline's members come from }
+        team_size: { type: integer }
+        shooting_distance: { type: string, description: Range id the discipline fires on }
+        active: { type: boolean }
+    DisciplineInput:
+      type: object
+      properties:
+        category: { type: string }
+        level: { type: string }
+        type: { type: string }
+        event: { type: string }
+        based_on: { type: string }
+        team_size: { type: integer }
+        shooting_distance: { type: string }
+        active: { type: boolean }
+
+    Result:
+      type: object
+      properties:
+        id: { type: integer, description: "0 or absent to create" }
+        competitor_id: { type: integer }
+        discipline_id: { type: integer }
+        start_id: { type: string }
+        value: { type: number }
+        entries:
+          type: array
+          description: Individual shots; their sum is the score
+          items: { type: number }
+        override_value:
+          type: number
+          nullable: true
+          description: Tie-break value, lower wins
+        notes: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
+        version: { type: integer }
+    ResultView:
+      type: object
+      properties:
+        id: { type: integer }
+        competitor_id: { type: integer }
+        competitor_name: { type: string }
+        discipline_id: { type: integer }
+        event_name: { type: string }
+        value: { type: number }
+        entries:
+          type: array
+          items: { type: number }
+        override_value: { type: number, nullable: true }
+        notes: { type: string }
+        start_id: { type: string }
+        version: { type: integer }
+
+    RankingDisciplineInfo:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category: { type: string }
+        type: { type: string }
+        unit: { type: string, example: points }
+    Ranking:
+      type: object
+      properties:
+        rank: { type: integer }
+        competitor:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            team: { type: string }
+        result_totals:
+          type: array
+          items: { type: number }
+        total_sum: { type: number }
+        freq_counts:
+          type: object
+          description: Number of shots per ring value
+          additionalProperties: { type: integer }
+        override_value: { type: number, nullable: true }
+        notes: { type: string }
+    DisciplineRanking:
+      type: object
+      properties:
+        kind: { type: string, enum: [individual] }
+        discipline: { $ref: "#/components/schemas/RankingDisciplineInfo" }
+        rankings:
+          type: array
+          items: { $ref: "#/components/schemas/Ranking" }
+
+    TeamDisciplineInfo:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category: { type: string }
+        type: { type: string }
+        level: { type: string }
+        based_on: { type: string }
+        team_size: { type: integer }
+        active: { type: boolean }
+        unit: { type: string, example: points }
+        eligible_disciplines:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+    TeamInput:
+      type: object
+      properties:
+        name: { type: string, description: "Blank: shared club, else shared country, else `Team <id>`" }
+        members:
+          type: array
+          description: Start ids (or objects with `start_id`)
+          items: { type: string, example: "1-52-1" }
+        tie_break: { type: number, nullable: true, description: Lower wins }
+        notes: { type: string }
+    TeamMember:
+      type: object
+      properties:
+        start_id: { type: string }
+        start_number: { type: integer }
+        discipline_id: { type: integer }
+        discipline_name: { type: string }
+        competitor_id: { type: integer }
+        name: { type: string }
+        club: { type: string }
+        country: { type: string }
+        has_result: { type: boolean }
+        score: { type: number, nullable: true }
+        missing: { type: boolean, description: The start no longer exists }
+    Team:
+      type: object
+      properties:
+        id: { type: integer }
+        discipline_id: { type: integer }
+        discipline_name: { type: string }
+        team_size: { type: integer }
+        name: { type: string }
+        default_name: { type: string }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/TeamMember" }
+        tie_break: { type: number, nullable: true }
+        notes: { type: string }
+        created_at: { type: string }
+        version: { type: integer }
+    TeamCandidate:
+      type: object
+      properties:
+        competitor_id: { type: integer }
+        name: { type: string }
+        club: { type: string }
+        country: { type: string }
+        team_id: { type: integer, nullable: true }
+        team_name: { type: string, nullable: true }
+        starts:
+          type: array
+          items: { $ref: "#/components/schemas/TeamMember" }
+    TeamRanking:
+      type: object
+      properties:
+        kind: { type: string, enum: [team] }
+        discipline: { $ref: "#/components/schemas/TeamDisciplineInfo" }
+        rankings:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Team"
+              - type: object
+                properties:
+                  rank: { type: integer }
+                  total: { type: number }
+                  freq_counts:
+                    type: object
+                    additionalProperties: { type: integer }
+                  complete: { type: boolean, description: false if a member has no result }
+
+    RelayConfig:
+      type: object
+      properties:
+        relay_duration_min: { type: integer }
+        locked: { type: boolean }
+    RangeInput:
+      type: object
+      required: [name, lane_count]
+      properties:
+        name: { type: string, example: 25m }
+        lane_count: { type: integer, example: 15 }
+    Range:
+      type: object
+      properties:
+        id: { type: string, example: m25 }
+        name: { type: string, example: 25m }
+        lane_count: { type: integer, example: 15 }
+    DayInput:
+      type: object
+      required: [date, start_time]
+      properties:
+        date: { type: string, format: date, example: "2026-08-01" }
+        start_time: { type: string, example: "09:00" }
+        break_min: { type: integer, description: "Minutes between relays (default 15 on create)" }
+    Day:
+      type: object
+      properties:
+        id: { type: string }
+        date: { type: string, format: date }
+        start_time: { type: string }
+        break_min: { type: integer }
+        locked: { type: boolean }
+    Relay:
+      type: object
+      properties:
+        id: { type: string }
+        day_id: { type: string }
+        sequence_no: { type: integer }
+        start_time: { type: string, nullable: true }
+    Assignment:
+      type: object
+      properties:
+        id: { type: string }
+        relay_id: { type: string }
+        range_id: { type: string }
+        lane_no: { type: integer }
+        start_id: { type: string }
+    CompetitorSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        club: { type: string }
+    StartSummary:
+      type: object
+      properties:
+        start_id: { type: string }
+        start_number: { type: integer }
+        discipline_id: { type: integer }
+        discipline_name: { type: string }
+        competitor: { $ref: "#/components/schemas/CompetitorSummary" }
+    ResolvedAssignment:
+      allOf:
+        - $ref: "#/components/schemas/Assignment"
+        - type: object
+          properties:
+            start_number: { type: integer, nullable: true }
+            discipline_id: { type: integer, nullable: true }
+            discipline_name: { type: string, nullable: true }
+            competitor:
+              allOf:
+                - $ref: "#/components/schemas/CompetitorSummary"
+              nullable: true
+    RelayData:
+      type: object
+      properties:
+        config: { $ref: "#/components/schemas/RelayConfig" }
+        ranges:
+          type: array
+          items: { $ref: "#/components/schemas/Range" }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/Day" }
+        relays:
+          type: array
+          items: { $ref: "#/components/schemas/Relay" }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/Assignment" }
+    RelayDetail:
+      allOf:
+        - $ref: "#/components/schemas/Relay"
+        - type: object
+          properties:
+            day: { $ref: "#/components/schemas/Day" }
+            relay_duration_min: { type: integer }
+            ranges:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/Range"
+                  - type: object
+                    properties:
+                      locked: { type: boolean }
+                      lanes:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            lane_no: { type: integer }
+                            assignment:
+                              allOf:
+                                - $ref: "#/components/schemas/ResolvedAssignment"
+                              nullable: true
+    ScheduleEntry:
+      allOf:
+        - $ref: "#/components/schemas/ResolvedAssignment"
+        - type: object
+          properties:
+            range_name: { type: string }
+            sequence_no: { type: integer, nullable: true }
+            start_time: { type: string, nullable: true }
+            date: { type: string, nullable: true }
+    RelayOverview:
+      type: object
+      properties:
+        ranges:
+          type: array
+          items: { $ref: "#/components/schemas/Range" }
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              competitor: { $ref: "#/components/schemas/CompetitorSummary" }
+              scheduled:
+                type: array
+                items: { $ref: "#/components/schemas/ScheduleEntry" }
+              unscheduled:
+                type: array
+                items: { $ref: "#/components/schemas/StartSummary" }
+              issues:
+                type: array
+                items: { type: string }
+        data_issues:
+          type: array
+          items: { type: string }

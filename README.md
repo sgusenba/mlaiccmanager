@@ -78,6 +78,8 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 
 ## API Endpoints
 
+The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml); with the server running, browse it with Swagger UI at `http://localhost:5000/swagger/`.
+
 ### Competitors (`/api/competitors`)
 - `GET /api/competitors` — list all competitors
 - `POST /api/competitors` — create a competitor (or update it when `id` is set; send `version`)
@@ -93,6 +95,7 @@ Browsers do not refresh on their own; other users' changes show up when switchin
 - `POST /api/active-disciplines` — set active disciplines, flipping each catalog entry's `active` flag (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
 - `DELETE /api/active-disciplines/{id}` — deactivate a single discipline
 - `GET /api/available-disciplines` — get all disciplines (the catalog with this competition's changes applied)
+- `PUT /api/available-disciplines/shooting-distances` — map disciplines to the range they fire on, e.g. `{"shooting_distances": {"52": "m25"}}`; only the listed disciplines change, and an empty string clears the mapping so the discipline may be assigned to any range
 
 ### Results (`/api/results`)
 - `GET /api/results` — list results (optional discipline filter)
@@ -140,9 +143,8 @@ Two rules are enforced on the server and also drive the lane dropdowns, so confl
 1. A registered start takes at most one lane (it is shot once).
 2. A competitor has at most one lane per relay (all ranges fire simultaneously).
 
-- `GET /api/rmgmt` — config, ranges, disciplines with their range, days, relays and assignments in one response
+- `GET /api/rmgmt` — config, ranges, days, relays and assignments in one response (each discipline's range is its `shooting_distance` in `/api/available-disciplines`)
 - `PUT /api/rmgmt/config` — set `relay_duration_min` (recalculates every day's start times)
-- `PUT /api/rmgmt/discipline-ranges` — replace the discipline-to-range mapping, e.g. `{"discipline_ranges": {"52": "m25"}}` (a discipline left out, or set to `null`, may be assigned to any range)
 - `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days with `date`, `start_time` and `break_min` (minutes between relays, default 15 on create, kept on update when omitted); deleting a day removes its relays and assignments
 - `PUT /api/rmgmt/days/{id}/lock` — lock or unlock a whole day, e.g. `{"locked": true}`; a locked day's date/time, relays and lane assignments cannot be changed
 - `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
