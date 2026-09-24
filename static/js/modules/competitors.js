@@ -257,7 +257,7 @@ export async function manageCompetitorStarts(competitorId) {
     
     // Navigate to starts section
     const navigationModule = await import('../navigation.js');
-    navigationModule.showSection('starts');
+    navigationModule.navigateTo('starts');
     
     // Display competitor info and starts management
     const startsModule = await import('./starts.js');

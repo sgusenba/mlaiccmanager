@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ranking</title>
+    <title>Ranking · MLAICC Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../style.css">
     <style>
@@ -15,28 +15,9 @@
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-blue-600 text-white shadow-lg no-print">
-        <div class="mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-center justify-between min-h-16 py-2 gap-2">
-                <div class="flex items-center">
-                    <svg class="h-8 w-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    <h1 class="text-xl font-bold">Ranking</h1>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <a href="../rmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Relay Management</a>
-                    <a href="../tmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Team Management</a>
-                    <a href="../dmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Discipline Management</a>
-                    <a href="../" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Competition Management</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
+<body class="bg-gray-50 has-sidebar">
     <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900 no-print">Ranking</h2>
         <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden no-print"></div>
 
         <div class="px-4">
@@ -76,6 +57,7 @@
         </div>
     </main>
 
+    <script type="module" src="../js/appNav.js"></script>
     <script type="module" src="ranking.js"></script>
 </body>
 </html>

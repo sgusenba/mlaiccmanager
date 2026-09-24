@@ -136,14 +136,6 @@ export async function deleteResult(id, version) {
     return await apiCall(`/results/${id}${versionQuery(version)}`, { method: 'DELETE' });
 }
 
-// Load ranking for specific discipline
-export async function loadRanking(disciplineId) {
-    if (disciplineId) {
-        return await apiCall(`/ranking/${disciplineId}`);
-    }
-    return await apiCall('/ranking');
-}
-
 // Load all initial data
 export async function loadInitialData() {
     try {

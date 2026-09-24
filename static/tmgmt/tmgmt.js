@@ -1,8 +1,8 @@
-// Team management page: teams of the team disciplines and their ranking.
+// Team management page: teams of the team disciplines (their ranking is on /ranking).
 // Teams come from /api/teams (stored in teams.json); a team member is one
 // registered start in the individual discipline the team discipline is based on.
 
-import { escapeHtml, teamRankingCard } from '../js/teamRanking.js';
+import { escapeHtml } from '../js/teamRanking.js';
 
 const API = '/api/teams';
 const STORAGE_KEY = 'tmgmt.discipline';
@@ -10,7 +10,7 @@ const MAX_SUGGESTIONS = 12;
 
 const state = {
     disciplines: [],     // GET /api/teams/disciplines
-    disciplineId: null,  // team discipline shown on the Teams tab
+    disciplineId: null,  // team discipline shown
     teams: [],           // teams of that discipline
     candidates: [],      // competitors with eligible starts for that discipline
     editing: null,       // team being edited (null: new team)
@@ -75,20 +75,12 @@ function disciplineOptions(disciplines, selectedId) {
         + (inactive.length ? `<optgroup label="Inactive">${inactive.map(option).join('')}</optgroup>` : '');
 }
 
-// --- navigation ------------------------------------------------------------
+// --- loading ---------------------------------------------------------------
 
-const sections = ['teams', 'ranking'];
-
-async function showSection(name) {
-    if (!sections.includes(name)) name = 'teams';
-    sections.forEach(s => document.getElementById(`${s}-section`).classList.toggle('hidden', s !== name));
-    document.querySelectorAll('.nav-link').forEach(link =>
-        link.classList.toggle('bg-blue-700', link.getAttribute('href') === `#${name}`));
-
+async function showTeams() {
     try {
-        if (!state.disciplines.length) await loadDisciplines();
-        if (name === 'teams') await refreshTeams();
-        if (name === 'ranking') await refreshRanking();
+        await loadDisciplines();
+        await refreshTeams();
     } catch (error) {
         console.error(error);
         showMessage(`Could not load data: ${error.message}`);
@@ -363,23 +355,6 @@ async function saveTeam(event) {
     }
 }
 
-// --- ranking ---------------------------------------------------------------
-
-async function refreshRanking() {
-    const select = document.getElementById('ranking-select');
-    const selected = select.value;
-    select.innerHTML = '<option value="">All team disciplines with teams</option>' + disciplineOptions(state.disciplines, Number(selected) || null);
-    select.value = selected;
-
-    const content = document.getElementById('ranking-content');
-    const ids = selected ? [Number(selected)] : state.disciplines.map(d => d.id);
-    const rankings = await Promise.all(ids.map(id => api(`/ranking/${id}`)));
-    const shown = selected ? rankings : rankings.filter(r => r.rankings.length > 0);
-    content.innerHTML = shown.length
-        ? shown.map(r => teamRankingCard(r, { extraClass: 'print-break' })).join('')
-        : '<div class="text-center py-12 text-gray-500">No teams entered yet.</div>';
-}
-
 // --- wiring ----------------------------------------------------------------
 
 function setupEventListeners() {
@@ -455,12 +430,7 @@ function setupEventListeners() {
         if (button.dataset.action === 'delete-team') deleteTeam(team);
     });
 
-    document.getElementById('ranking-select').addEventListener('change', () =>
-        refreshRanking().catch(error => showMessage(error.message)));
-    document.getElementById('print-ranking-btn').addEventListener('click', () => window.print());
-
-    window.addEventListener('hashchange', () => showSection(location.hash.substring(1)));
 }
 
 setupEventListeners();
-showSection(location.hash.substring(1));
+showTeams();

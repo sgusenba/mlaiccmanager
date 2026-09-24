@@ -108,8 +108,6 @@ const sections = ['schedule', 'assignment', 'overview', 'settings'];
 async function showSection(name) {
     if (!sections.includes(name)) name = 'schedule';
     sections.forEach(s => document.getElementById(`${s}-section`).classList.toggle('hidden', s !== name));
-    document.querySelectorAll('.nav-link').forEach(link =>
-        link.classList.toggle('bg-blue-700', link.getAttribute('href') === `#${name}`));
 
     try {
         if (name === 'schedule') await refreshSchedule();

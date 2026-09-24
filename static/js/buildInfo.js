@@ -1,4 +1,4 @@
-// Frontend and backend build dates shown in the navigation bar
+// Frontend and backend build dates shown in the sidebar
 
 import { API_BASE } from './config.js';
 
@@ -23,7 +23,7 @@ function formatBuildTime(isoString) {
 
 export async function loadBuildInfo() {
     const [frontendTime, backendTime] = await Promise.all([
-        fetchBuildTime('build-info.json'),
+        fetchBuildTime('/build-info.json'),
         fetchBuildTime(`${API_BASE}/build-info`)
     ]);
 

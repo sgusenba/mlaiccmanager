@@ -11,7 +11,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Rankings** — automatically sorted rankings with tie-breaking support
-- **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, with a team ranking that also shows up in the main Ranking tab
+- **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
 - **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly, optionally one discipline per page
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
@@ -49,13 +49,30 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 ## Frontend
 
-The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty:
+The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty.
 
-- **`/`** (`static/index.html` + `static/js/`) — main competition management UI (competitors, starts, disciplines, results, ranking), split into modules under `static/js/modules/`
-- **`/ranking`** (`static/ranking/`) — printable ranking page with one result per competitor and discipline
+Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.css`), grouped in the order a competition runs in. On narrow screens it folds into a menu button:
+
+| Group | Entry | Page |
+|---|---|---|
+| **Management** | Disciplines | `/dmgmt/` |
+| | Ranges & Relays | `/rmgmt/#settings` |
+| | Meet Days | `/rmgmt/#schedule` |
+| **Starters** | Competitors | `/#competitors` |
+| | Starts | `/#starts` |
+| | Teams | `/tmgmt/` |
+| | Lane Assignment | `/rmgmt/#assignment` |
+| | Starter Overview | `/rmgmt/#overview` |
+| **Results** | Enter Results | `/#results` |
+| **Rankings** | Ranking | `/ranking/` |
+
+A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
+
+- **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
+- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
-- **`/tmgmt`** (`static/tmgmt/`) — team management page; its ranking table (`static/js/teamRanking.js`) is shared with the main Ranking tab
+- **`/tmgmt`** (`static/tmgmt/`) — team management page
 
 Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
 
@@ -174,8 +191,8 @@ src/main/resources/
 ├── application.properties
 └── logback.xml
 static/                     # Frontend assets served at / (plain HTML/CSS/JS, Tailwind via CDN)
-├── index.html               # Main competition management UI
-├── js/                       # Vanilla JS, split by feature (competitors, starts, disciplines, results, ranking)
+├── index.html               # Competitors, starts and result entry
+├── js/                       # Vanilla JS: shared sidebar (appNav.js) and modules per feature (competitors, starts, results)
 ├── ranking/                  # Printable one-result-per-discipline ranking page, served at /ranking
 ├── dmgmt/                    # Discipline management page, served at /dmgmt
 ├── rmgmt/                    # Relay management page, served at /rmgmt
