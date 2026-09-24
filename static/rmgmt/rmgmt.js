@@ -384,9 +384,11 @@ function laneBlock(block, available) {
                         data-assignment-id="${escapeHtml(lane.assignment?.id ?? '')}">
                         <td class="px-3 py-1 text-sm font-medium text-gray-500 w-12 text-right">${lane.lane_no}</td>
                         <td class="px-3 py-1">
-                            <select ${locked ? 'disabled' : ''} class="lane-select w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'} ${locked ? 'bg-gray-100 cursor-not-allowed' : ''}">
-                                ${optionsFor(lane.assignment)}
-                            </select>
+                            <select hidden class="lane-select">${optionsFor(lane.assignment)}</select>
+                            <input type="text" ${locked ? 'disabled' : ''} autocomplete="off" spellcheck="false"
+                                role="combobox" aria-expanded="false" aria-controls="lane-options" aria-label="${escapeHtml(block.name)} lane ${lane.lane_no}"
+                                placeholder="— empty —" value="${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}"
+                                class="lane-search w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'} ${locked ? 'bg-gray-100 cursor-not-allowed' : ''}">
                             <span class="print-only text-sm">${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}</span>
                         </td>
                     </tr>`).join('')}
@@ -395,7 +397,152 @@ function laneBlock(block, available) {
         </div>`;
 }
 
+// --- searchable lane picker ------------------------------------------------
+// Each lane keeps a hidden <select> holding its options and value; the text
+// input on top filters them as the user types. Choosing an option sets the
+// select and fires its 'change' event, so saving works as with a plain select.
+// One shared popup list (fixed position, so the lane cards do not clip it)
+// serves whichever lane input has focus.
+
+const picker = { input: null, select: null, items: [], active: -1, list: null };
+
+// Case- and accent-insensitive: "wurfl" finds "Würflingsdobler"
+const normalize = (text) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+function pickerList() {
+    if (!picker.list) {
+        picker.list = document.createElement('ul');
+        picker.list.id = 'lane-options';
+        picker.list.className = 'lane-options no-print';
+        picker.list.setAttribute('role', 'listbox');
+        picker.list.hidden = true;
+        // keep focus in the input while clicking an option
+        picker.list.addEventListener('mousedown', (event) => event.preventDefault());
+        picker.list.addEventListener('click', (event) => {
+            const item = event.target.closest('[data-index]');
+            if (item) choosePickerItem(parseInt(item.dataset.index, 10));
+        });
+        document.body.appendChild(picker.list);
+    }
+    return picker.list;
+}
+
+const currentLabel = (select) => select.value ? select.selectedOptions[0].textContent : '';
+
+function openPicker(input, selectText = true) {
+    picker.input = input;
+    picker.select = input.closest('td').querySelector('.lane-select');
+    input.setAttribute('aria-expanded', 'true');
+    pickerList().hidden = false;
+    filterPicker('');
+    if (selectText) input.select(); // typing replaces the current name
+}
+
+function closePicker(restore = true) {
+    if (!picker.input) return;
+    if (restore) picker.input.value = currentLabel(picker.select);
+    picker.input.setAttribute('aria-expanded', 'false');
+    picker.input.removeAttribute('aria-activedescendant');
+    pickerList().hidden = true;
+    picker.input = picker.select = null;
+}
+
+function filterPicker(query) {
+    const terms = normalize(query).split(/\s+/).filter(Boolean);
+    const options = [...picker.select.options].map(o => ({ value: o.value, label: o.textContent }));
+    picker.items = options.filter(o => terms.every(t => normalize(o.label).includes(t)));
+    const selectedIndex = picker.items.findIndex(o => o.value === picker.select.value);
+    picker.active = terms.length ? 0 : Math.max(selectedIndex, 0);
+    renderPicker();
+}
+
+function renderPicker() {
+    const list = pickerList();
+    list.innerHTML = picker.items.map((item, i) => `
+        <li role="option" id="lane-option-${i}" data-index="${i}"
+            class="${item.value ? '' : 'lane-option-empty'}"
+            aria-selected="${i === picker.active}" ${item.value === picker.select.value ? 'data-current' : ''}>${escapeHtml(item.label)}</li>`).join('')
+        || '<li class="lane-option-none">No matching start</li>';
+    if (picker.active >= 0 && picker.items.length) {
+        picker.input.setAttribute('aria-activedescendant', `lane-option-${picker.active}`);
+        list.children[picker.active].scrollIntoView({ block: 'nearest' });
+    }
+    positionPicker();
+}
+
+function positionPicker() {
+    if (!picker.input) return;
+    const list = pickerList();
+    const rect = picker.input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    list.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - list.offsetWidth - 8))}px`;
+    list.style.minWidth = `${rect.width}px`;
+    // open upwards when the lane is near the bottom of the window
+    const above = spaceBelow < 200 && rect.top > spaceBelow;
+    list.style.maxHeight = `${Math.min(320, (above ? rect.top : spaceBelow) - 12)}px`;
+    list.style.top = above ? '' : `${rect.bottom + 2}px`;
+    list.style.bottom = above ? `${window.innerHeight - rect.top + 2}px` : '';
+}
+
+function movePicker(delta) {
+    if (!picker.items.length) return;
+    picker.active = (picker.active + delta + picker.items.length) % picker.items.length;
+    renderPicker();
+}
+
+function choosePickerItem(index) {
+    const item = picker.items[index];
+    if (!item) return;
+    const { input, select } = picker;
+    closePicker(false);
+    input.value = item.label;
+    if (item.value !== select.value) {
+        select.value = item.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+function setupLanePicker() {
+    const detail = document.getElementById('relay-detail');
+    detail.addEventListener('focusin', (event) => {
+        if (event.target.classList.contains('lane-search')) openPicker(event.target);
+    });
+    detail.addEventListener('focusout', (event) => {
+        if (event.target === picker.input) closePicker();
+    });
+    detail.addEventListener('click', (event) => {
+        // reopen after Escape without leaving the field
+        if (event.target === document.activeElement && event.target.classList.contains('lane-search')
+            && !picker.input) openPicker(event.target);
+    });
+    detail.addEventListener('input', (event) => {
+        if (!event.target.classList.contains('lane-search')) return;
+        if (!picker.input) openPicker(event.target, false); // typing after Escape
+        filterPicker(event.target.value);
+    });
+    detail.addEventListener('keydown', (event) => {
+        if (!event.target.classList.contains('lane-search')) return;
+        if (!picker.input) {
+            if (event.key === 'ArrowDown' || event.key === 'Enter') {
+                event.preventDefault();
+                openPicker(event.target);
+            }
+            return;
+        }
+        if (event.key === 'ArrowDown') { event.preventDefault(); movePicker(1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); movePicker(-1); }
+        else if (event.key === 'Enter') { event.preventDefault(); choosePickerItem(picker.active); }
+        else if (event.key === 'Escape') { event.preventDefault(); closePicker(); event.target.select(); }
+    });
+    window.addEventListener('resize', positionPicker);
+    window.addEventListener('scroll', (event) => {
+        if (event.target !== picker.list) positionPicker();
+    }, true);
+}
+
 function setupAssignmentListeners() {
+    setupLanePicker();
+
     const select = document.getElementById('relay-select');
     select.addEventListener('change', () => {
         state.relayId = select.value;
@@ -420,7 +567,7 @@ function setupAssignmentListeners() {
         const row = event.target.closest('tr');
         const assignmentId = row.dataset.assignmentId || null;
         const startId = event.target.value;
-        event.target.disabled = true;
+        row.querySelector('.lane-search').disabled = true;
 
         perform(async () => {
             if (startId) {
