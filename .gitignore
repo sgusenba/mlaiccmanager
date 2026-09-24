@@ -25,6 +25,8 @@ relays.json
 teams.json
 # This competition's changes to the discipline catalog (active list, overrides)
 competition.json
+# The meet's name, venue, host and dates
+meet.json
 disciplines.previous.json*
 # Safety copies of the data taken before a backup is restored
 backups/

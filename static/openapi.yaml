@@ -5,7 +5,7 @@ info:
     REST API of the competition management system (competitors, starts, disciplines,
     results, rankings, teams and relay management).
 
-    **Optimistic locking:** competitors, results and teams carry a `version` that is
+    **Optimistic locking:** competitors, results, teams and the meet details carry a `version` that is
     incremented on every save. Send the version you loaded back on update/delete; if
     someone else saved in the meantime the request is rejected with `409` and the
     response contains the `current` record.
@@ -24,8 +24,10 @@ tags:
   - name: Teams
   - name: Relay management
     description: Backs the `/rmgmt` page; data lives in `relays.json`.
+  - name: Meet
+    description: Backs the `/meet` page; the meet's name, venue, host and dates live in `meet.json`.
   - name: Backup
-    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json` and `relays.json`.
+    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json`, `relays.json` and `meet.json`.
   - name: Build info
 
 paths:
@@ -955,6 +957,43 @@ paths:
               schema: { $ref: "#/components/schemas/RelayOverview" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  # ----------------------------------------------------------------------- Meet
+  /meet:
+    get:
+      tags: [Meet]
+      summary: The meet's name, venue, host and dates
+      description: Empty strings and `null` dates (version 0) until the details are first saved.
+      operationId: getMeet
+      responses:
+        "200":
+          description: Meet details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meet" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    put:
+      tags: [Meet]
+      summary: Replace the meet details
+      description: |
+        All fields are replaced: a missing text becomes empty, a missing or blank date is
+        cleared. Texts are trimmed. Send the `version` you loaded; `409` if someone else
+        saved in the meantime.
+      operationId: updateMeet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Meet" }
+      responses:
+        "200":
+          description: Saved details with the new version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meet" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   # --------------------------------------------------------------------- Backup
   /backup:
     get:
@@ -1084,6 +1123,23 @@ components:
     IdList:
       type: array
       items: { type: integer }
+    Meet:
+      type: object
+      properties:
+        name: { type: string, maxLength: 200, example: Staatsmeisterschaft Vorderlader 2026 }
+        location: { type: string, maxLength: 200, example: Bad Zell }
+        host: { type: string, maxLength: 200, example: SV Bad Zell }
+        date_from:
+          type: string
+          format: date
+          nullable: true
+          description: First day; when empty the pages print the first meet day of the relay management
+        date_to:
+          type: string
+          format: date
+          nullable: true
+          description: Last day, not before `date_from`; when empty the pages print the last meet day
+        version: { type: integer }
     LockRequest:
       type: object
       required: [locked]

@@ -28,13 +28,14 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Backup and restore of all runtime data as one zip file: data.json,
- * competition.json, teams.json and relays.json. The discipline catalog
+ * competition.json, teams.json, relays.json and meet.json. The discipline catalog
  * (disciplines.json) ships with every release and is not part of it.
  *
  * <p>Both directions hold every file's lock, so a backup is a consistent
- * snapshot and a restore replaces all files at once. Lock order: teams.json,
- * relays.json, data.json, disciplines, which matches the services' own order
- * (teams/relays before data.json, data.json before disciplines).
+ * snapshot and a restore replaces all files at once. Lock order: meet.json,
+ * teams.json, relays.json, data.json, disciplines, which matches the services'
+ * own order (teams/relays before data.json, data.json before disciplines);
+ * meet.json is never locked together with another file elsewhere.
  *
  * <p>Before a restore the current files are saved to
  * backups/pre-restore-&lt;time&gt;.zip, so a wrong restore can be undone.
@@ -44,7 +45,8 @@ public class BackupService {
     private static final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     /** The runtime data files, in the order they are written to the zip. data.json is required on restore. */
-    static final List<String> FILES = List.of("data.json", "competition.json", "teams.json", "relays.json");
+    static final List<String> FILES = List.of(
+        "data.json", "competition.json", "teams.json", "relays.json", "meet.json");
     static final String REQUIRED_FILE = "data.json";
     static final String MANIFEST = "backup-info.json";
     static final String SAFETY_COPY_DIR = "backups";
@@ -59,12 +61,15 @@ public class BackupService {
     private final DataService dataService;
     private final TeamService teamService;
     private final RelayService relayService;
+    private final MeetService meetService;
 
-    public BackupService(Path baseDir, DataService dataService, TeamService teamService, RelayService relayService) {
+    public BackupService(Path baseDir, DataService dataService, TeamService teamService, RelayService relayService,
+                         MeetService meetService) {
         this.baseDir = baseDir;
         this.dataService = dataService;
         this.teamService = teamService;
         this.relayService = relayService;
+        this.meetService = meetService;
     }
 
     /** A file name for a backup taken now, e.g. mlaiccmanager-backup-20260924-101500.zip. */
@@ -122,7 +127,8 @@ public class BackupService {
     }
 
     private <T> T locked(Callable<T> action) throws Exception {
-        return teamService.exclusive(() -> relayService.exclusive(() -> dataService.exclusive(action)));
+        return meetService.exclusive(() -> teamService.exclusive(
+            () -> relayService.exclusive(() -> dataService.exclusive(action))));
     }
 
     /** The data files that exist, by name. Caller holds the locks. */

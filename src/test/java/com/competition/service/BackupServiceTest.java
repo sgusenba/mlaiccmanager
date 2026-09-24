@@ -30,6 +30,7 @@ class BackupServiceTest {
     private static final String COMPETITION = "{\"active_disciplines\":[1]}";
     private static final String TEAMS = "{\"teams\":[{\"id\":1,\"name\":\"SG Wien\"}]}";
     private static final String RELAYS = "{\"config\":{\"relay_duration_min\":10},\"days\":[]}";
+    private static final String MEET = "{\"name\":\"Staatsmeisterschaft\",\"location\":\"Bad Zell\",\"version\":1}";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -38,12 +39,14 @@ class BackupServiceTest {
         Files.writeString(tempDir.resolve("competition.json"), COMPETITION);
         Files.writeString(tempDir.resolve("teams.json"), TEAMS);
         Files.writeString(tempDir.resolve("relays.json"), RELAYS);
+        Files.writeString(tempDir.resolve("meet.json"), MEET);
 
         DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
             tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
         TeamService teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
         RelayService relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
-        backupService = new BackupService(tempDir, dataService, teamService, relayService);
+        MeetService meetService = new MeetService(tempDir.resolve("meet.json").toString());
+        backupService = new BackupService(tempDir, dataService, teamService, relayService, meetService);
     }
 
     private static Map<String, String> unzip(byte[] zip) throws IOException {
@@ -75,7 +78,8 @@ class BackupServiceTest {
     @Test
     void backupContainsEveryDataFileButNotTheCatalog() throws Exception {
         Map<String, String> entries = unzip(backupService.createBackup());
-        assertEquals(List.of("backup-info.json", "data.json", "competition.json", "teams.json", "relays.json"),
+        assertEquals(List.of("backup-info.json", "data.json", "competition.json", "teams.json", "relays.json",
+                "meet.json"),
             List.copyOf(entries.keySet()));
         assertEquals(DATA, entries.get("data.json"));
         assertEquals(TEAMS, entries.get("teams.json"));
@@ -88,13 +92,16 @@ class BackupServiceTest {
 
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":[],\"results\":[]}");
         Files.writeString(tempDir.resolve("teams.json"), "{\"teams\":[]}");
+        Files.writeString(tempDir.resolve("meet.json"), "{\"name\":\"Other meet\"}");
 
         Map<String, Object> result = backupService.restore(new ByteArrayInputStream(backup));
         assertEquals(DATA, read("data.json"));
         assertEquals(COMPETITION, read("competition.json"));
         assertEquals(TEAMS, read("teams.json"));
         assertEquals(RELAYS, read("relays.json"));
-        assertEquals(List.of("data.json", "competition.json", "teams.json", "relays.json"), result.get("restored_files"));
+        assertEquals(MEET, read("meet.json"));
+        assertEquals(List.of("data.json", "competition.json", "teams.json", "relays.json", "meet.json"),
+            result.get("restored_files"));
 
         // The safety copy holds the data as it was right before the restore
         String safetyCopy = (String) result.get("safety_copy");
@@ -110,6 +117,7 @@ class BackupServiceTest {
         assertFalse(Files.exists(tempDir.resolve("teams.json")));
         assertFalse(Files.exists(tempDir.resolve("relays.json")));
         assertFalse(Files.exists(tempDir.resolve("competition.json")));
+        assertFalse(Files.exists(tempDir.resolve("meet.json")));
         // The catalog is never touched
         assertTrue(Files.exists(tempDir.resolve("disciplines.json")));
     }
