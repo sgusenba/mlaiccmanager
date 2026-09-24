@@ -11,7 +11,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Rankings** — automatically sorted rankings with tie-breaking support
-- **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *No 9 Gustav Adolph*) from registered starts, with a team ranking that also shows up in the main Ranking tab
+- **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, with a team ranking that also shows up in the main Ranking tab
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
 - **JSON file storage** — simple file-based storage, no database required

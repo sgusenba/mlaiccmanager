@@ -3,7 +3,7 @@
 import { getState, setState } from '../config.js';
 import { loadActiveDisciplines, loadRanking } from '../api.js';
 import { showMessage, setElementContent, getElementValue } from '../utils.js';
-import { teamRankingCard } from '../teamRanking.js';
+import { teamRankingCard, disciplineDisplayName } from '../teamRanking.js';
 
 // Load active disciplines for ranking dropdown
 export async function loadActiveDisciplinesForRanking() {
@@ -16,7 +16,7 @@ export async function loadActiveDisciplinesForRanking() {
     rankingSelect.innerHTML = '<option value="">All Disciplines</option>' +
         activeDisciplines.map(disciplineId => {
             const discipline = availableDisciplines.find(d => d.id === disciplineId);
-            return discipline ? `<option value="${disciplineId}">${discipline.event}</option>` : '';
+            return discipline ? `<option value="${disciplineId}">${disciplineDisplayName(discipline.event, discipline.type)}</option>` : '';
         }).join('');
     
     // Show all disciplines by default
@@ -99,8 +99,8 @@ function individualRankingCard(data, extraClass) {
         <div class="bg-white rounded-lg shadow-md ${extraClass}">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900">
-                    ${data.discipline.name}
-                    <span class="text-sm text-gray-500 ml-2">(${data.discipline.category})</span>
+                    ${disciplineDisplayName(data.discipline.name, data.discipline.type)}
+                    <span class="text-sm text-gray-500 ml-2">${data.discipline.category}</span>
                 </h3>
             </div>
             
