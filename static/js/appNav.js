@@ -1,20 +1,13 @@
 // Sidebar navigation shared by every page. The menu is grouped by the
-// order a competition runs in: set up, register starters, enter results,
-// publish the ranking. Each entry links to a page and, for pages with
-// several sections, to the section's #hash.
+// order a competition runs in: register starters, enter results, publish
+// the ranking; the one-off setup (Management) comes last. Each entry
+// links to a page and, for pages with several sections, to the section's
+// #hash.
 
 import { loadBuildInfo } from './buildInfo.js';
 
 // `default` marks the section a page shows when the URL has no known #hash
 const GROUPS = [
-    {
-        label: 'Management',
-        items: [
-            { label: 'Disciplines', path: '/dmgmt/' },
-            { label: 'Ranges & Relays', path: '/rmgmt/', hash: 'settings' },
-            { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true }
-        ]
-    },
     {
         label: 'Starters',
         items: [
@@ -35,6 +28,14 @@ const GROUPS = [
         label: 'Rankings',
         items: [
             { label: 'Ranking', path: '/ranking/' }
+        ]
+    },
+    {
+        label: 'Management',
+        items: [
+            { label: 'Disciplines', path: '/dmgmt/' },
+            { label: 'Ranges & Relays', path: '/rmgmt/', hash: 'settings' },
+            { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true }
         ]
     }
 ];

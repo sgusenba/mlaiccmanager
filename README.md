@@ -51,13 +51,10 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 
 The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty.
 
-Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.css`), grouped in the order a competition runs in. On narrow screens it folds into a menu button:
+Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.css`), grouped in the order a competition runs in, with the one-off setup (Management) last. On narrow screens it folds into a menu button:
 
 | Group | Entry | Page |
 |---|---|---|
-| **Management** | Disciplines | `/dmgmt/` |
-| | Ranges & Relays | `/rmgmt/#settings` |
-| | Meet Days | `/rmgmt/#schedule` |
 | **Starters** | Competitors | `/#competitors` |
 | | Starts | `/#starts` |
 | | Teams | `/tmgmt/` |
@@ -65,6 +62,9 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | | Starter Overview | `/rmgmt/#overview` |
 | **Results** | Enter Results | `/#results` |
 | **Rankings** | Ranking | `/ranking/` |
+| **Management** | Disciplines | `/dmgmt/` |
+| | Ranges & Relays | `/rmgmt/#settings` |
+| | Meet Days | `/rmgmt/#schedule` |
 
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
@@ -82,7 +82,7 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 - **`disciplines.json`** — the MLAIC discipline catalog (event names, categories, levels, default shooting distance). Tracked in the repo, shipped with every release and replaced on every deploy, so the app never writes to it.
 - **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
 - **`teams.json`** — the teams of the team disciplines (name, member start ids, tie-break value, notes). Created on the first saved team; git-ignored like `data.json`. Members are only referenced by start id.
-- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration, locked days), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
+- **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration and break, locked days), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
 ## Multiple Users
 
@@ -156,7 +156,7 @@ Backs the standalone page at `/tmgmt` and stores everything in `teams.json`.
 Backs the standalone page at `/rmgmt` and stores everything in `relays.json`.
 
 - A **relay** (Durchgang) is one time slot in which all **ranges** fire at once. A range is a lane block: 25m with 15 lanes, 50m with 12, 100m with 8 (ids `m25`/`m50`/`m100`, lane counts editable in `relays.json`). Ranges are not the MLAIC disciplines — those keep living in `disciplines.json`.
-- The relay duration is a single meet-wide value, so a day's relay times follow from its start time.
+- The relay duration and the break between relays (default 15 min) are single meet-wide values, so a day's relay times follow from its start time. Files from before the break was meet-wide take the first day's break.
 - A lane holds one **registered start** (e.g. `1-52-1`), created as usual in the competition management. `relays.json` only stores the start id; competitor and discipline are resolved from `data.json` on read.
 - Each MLAIC discipline can be mapped to the range it fires on. A lane then only offers starts of that range; a discipline left on "any range" is offered everywhere. A range cannot be deleted while a discipline is still mapped to it.
 
@@ -166,8 +166,8 @@ Two rules are enforced on the server and also drive the lane dropdowns, so confl
 2. A competitor has at most one lane per relay (all ranges fire simultaneously).
 
 - `GET /api/rmgmt` — config, ranges, days, relays and assignments in one response (each discipline's range is its `shooting_distance` in `/api/available-disciplines`)
-- `PUT /api/rmgmt/config` — set `relay_duration_min` (recalculates every day's start times)
-- `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days with `date`, `start_time` and `break_min` (minutes between relays, default 15 on create, kept on update when omitted); deleting a day removes its relays and assignments
+- `PUT /api/rmgmt/config` — set `relay_duration_min` and/or `break_min` (recalculates every day's start times)
+- `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days with `date` and `start_time`; deleting a day removes its relays and assignments
 - `PUT /api/rmgmt/days/{id}/lock` — lock or unlock a whole day, e.g. `{"locked": true}`; a locked day's date/time, relays and lane assignments cannot be changed
 - `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
 - `GET /api/rmgmt/relays/{id}` — relay detail: one lane block per range with its current assignments

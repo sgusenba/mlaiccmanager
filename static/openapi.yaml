@@ -622,8 +622,8 @@ paths:
   /rmgmt/config:
     put:
       tags: [Relay management]
-      summary: Set the relay duration
-      description: Recalculates every day's relay start times. Blocked while the config is locked.
+      summary: Set the relay duration and the break between relays
+      description: Either field may be omitted (it is kept), not both. Recalculates every day's relay start times. Blocked while the config is locked.
       operationId: updateRelayConfig
       requestBody:
         required: true
@@ -631,9 +631,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [relay_duration_min]
               properties:
                 relay_duration_min: { type: integer, minimum: 1, maximum: 1440 }
+                break_min: { type: integer, minimum: 0, maximum: 1440, description: Minutes between relays }
       responses:
         "200":
           description: The relay config
@@ -743,7 +743,6 @@ paths:
     put:
       tags: [Relay management]
       summary: Update a meet day
-      description: "`break_min` is kept when omitted."
       operationId: updateDay
       requestBody:
         required: true
@@ -1294,6 +1293,7 @@ components:
       type: object
       properties:
         relay_duration_min: { type: integer }
+        break_min: { type: integer, description: "Minutes between relays, meet-wide (default 15)" }
         locked: { type: boolean }
     RangeInput:
       type: object
@@ -1313,14 +1313,12 @@ components:
       properties:
         date: { type: string, format: date, example: "2026-08-01" }
         start_time: { type: string, example: "09:00" }
-        break_min: { type: integer, description: "Minutes between relays (default 15 on create)" }
     Day:
       type: object
       properties:
         id: { type: string }
         date: { type: string, format: date }
         start_time: { type: string }
-        break_min: { type: integer }
         locked: { type: boolean }
     Relay:
       type: object

@@ -22,6 +22,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -82,14 +84,26 @@ public class RelayService {
         });
     }
 
+    /** Sets the relay duration and/or the break between relays; either may be omitted, not both. */
     public Map<String, Object> updateConfig(Map<String, Object> request) throws Exception {
-        int duration = requireInt(request, "relay_duration_min");
-        if (duration < 1 || duration > 24 * 60) {
+        boolean hasDuration = request != null && request.get("relay_duration_min") != null;
+        boolean hasBreak = request != null && request.get("break_min") != null;
+        if (!hasDuration && !hasBreak) {
+            throw new IllegalArgumentException("relay_duration_min or break_min is required");
+        }
+        int duration = hasDuration ? requireInt(request, "relay_duration_min") : 0;
+        if (hasDuration && (duration < 1 || duration > 24 * 60)) {
             throw new IllegalArgumentException("relay_duration_min must be between 1 and 1440");
         }
+        int breakMin = hasBreak ? requireBreak(request) : 0;
         return update(relays -> {
             requireConfigUnlocked(relays);
-            configOf(relays).put("relay_duration_min", duration);
+            if (hasDuration) {
+                configOf(relays).put("relay_duration_min", duration);
+            }
+            if (hasBreak) {
+                configOf(relays).put("break_min", breakMin);
+            }
             for (Map<String, Object> day : listOf(relays, "days")) {
                 recompute(relays, day);
             }
@@ -97,7 +111,7 @@ public class RelayService {
         });
     }
 
-    /** Locks or unlocks the relay duration and ranges (lanes-per-relay) configuration. Defaults to locked. */
+    /** Locks or unlocks the relay duration, break and ranges (lanes-per-relay) configuration. Defaults to locked. */
     public Map<String, Object> setConfigLock(Map<String, Object> request) throws Exception {
         boolean locked = requireBoolean(request, "locked");
         return update(relays -> {
@@ -169,14 +183,12 @@ public class RelayService {
     public Map<String, Object> createDay(Map<String, Object> request) throws Exception {
         String date = requireDate(request);
         String startTime = requireTime(request);
-        int breakMin = requireBreak(request, DEFAULT_BREAK_MIN);
         return update(relays -> {
             List<Map<String, Object>> days = listOf(relays, "days");
             Map<String, Object> day = new LinkedHashMap<>();
             day.put("id", nextId(days, "day"));
             day.put("date", date);
             day.put("start_time", startTime);
-            day.put("break_min", breakMin);
             days.add(day);
             sortDays(days);
             return day;
@@ -186,13 +198,11 @@ public class RelayService {
     public Map<String, Object> updateDay(String dayId, Map<String, Object> request) throws Exception {
         String date = requireDate(request);
         String startTime = requireTime(request);
-        requireBreak(request, 0); // validate before taking the lock
         return update(relays -> {
             Map<String, Object> day = findDay(relays, dayId);
             requireDayUnlocked(day, "Cannot edit day");
             day.put("date", date);
             day.put("start_time", startTime);
-            day.put("break_min", requireBreak(request, RelayRules.intOf(day.get("break_min"))));
             recompute(relays, day);
             sortDays(listOf(relays, "days"));
             return day;
@@ -606,7 +616,8 @@ public class RelayService {
     }
 
     private void recompute(Map<String, Object> relays, Map<String, Object> day) {
-        RelayRules.recomputeDaySchedule(day, relaysOfDay(relays, (String) day.get("id")), relayDuration(relays));
+        RelayRules.recomputeDaySchedule(day, relaysOfDay(relays, (String) day.get("id")), relayDuration(relays),
+            RelayRules.intOf(configOf(relays).get("break_min")));
     }
 
     private static void sortDays(List<Map<String, Object>> days) {
@@ -841,11 +852,8 @@ public class RelayService {
         }
     }
 
-    /** The break between relays of a day; fallback when the request omits it. */
-    private static int requireBreak(Map<String, Object> request, int fallback) {
-        if (request == null || request.get("break_min") == null) {
-            return fallback;
-        }
+    /** The meet-wide break between relays, in minutes. */
+    private static int requireBreak(Map<String, Object> request) {
         int breakMin = requireInt(request, "break_min");
         if (breakMin < 0 || breakMin > 1440) {
             throw new IllegalArgumentException("break_min must be between 0 and 1440");
@@ -902,7 +910,7 @@ public class RelayService {
         return relays;
     }
 
-    private static void normalize(Map<String, Object> relays) {
+    private void normalize(Map<String, Object> relays) {
         if (!(relays.get("config") instanceof Map)) {
             relays.put("config", new LinkedHashMap<>());
         }
@@ -917,6 +925,33 @@ public class RelayService {
             }
         }
         migrateRangeLocks(relays);
+        migrateDayBreaks(relays);
+    }
+
+    /**
+     * Older files kept a break per day. The break is meet-wide now: it takes
+     * the first day's break (15 if there was none), and every day's relay
+     * times follow from it.
+     */
+    private void migrateDayBreaks(Map<String, Object> relays) {
+        if (configOf(relays).containsKey("break_min")) {
+            return;
+        }
+        List<Map<String, Object>> days = listOf(relays, "days");
+        Set<Integer> dayBreaks = new TreeSet<>();
+        days.forEach(day -> {
+            if (day.get("break_min") != null) {
+                dayBreaks.add(RelayRules.intOf(day.get("break_min")));
+            }
+        });
+        int breakMin = days.stream().map(day -> day.get("break_min")).filter(Objects::nonNull)
+            .findFirst().map(RelayRules::intOf).orElse(DEFAULT_BREAK_MIN);
+        if (dayBreaks.size() > 1) {
+            logger.warn("Meet days had different breaks between relays {}; using {} min for all days", dayBreaks, breakMin);
+        }
+        configOf(relays).put("break_min", breakMin);
+        days.forEach(day -> day.remove("break_min"));
+        days.forEach(day -> recompute(relays, day));
     }
 
     /** Older files locked day/distance pairs; a day with any such lock becomes a locked day. */

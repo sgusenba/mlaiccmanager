@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
                 <form id="day-form" class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold mb-1">Add Meet Day</h3>
-                    <p class="text-sm text-gray-600 mb-4">Relays of a day run from its start time, separated by the break.</p>
+                    <p class="text-sm text-gray-600 mb-4">Relays of a day run from its start time; duration and break are set under Ranges &amp; Relays.</p>
                     <div class="flex flex-wrap items-end gap-3">
                         <div>
                             <label for="day-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -27,10 +27,6 @@
                         <div>
                             <label for="day-start" class="block text-sm font-medium text-gray-700 mb-1">Start time</label>
                             <input type="time" id="day-start" required value="09:00" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="day-break" class="block text-sm font-medium text-gray-700 mb-1">Break between relays (min)</label>
-                            <input type="number" id="day-break" required min="0" max="1440" value="15" class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Day</button>
                     </div>
@@ -45,14 +41,18 @@
         <div id="settings-section" class="section hidden px-4">
             <form id="config-form" class="max-w-2xl bg-white rounded-lg shadow-md p-6 no-print">
                 <div class="flex justify-between items-start mb-1 gap-2">
-                    <h3 class="text-lg font-semibold">Relay Duration &amp; Distances</h3>
+                    <h3 class="text-lg font-semibold">Relay Timing &amp; Distances</h3>
                     <button type="button" id="config-lock-btn" class="no-print shrink-0 text-sm px-2 py-1 border rounded-md"></button>
                 </div>
-                <p class="text-sm text-gray-600 mb-4">Fixed for the whole meet. Changing duration recalculates all start times. Locked by default to prevent accidental changes.</p>
-                <div class="flex items-end gap-3 mb-4">
+                <p class="text-sm text-gray-600 mb-4">Fixed for the whole meet. Changing duration or break recalculates all start times. Locked by default to prevent accidental changes.</p>
+                <div class="flex flex-wrap items-end gap-3 mb-4">
                     <div>
                         <label for="relay-duration" class="block text-sm font-medium text-gray-700 mb-1">Minutes per relay</label>
                         <input type="number" id="relay-duration" min="1" max="1440" required class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="relay-break" class="block text-sm font-medium text-gray-700 mb-1">Break between relays (min)</label>
+                        <input type="number" id="relay-break" min="0" max="1440" required class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
                 </div>
