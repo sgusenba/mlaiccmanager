@@ -1,13 +1,16 @@
 // Meet page: the meet's name, venue, host and dates, and the printouts made
 // from them: a start card per starter (A4 portrait) and a race bib per
-// starter (A4 landscape).
+// starter (A4 landscape), plus the lane assignments as a CSV file.
 
 import { escapeHtml, formatDateRange, loadMeet } from '../js/meet.js';
+import { download, laneRows, toCsv } from './laneExport.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
     bibs: '@page { size: A4 landscape; margin: 10mm; }'
 };
+
+const SEPARATOR_KEY = 'meet.csvSeparator';
 
 let meet = null;
 
@@ -246,6 +249,48 @@ async function printPages(kind, button) {
     }
 }
 
+// --- lane assignments CSV --------------------------------------------------
+
+function readStored(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function store(key, value) {
+    try { localStorage.setItem(key, value); } catch { /* private mode: not remembered */ }
+}
+
+function csvFileName() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `lane-assignments-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+        + `-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+}
+
+async function exportLanes(button) {
+    const separator = document.getElementById('csv-separator').value;
+    store(SEPARATOR_KEY, separator);
+    button.disabled = true;
+    try {
+        const [overview, relays, competitors, disciplines] = await Promise.all([
+            api('/rmgmt/overview'), api('/rmgmt'), api('/competitors'), api('/available-disciplines'), refreshMeet()
+        ]);
+        const rows = laneRows({
+            overview, relays, competitors, disciplines, meet,
+            includeUnscheduled: document.getElementById('csv-unscheduled').checked
+        });
+        if (rows.length === 0) throw new Error('There are no lane assignments yet.');
+        download(toCsv(rows, separator), csvFileName());
+        const lanes = rows.filter(row => row.scheduled).length;
+        showMessage(`Exported ${lanes} lane assignment${lanes === 1 ? '' : 's'}`
+            + (rows.length > lanes ? ` and ${rows.length - lanes} start${rows.length - lanes === 1 ? '' : 's'} without a lane` : '')
+            + '.', 'success');
+    } catch (error) {
+        showMessage(`Could not export the lane assignments: ${error.message}`);
+    } finally {
+        button.disabled = false;
+    }
+}
+
 // Exposed for checking the layout on screen: meetPrintPreview('bibs'), meetPrintPreview(null)
 window.meetPrintPreview = async (kind) => {
     document.body.classList.toggle('print-preview', Boolean(kind));
@@ -258,6 +303,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('meet-form').addEventListener('submit', saveMeet);
     document.getElementById('print-cards-btn').addEventListener('click', e => printPages('cards', e.currentTarget));
     document.getElementById('print-bibs-btn').addEventListener('click', e => printPages('bibs', e.currentTarget));
+    document.getElementById('export-lanes-btn').addEventListener('click', e => exportLanes(e.currentTarget));
+    const separator = document.getElementById('csv-separator');
+    separator.value = readStored(SEPARATOR_KEY) === 'comma' ? 'comma' : 'semicolon';
     window.addEventListener('afterprint', () => {
         if (!document.body.classList.contains('print-preview')) {
             document.getElementById('print-area').innerHTML = '';
