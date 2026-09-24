@@ -227,6 +227,16 @@ journalctl -u mlaiccmanager-deploy.service -f  # watch a deploy run
 journalctl -u mlaiccmanager -f                 # app logs
 ```
 
+### Windows (portable)
+
+Every release also includes a self-contained Windows zip with Java bundled. Nothing needs to be installed and no admin rights are needed:
+
+1. Download [mlaiccmanager-windows.zip](https://github.com/sgusenba/mlaiccmanager/releases/download/latest/mlaiccmanager-windows.zip). If Windows blocks it, right-click the zip, choose **Properties → Unblock**, then unzip it.
+2. Unzip it to a local folder such as `C:\mlaiccmanager`. Don't use a OneDrive-synced Desktop or Documents folder: sync locks can break the app's saves.
+3. Double-click `start.bat`. The app opens in the browser at http://localhost:5000. Closing the console window stops it. If tablets on the network need access, allow Java in the Windows Firewall prompt.
+
+On every start, `start.bat` checks for a newer build and swaps it in. It only replaces `mlaiccmanager.jar`, `static\` and `disciplines.json`, so your data is never touched. When offline, it simply starts the current version. To freeze the version, for example during a competition, create an empty file named `no-auto-update` in the folder. All data (`data.json`, `competition.json`, `logs\`, …) lives in that folder. To upgrade the bundled Java, download the zip again and copy your data files over.
+
 ## License
 
 This project is open source and available under the MIT License.

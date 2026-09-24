@@ -37,10 +37,27 @@ jobs:
           cp disciplines.json dist-bundle/disciplines.json
           tar -czf mlaiccmanager-dist.tar.gz -C dist-bundle .
 
+      # Portable Windows zip: the same bundle plus a Windows JRE and the
+      # launcher scripts from deploy/windows/. .deployed-sha256 records the
+      # tarball it was built from, so update.ps1 doesn't redownload it on
+      # the first start.
+      - name: Package Windows bundle
+        run: |
+          curl -fsSL -o jre.zip "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse"
+          unzip -q jre.zip -d jre-extract
+          mkdir -p win-bundle/mlaiccmanager
+          cp -r dist-bundle/. win-bundle/mlaiccmanager/
+          mv jre-extract/* win-bundle/mlaiccmanager/jre
+          cp deploy/windows/start.bat deploy/windows/start.ps1 deploy/windows/update.ps1 win-bundle/mlaiccmanager/
+          sha256sum mlaiccmanager-dist.tar.gz | awk '{print $1}' > win-bundle/mlaiccmanager/.deployed-sha256
+          (cd win-bundle && zip -qr ../mlaiccmanager-windows.zip mlaiccmanager)
+
       - name: Publish "latest" release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Latest build
           target_commitish: ${{ github.sha }}
-          files: mlaiccmanager-dist.tar.gz
+          files: |
+            mlaiccmanager-dist.tar.gz
+            mlaiccmanager-windows.zip
