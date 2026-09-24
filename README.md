@@ -15,6 +15,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
 - **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly, optionally one discipline per page
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
+- **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one
 - **JSON file storage** — simple file-based storage, no database required
 
 ## Technology Stack
@@ -65,6 +66,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | **Management** | Disciplines | `/dmgmt/` |
 | | Ranges & Relays | `/rmgmt/#settings` |
 | | Meet Days | `/rmgmt/#schedule` |
+| | Backup & Restore | `/backup/` |
 
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
@@ -73,6 +75,7 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
+- **`/backup`** (`static/backup/`) — backup download and restore
 
 Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
 
@@ -83,6 +86,12 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 - **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
 - **`teams.json`** — the teams of the team disciplines (name, member start ids, tie-break value, notes). Created on the first saved team; git-ignored like `data.json`. Members are only referenced by start id.
 - **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration and break, locked days), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
+
+### Backup and restore
+
+The **Backup & Restore** page (`/backup`) downloads `data.json`, `competition.json`, `teams.json` and `relays.json` as one zip file (`mlaiccmanager-backup-<date>-<time>.zip`, plus a `backup-info.json` with the time it was taken). The catalog `disciplines.json` is not included, since it ships with every release. The zip contains the competitors' personal data, so keep it safe.
+
+Restoring a backup replaces all four files; a file the backup does not contain is removed, so the app is exactly in the state the backup was taken in. Before that, the current files are saved to `backups/pre-restore-<date>-<time>.zip` next to `data.json`, so a restore can be undone by restoring that file. An upload that is not a zip, has no `data.json` or holds a file that is not a JSON object is rejected and changes nothing. Backup and restore hold every file's lock, so they never see or leave a half-saved state. The page does not refresh other open pages: reload them after a restore.
 
 ## Multiple Users
 
@@ -179,6 +188,10 @@ Two rules are enforced on the server and also drive the lane dropdowns, so confl
 - `GET /api/rmgmt/competitors/{id}/schedule` — one competitor's lanes over the whole meet
 - `GET /api/rmgmt/overview` — every competitor's starts, where each is scheduled, which still need a lane, plus any rule violation found in the stored data (safety net for a hand-edited `relays.json`, a deleted start, or a discipline remapped to another range afterwards)
 
+### Backup (`/api/backup`)
+- `GET /api/backup` — all runtime data as a zip file (`Content-Disposition: attachment`)
+- `POST /api/backup/restore` — restore from a backup; the request body is the zip file itself (e.g. `Content-Type: application/zip`). Returns `{"restored_files": [...], "safety_copy": "backups/pre-restore-….zip"}`; `400` with the reason if the file is not a valid backup
+
 ## Project Structure
 
 ```
@@ -197,6 +210,7 @@ static/                     # Frontend assets served at / (plain HTML/CSS/JS, Ta
 ├── ranking/                  # Printable one-result-per-discipline ranking page, served at /ranking
 ├── dmgmt/                    # Discipline management page, served at /dmgmt
 ├── rmgmt/                    # Relay management page, served at /rmgmt
+├── backup/                   # Backup & restore page, served at /backup
 └── tmgmt/                    # Team management page, served at /tmgmt
 ```
 

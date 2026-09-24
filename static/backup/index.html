@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup &amp; Restore · MLAICC Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body class="bg-gray-50 has-sidebar">
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900">Backup &amp; Restore</h2>
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden"></div>
+
+        <div class="px-4 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+            <!-- Backup -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-2">Download Backup</h3>
+                <p class="text-sm text-gray-600 mb-3">
+                    Saves all data of this competition as one zip file:
+                </p>
+                <ul class="text-sm text-gray-600 mb-4 list-disc pl-5 space-y-1">
+                    <li>competitors, starts and results <span class="text-gray-400">(data.json)</span></li>
+                    <li>active and edited disciplines <span class="text-gray-400">(competition.json)</span></li>
+                    <li>teams <span class="text-gray-400">(teams.json)</span></li>
+                    <li>meet days, relays and lane assignments <span class="text-gray-400">(relays.json)</span></li>
+                </ul>
+                <p class="text-sm text-gray-500 mb-4">
+                    The file contains personal data of the competitors — keep it safe.
+                </p>
+                <button id="download-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    Download Backup
+                </button>
+            </div>
+
+            <!-- Restore -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-2">Restore Backup</h3>
+                <p class="text-sm text-gray-600 mb-3">
+                    Replaces <strong>all</strong> current data with the data of a backup zip file.
+                    Data that is not in the backup (e.g. teams) is removed.
+                </p>
+                <p class="text-sm text-gray-500 mb-4">
+                    Before restoring, the current data is saved on the server in the
+                    <code>backups/</code> folder, so the restore can be undone.
+                </p>
+                <form id="restore-form" class="space-y-4">
+                    <input type="file" id="restore-file" accept=".zip,application/zip" required
+                           class="block w-full text-sm text-gray-700 file:mr-3 file:px-4 file:py-2 file:rounded-md file:border file:border-gray-300 file:bg-white file:text-gray-700 hover:file:bg-gray-50">
+                    <button type="submit" id="restore-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50">
+                        Restore Backup
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="../js/appNav.js"></script>
+    <script type="module" src="backup.js"></script>
+</body>
+</html>
