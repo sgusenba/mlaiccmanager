@@ -1,0 +1,263 @@
+/* Meet page, on top of ../style.css: the start cards and race bibs it prints.
+   Sizes are in mm and pt so the paper layout does not depend on the screen. */
+
+#print-area {
+    display: none;
+}
+
+@media print {
+    #print-area {
+        display: block;
+    }
+
+    body {
+        font-size: 11pt;
+    }
+}
+
+/* body.print-preview shows the printout on screen, e.g. to check the layout */
+body.print-preview main {
+    display: none;
+}
+
+body.print-preview #print-area {
+    display: block;
+    padding: 1rem;
+}
+
+body.print-preview .print-page {
+    margin: 0 auto 1rem;
+    background: #fff;
+    outline: 1px dashed #9ca3af;
+    outline-offset: 4mm;
+}
+
+.print-page {
+    box-sizing: border-box;
+    overflow: hidden;
+    color: #000;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.print-page + .print-page {
+    break-before: page;
+}
+
+/* --- start card: A4 portrait, 12mm margins ------------------------------- */
+
+.start-card {
+    width: 186mm;
+    height: 270mm;
+    display: flex;
+    flex-direction: column;
+}
+
+.start-card .card-head {
+    border-bottom: 1mm solid #000;
+    padding-bottom: 3mm;
+    margin-bottom: 6mm;
+}
+
+.start-card .card-meet {
+    font-size: 20pt;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.start-card .card-meet-sub {
+    font-size: 11pt;
+    margin-top: 1.5mm;
+}
+
+.start-card .card-starter {
+    display: flex;
+    align-items: stretch;
+    gap: 6mm;
+    margin-bottom: 8mm;
+}
+
+.start-card .card-number {
+    min-width: 42mm;
+    padding: 2mm 4mm;
+    border: 1mm solid #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.start-card .card-number-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.start-card .card-number-value {
+    font-size: 44pt;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.start-card .card-name {
+    font-size: 22pt;
+    font-weight: 800;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.start-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 4mm;
+    row-gap: 1mm;
+    margin-top: 2mm;
+    font-size: 12pt;
+}
+
+.start-card dt {
+    color: #444;
+}
+
+.start-card dd {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.start-card h4 {
+    font-size: 13pt;
+    font-weight: 700;
+    margin-bottom: 2mm;
+}
+
+.start-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+}
+
+.start-card th,
+.start-card td {
+    border: 0.3mm solid #000;
+    padding: 1.5mm 2mm;
+    text-align: left;
+    vertical-align: top;
+}
+
+.start-card th {
+    background: #e5e7eb;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.start-card td.num {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.start-card .mono {
+    font-family: ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+}
+
+.start-card .unscheduled td {
+    color: #555;
+    font-style: italic;
+}
+
+.start-card .card-empty {
+    font-style: italic;
+    color: #555;
+}
+
+.start-card .card-foot {
+    margin-top: auto;
+    padding-top: 3mm;
+    border-top: 0.3mm solid #000;
+    font-size: 8pt;
+    color: #444;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* --- race bib: A4 landscape, 10mm margins -------------------------------- */
+
+.bib {
+    width: 277mm;
+    height: 188mm;
+    border: 3mm solid #000;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.bib .bib-band {
+    background: #000;
+    color: #fff;
+    padding: 4mm 8mm;
+    font-size: 26pt;
+    font-weight: 800;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    overflow-wrap: anywhere;
+}
+
+.bib .bib-band.long {
+    font-size: 19pt;
+}
+
+.bib .bib-sub {
+    padding: 2.5mm 8mm;
+    font-size: 15pt;
+    border-bottom: 0.6mm solid #000;
+}
+
+.bib .bib-number {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 300pt;
+    font-weight: 800;
+    line-height: 0.8;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.bib .bib-number.digits-4 {
+    font-size: 240pt;
+}
+
+.bib .bib-number.digits-5 {
+    font-size: 190pt;
+}
+
+.bib .bib-name {
+    padding: 0 8mm;
+    font-size: 40pt;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.bib .bib-name.long {
+    font-size: 30pt;
+}
+
+.bib .bib-club {
+    padding: 1.5mm 8mm 4mm;
+    font-size: 22pt;
+    overflow-wrap: anywhere;
+}
+
+.bib .bib-foot {
+    border-top: 1.5mm solid #000;
+    padding: 2.5mm 8mm;
+    font-size: 13pt;
+    overflow-wrap: anywhere;
+}

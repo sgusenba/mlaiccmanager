@@ -33,6 +33,7 @@ const GROUPS = [
     {
         label: 'Management',
         items: [
+            { label: 'Meet', path: '/meet/' },
             { label: 'Disciplines', path: '/dmgmt/' },
             { label: 'Ranges & Relays', path: '/rmgmt/', hash: 'settings' },
             { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true },

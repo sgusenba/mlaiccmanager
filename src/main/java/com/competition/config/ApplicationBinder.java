@@ -39,7 +39,9 @@ public class ApplicationBinder extends AbstractBinder {
         TeamService teamService = new TeamService(basePath + "/teams.json", dataService);
         RankingService rankingService = new RankingService(dataService, disciplineService, teamService);
         RelayService relayService = new RelayService(basePath + "/relays.json", dataService);
-        BackupService backupService = new BackupService(Paths.get(basePath), dataService, teamService, relayService);
+        MeetService meetService = new MeetService(basePath + "/meet.json");
+        BackupService backupService = new BackupService(Paths.get(basePath), dataService, teamService, relayService,
+                                                        meetService);
 
         bind(dataService).to(DataService.class);
         bind(competitorService).to(CompetitorService.class);
@@ -49,6 +51,7 @@ public class ApplicationBinder extends AbstractBinder {
         bind(rankingService).to(RankingService.class);
         bind(relayService).to(RelayService.class);
         bind(teamService).to(TeamService.class);
+        bind(meetService).to(MeetService.class);
         bind(backupService).to(BackupService.class);
     }
 

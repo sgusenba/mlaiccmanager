@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meet · MLAICC Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="meet.css">
+    <!-- Page size of the printout, set by meet.js: portrait start cards, landscape bibs -->
+    <style id="page-size"></style>
+</head>
+<body class="bg-gray-50 has-sidebar">
+    <main class="mx-auto py-6 sm:px-6 lg:px-8 no-print">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900">Meet</h2>
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden max-w-5xl"></div>
+
+        <div class="px-4 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+            <!-- Meet details -->
+            <form id="meet-form" class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold mb-1">Meet Details</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Printed on the ranking's cover page, the start cards and the race bibs.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="meet-name" class="block text-sm font-medium text-gray-700 mb-1">Name of the meet</label>
+                        <input type="text" id="meet-name" maxlength="200" placeholder="e.g. Staatsmeisterschaft Vorderlader 2026"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="meet-location" class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+                        <input type="text" id="meet-location" maxlength="200" placeholder="e.g. Bad Zell"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="meet-host" class="block text-sm font-medium text-gray-700 mb-1">Host</label>
+                        <input type="text" id="meet-host" maxlength="200" placeholder="e.g. SV Bad Zell"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="meet-date-from" class="block text-sm font-medium text-gray-700 mb-1">First day</label>
+                        <input type="date" id="meet-date-from"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="meet-date-to" class="block text-sm font-medium text-gray-700 mb-1">Last day</label>
+                        <input type="date" id="meet-date-to"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <p id="meet-date-hint" class="text-sm text-gray-500 mt-2"></p>
+                <div class="flex justify-end mt-4">
+                    <button type="submit" id="meet-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        Save
+                    </button>
+                </div>
+            </form>
+
+            <!-- Start cards -->
+            <div class="bg-white rounded-lg shadow-md p-6 flex flex-col">
+                <h3 class="text-lg font-semibold mb-1">Start Cards</h3>
+                <p class="text-sm text-gray-600 mb-4 flex-1">
+                    One A4 page per starter with name, starter ID, club, country and every start
+                    with its day, relay, time, range and lane.
+                </p>
+                <label for="cards-starter" class="block text-sm font-medium text-gray-700 mb-1">Starters</label>
+                <select id="cards-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
+                <button type="button" id="print-cards-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                    Print Start Cards
+                </button>
+            </div>
+
+            <!-- Race bibs -->
+            <div class="bg-white rounded-lg shadow-md p-6 flex flex-col">
+                <h3 class="text-lg font-semibold mb-1">Race Bibs</h3>
+                <p class="text-sm text-gray-600 mb-4 flex-1">
+                    One A4 landscape bib per starter with the starter ID, name, club, country,
+                    and the meet's name, venue and date.
+                </p>
+                <label for="bibs-starter" class="block text-sm font-medium text-gray-700 mb-1">Starters</label>
+                <select id="bibs-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
+                <button type="button" id="print-bibs-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                    Print Race Bibs
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Filled right before printing; shown on paper only -->
+    <div id="print-area"></div>
+
+    <script type="module" src="../js/appNav.js"></script>
+    <script type="module" src="meet.js"></script>
+</body>
+</html>

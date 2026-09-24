@@ -7,12 +7,50 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../style.css">
     <style>
-        #print-header { display: none; }
+        #print-header, #print-cover, #print-stats { display: none; }
         @media print {
             @page { size: A4 portrait; }
             .keep-together { break-inside: avoid; page-break-inside: avoid; }
             #print-header { display: block !important; }
+            body.with-cover #print-cover,
+            body.with-stats #print-stats { display: block; break-after: page; }
         }
+
+        /* Cover page: like the first page of a results booklet */
+        #print-cover { height: 265mm; }
+        #print-cover .cover-inner { height: 100%; display: flex; flex-direction: column; text-align: center; }
+        #print-cover .cover-kicker { margin-top: 35mm; font-size: 30pt; font-weight: 700; letter-spacing: 0.04em; }
+        #print-cover .cover-title { margin-top: 18mm; font-size: 28pt; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+        #print-cover .cover-scope { margin-top: 10mm; font-size: 16pt; }
+        #print-cover .cover-facts {
+            margin: auto 0 25mm; display: grid; grid-template-columns: max-content 1fr;
+            column-gap: 6mm; row-gap: 2mm; text-align: left; font-size: 14pt;
+        }
+        #print-cover .cover-facts dd { font-weight: 600; overflow-wrap: anywhere; }
+
+        /* Statistics page: starters and starts per country and discipline */
+        #print-stats .stats-head {
+            display: flex; justify-content: space-between; gap: 8mm;
+            padding-bottom: 2mm; margin-bottom: 5mm; border-bottom: 0.5mm solid #000; font-size: 9pt;
+        }
+        #print-stats .stats-table {
+            table-layout: fixed; border-collapse: collapse; margin-bottom: 6mm; font-size: 8.5pt;
+        }
+        #print-stats .stats-table th,
+        #print-stats .stats-table td {
+            border: 1px solid #999; padding: 1mm 0.8mm; text-align: center; overflow-wrap: break-word;
+        }
+        #print-stats .stats-table th { background: #f3f4f6; font-size: 6.5pt; vertical-align: bottom; hyphens: auto; }
+        #print-stats .stats-table .stats-type { display: block; font-size: 5.5pt; font-weight: 400; }
+        #print-stats .stats-table .text-left { text-align: left; }
+        #print-stats .stats-table tr { break-inside: avoid; }
+        #print-stats .stats-total td { font-weight: 700; background: #f3f4f6; }
+        #print-stats .stats-table .stats-gap { border: none; background: none; }
+        #print-stats, #print-cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* Print options dialog */
+        #print-dialog:not([open]) { display: none; }
+        #print-dialog::backdrop { background: rgba(17, 24, 39, 0.4); }
     </style>
 </head>
 <body class="bg-gray-50 has-sidebar">
@@ -47,7 +85,9 @@
                 </p>
             </div>
 
-            <!-- Shown on paper only -->
+            <!-- Shown on paper only; the cover and statistics pages when chosen in the print dialog -->
+            <section id="print-cover"><div class="cover-inner"></div></section>
+            <section id="print-stats"></section>
             <div id="print-header" class="mb-4">
                 <h1 class="text-xl font-bold">Ranking</h1>
                 <p id="print-date" class="text-sm text-gray-600"></p>
@@ -56,6 +96,30 @@
             <div id="ranking-content" class="space-y-8"></div>
         </div>
     </main>
+
+    <dialog id="print-dialog" class="no-print rounded-lg shadow-xl p-0 w-full max-w-sm">
+        <form method="dialog" class="p-6">
+            <h3 class="text-lg font-semibold mb-1">Print Ranking</h3>
+            <p class="text-sm text-gray-600 mb-4">Add these pages in front of the ranking:</p>
+            <label class="flex items-start gap-2 text-sm text-gray-700 mb-3">
+                <input type="checkbox" id="print-with-cover" class="h-4 w-4 mt-0.5">
+                <span><span class="font-medium">Cover page</span><br>
+                    <span class="text-gray-500">Meet name, venue, date and host</span></span>
+            </label>
+            <label class="flex items-start gap-2 text-sm text-gray-700 mb-5">
+                <input type="checkbox" id="print-with-stats" class="h-4 w-4 mt-0.5">
+                <span><span class="font-medium">Statistics page</span><br>
+                    <span class="text-gray-500">Starters and starts per country and discipline</span></span>
+            </label>
+            <p class="text-xs text-gray-500 mb-4">
+                The meet's details are edited on the <a href="/meet/" class="text-blue-600 hover:underline">Meet</a> page.
+            </p>
+            <div class="flex justify-end gap-2">
+                <button value="cancel" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                <button value="print" id="print-dialog-print" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Print</button>
+            </div>
+        </form>
+    </dialog>
 
     <script type="module" src="../js/appNav.js"></script>
     <script type="module" src="ranking.js"></script>

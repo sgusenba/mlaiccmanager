@@ -3,9 +3,13 @@
 // team ranking, which already has one total per team.
 
 import { escapeHtml, disciplineDisplayName, formatScore, rankBadge, teamRankingCard } from '../js/teamRanking.js';
+import { loadMeet } from '../js/meet.js';
+import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
 
 const DISCIPLINE_KEY = 'ranking.discipline';
 const PAGE_BREAK_KEY = 'ranking.pagePerDiscipline';
+const COVER_KEY = 'ranking.printCover';
+const STATS_KEY = 'ranking.printStatistics';
 const RINGS = ['10', '9', '8', '7'];
 
 // --- helpers ---------------------------------------------------------------
@@ -146,11 +150,54 @@ async function loadRanking() {
     }
 }
 
+// --- printing --------------------------------------------------------------
+
+// Loaded ahead of time: the browser's own print command (Ctrl+P) cannot wait for it
+let printData = null;
+
+async function loadPrintData() {
+    try {
+        const [meet, competitors, disciplines] = await Promise.all([
+            loadMeet(), api('/competitors'), api('/available-disciplines')
+        ]);
+        printData = { meet, stats: entryStatistics(competitors || [], disciplines || []) };
+    } catch (error) {
+        printData = null;
+        showMessage(`Error loading the meet details for printing: ${error.message}`);
+    }
+}
+
+function printScope() {
+    const select = document.getElementById('discipline-select');
+    return select.value ? select.options[select.selectedIndex].text : 'All disciplines';
+}
+
+function applyPrintOptions() {
+    document.body.classList.toggle('with-cover', readStored(COVER_KEY) === 'true');
+    document.body.classList.toggle('with-stats', readStored(STATS_KEY) === 'true');
+}
+
 // Also runs for the browser's own print command (Ctrl+P)
 function fillPrintHeader() {
-    const select = document.getElementById('discipline-select');
-    const scope = select.value ? select.options[select.selectedIndex].text : 'All disciplines';
-    document.getElementById('print-date').textContent = `${scope} · as of ${new Date().toLocaleString()}`;
+    const meet = printData?.meet;
+    document.querySelector('#print-header h1').textContent = meet?.name ? `${meet.name} · Ranking` : 'Ranking';
+    document.getElementById('print-date').textContent = `${printScope()} · as of ${new Date().toLocaleString()}`;
+    applyPrintOptions();
+    document.querySelector('#print-cover .cover-inner').innerHTML = meet ? coverPage(meet, printScope()) : '';
+    document.getElementById('print-stats').innerHTML = printData ? statisticsPage(meet, printData.stats) : '';
+}
+
+function openPrintDialog() {
+    document.getElementById('print-with-cover').checked = readStored(COVER_KEY) === 'true';
+    document.getElementById('print-with-stats').checked = readStored(STATS_KEY) === 'true';
+    document.getElementById('print-dialog').showModal();
+}
+
+async function printFromDialog() {
+    store(COVER_KEY, String(document.getElementById('print-with-cover').checked));
+    store(STATS_KEY, String(document.getElementById('print-with-stats').checked));
+    await Promise.all([loadPrintData(), loadRanking()]);
+    window.print();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -166,9 +213,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         store(PAGE_BREAK_KEY, String(pageBreak.checked));
         loadRanking();
     });
-    document.getElementById('refresh-btn').addEventListener('click', loadRanking);
-    document.getElementById('print-btn').addEventListener('click', () => window.print());
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+        loadRanking();
+        loadPrintData();
+    });
+    document.getElementById('print-btn').addEventListener('click', openPrintDialog);
+    // The dialog's form closes it; its Print button also prints
+    document.querySelector('#print-dialog form').addEventListener('submit', event => {
+        if (event.submitter?.value === 'print') printFromDialog();
+    });
     window.addEventListener('beforeprint', fillPrintHeader);
+    applyPrintOptions();
+    loadPrintData();
 
     try {
         await loadDisciplines();
