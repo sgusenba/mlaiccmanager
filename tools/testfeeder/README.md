@@ -39,9 +39,9 @@ data directory, not at a live competition. It also creates and activates discipl
   "event": { "name": "...", "place": "...", "dates": ["2026-06-26"] },
   "disciplines": [   // matched in the catalog by category, level, type, event; created if missing
     { "key": "Kuchenreuter/O", "category": "pistol", "level": "individual",
-      "type": "original", "event": "No 6 Kuchenreuter", "shooting_distance": "m25" },
+      "type": "original", "event": "Kuchenreuter", "shooting_distance": "m25" },
     { "key": "Boutet (Kuchenreuter/O)", "category": "pistol", "level": "team",
-      "type": "original", "event": "No 18 Boutet", "based_on": "No 6 Kuchenreuter", "team_size": 3 }
+      "type": "original", "event": "Boutet", "based_on": "Kuchenreuter", "team_size": 3 }
   ],
   "competitors": [ { "bib": 61, "name": "Werner Fasching", "club": "PSV Burgenland", "country": "BGL" } ],
   "results": [       // one per competitor and discipline; "dns": true registers the start only

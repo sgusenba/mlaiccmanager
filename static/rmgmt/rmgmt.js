@@ -90,7 +90,7 @@ function relayLabel(relay) {
     return `${formatDate(day?.date)} · Relay ${relay.sequence_no} · ${relay.start_time}–${addMinutes(relay.start_time, duration())}`;
 }
 
-// "Anna Muster (#1) – No 7 Colt (original) · 1-52-1"
+// "Anna Muster (#1) – Colt (original) · 1-52-1"
 function startLabel(entry) {
     const competitor = entry.competitor;
     const who = competitor ? `${competitor.name} (#${competitor.id})` : 'Unknown competitor';

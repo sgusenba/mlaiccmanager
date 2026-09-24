@@ -4,6 +4,9 @@ export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c =
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
+/** "Miquelet (original)": the event alone is ambiguous, it exists once per type. */
+export const disciplineDisplayName = (event, type) => (type ? `${event} (${type})` : event);
+
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
 
 const formatScore = (value) => (value === null || value === undefined ? '-' : Number(value).toLocaleString('en', { maximumFractionDigits: 2 }));
@@ -34,8 +37,8 @@ export function teamRankingCard(data, { extraClass = '' } = {}) {
     const header = `
         <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">
-                ${escapeHtml(discipline.name)}
-                <span class="text-sm text-gray-500 ml-2">(${escapeHtml(discipline.category)}, ${escapeHtml(discipline.type)} team)</span>
+                ${escapeHtml(disciplineDisplayName(discipline.name, discipline.type))}
+                <span class="text-sm text-gray-500 ml-2">${escapeHtml(discipline.category)} team</span>
             </h3>
             <p class="text-sm text-gray-500">Based on ${escapeHtml(discipline.based_on || '-')} · ${discipline.team_size} shooters per team</p>
         </div>`;

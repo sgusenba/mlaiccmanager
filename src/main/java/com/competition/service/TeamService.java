@@ -27,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Teams of the MLAIC team disciplines, stored in teams.json. A team member is
  * one registered start in the individual discipline the team discipline is
- * based on (e.g. "No 9 Gustav Adolph" is scored from "No 1 Miquelet"); the
+ * based on (e.g. "Gustav Adolph" is scored from "Miquelet"); the
  * team's score is the sum of its members' individual results.
  *
  * <p>Ranking: total, then the countback over all members' shots (most 10s,
