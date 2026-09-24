@@ -147,7 +147,7 @@ function renderSchedule() {
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                 <div>
                     <h3 class="text-lg font-semibold">${escapeHtml(formatDate(day.date))}</h3>
-                    <p class="text-sm text-gray-600">Start ${escapeHtml(day.start_time)} · ${day.break_min ?? 0} min break · ${relays.length} relay${relays.length === 1 ? '' : 's'}${lastEnd ? ` · ends ${lastEnd}` : ''}</p>
+                    <p class="text-sm text-gray-600">Start ${escapeHtml(day.start_time)} · ${config.break_min ?? 0} min break · ${relays.length} relay${relays.length === 1 ? '' : 's'}${lastEnd ? ` · ends ${lastEnd}` : ''}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 no-print">
                     <button type="button" class="day-lock-btn text-sm px-2 py-1 border rounded-md ${locked
@@ -157,7 +157,6 @@ function renderSchedule() {
                     </button>
                     <input type="date" ${off} class="day-edit-date px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.date)}" aria-label="Date">
                     <input type="time" ${off} class="day-edit-start px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.start_time)}" aria-label="Start time">
-                    <input type="number" ${off} class="day-edit-break px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="0" max="1440" value="${day.break_min ?? 0}" aria-label="Break between relays (min)" title="Break between relays (min)">
                     <button ${off} class="day-save-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Update</button>
                     <button ${off} class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">Delete day</button>
                 </div>
@@ -208,11 +207,13 @@ async function refreshSettings() {
 function renderSettings() {
     const { config, ranges } = state.data;
     document.getElementById('relay-duration').value = config.relay_duration_min;
+    document.getElementById('relay-break').value = config.break_min;
     renderConfigLock(config.locked, ranges);
 }
 
 function renderConfigLock(locked, ranges) {
     document.getElementById('relay-duration').disabled = locked;
+    document.getElementById('relay-break').disabled = locked;
     document.getElementById('config-form').querySelector('button[type="submit"]').disabled = locked;
 
     const lockBtn = document.getElementById('config-lock-btn');
@@ -240,9 +241,10 @@ function setupScheduleListeners() {
     document.getElementById('config-form').addEventListener('submit', (event) => {
         event.preventDefault();
         const minutes = parseInt(document.getElementById('relay-duration').value, 10);
+        const breakMin = parseInt(document.getElementById('relay-break').value, 10);
         perform(async () => {
-            await api('/config', 'PUT', { relay_duration_min: minutes });
-            showMessage('Relay duration saved, start times recalculated', 'success');
+            await api('/config', 'PUT', { relay_duration_min: minutes, break_min: breakMin });
+            showMessage('Relay duration and break saved, start times recalculated', 'success');
         }, refreshSettings);
     });
 
@@ -250,8 +252,7 @@ function setupScheduleListeners() {
         event.preventDefault();
         const date = document.getElementById('day-date').value;
         const start = document.getElementById('day-start').value;
-        const breakMin = parseInt(document.getElementById('day-break').value, 10);
-        perform(() => api('/days', 'POST', { date, start_time: start, break_min: breakMin }), refreshSchedule);
+        perform(() => api('/days', 'POST', { date, start_time: start }), refreshSchedule);
     });
 
     document.getElementById('config-lock-btn').addEventListener('click', () => {
@@ -295,8 +296,7 @@ function setupScheduleListeners() {
         } else if (button.classList.contains('day-save-btn')) {
             const date = dayEl.querySelector('.day-edit-date').value;
             const start = dayEl.querySelector('.day-edit-start').value;
-            const breakMin = parseInt(dayEl.querySelector('.day-edit-break').value, 10);
-            perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start, break_min: breakMin }), refreshSchedule);
+            perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start }), refreshSchedule);
         } else if (button.classList.contains('day-delete-btn')) {
             if (!confirm('Delete this day with all its relays and lane assignments?')) return;
             perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'DELETE'), refreshSchedule);
