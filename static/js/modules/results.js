@@ -12,6 +12,34 @@ function resultScore(result) {
     return result.value;
 }
 
+const SHOT_COUNT = 10;
+const MAX_RING = 10;
+
+// How many shots hit each ring (0 = miss); shots that are no whole ring 0-10 are left out
+function ringCountsFromEntries(entries) {
+    const counts = {};
+    if (Array.isArray(entries)) {
+        entries.forEach(entry => {
+            const ring = Number(entry);
+            if (Number.isInteger(ring) && ring >= 0 && ring <= MAX_RING) {
+                counts[ring] = (counts[ring] || 0) + 1;
+            }
+        });
+    }
+    return counts;
+}
+
+// The shots are stored as a list, best ring first; the ranking only uses their sum and ring counts
+function entriesFromRingCounts(counts) {
+    const entries = [];
+    for (let ring = MAX_RING; ring >= 0; ring--) {
+        for (let i = 0; i < (counts[ring] || 0); i++) {
+            entries.push(ring);
+        }
+    }
+    return entries;
+}
+
 function hasTieBreak(result) {
     return result.override_value !== null && result.override_value !== undefined;
 }
@@ -247,26 +275,31 @@ function displaySelectedStart(start) {
     
     resultFormHtml += `
             <form data-action="save-result-form" class="space-y-4">
-                <!-- 10 Entry Fields -->
+                <!-- Ring count fields: how many of the ${SHOT_COUNT} shots hit each ring -->
                 <div class="space-y-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">10 Entries (0-10 each)</label>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Number of shots per ring (${SHOT_COUNT} shots in total)</label>
+                    <div class="grid grid-cols-4 md:grid-cols-11 gap-3">
     `;
-    
-    // Add 10 entry fields with existing values if available
-    for (let i = 1; i <= 10; i++) {
-        const value = existingResult && existingResult.entries && existingResult.entries[i-1] ? existingResult.entries[i-1] : '';
+
+    // Add one field per ring, prefilled from the existing result's shots
+    const ringCounts = existingResult ? ringCountsFromEntries(existingResult.entries) : {};
+    for (let ring = MAX_RING; ring >= 0; ring--) {
+        const count = ringCounts[ring] || '';
         resultFormHtml += `
-                        <div><label class="text-xs text-gray-600">Entry ${i}</label><input type="number" data-entry="${i}" min="0" max="10" value="${value}" class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
+                        <div><label class="text-xs text-gray-600">${ring === 0 ? '0 (miss)' : `${ring}s`}</label><input type="number" data-ring="${ring}" min="0" max="${SHOT_COUNT}" step="1" value="${count}" class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
         `;
     }
-    
+
     resultFormHtml += `
                     </div>
                 </div>
-                
-                <!-- Sum Display -->
-                <div class="bg-gray-50 p-3 rounded-md">
+
+                <!-- Shot count and sum display -->
+                <div class="bg-gray-50 p-3 rounded-md space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Shots:</span>
+                        <span id="result-shot-count" class="text-lg font-bold">0 / ${SHOT_COUNT}</span>
+                    </div>
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-medium text-gray-700">Total Sum:</span>
                         <span id="result-sum" class="text-lg font-bold text-blue-600">${existingResult ? resultScore(existingResult) : '0'}</span>
@@ -313,8 +346,8 @@ function displaySelectedStart(start) {
         setState('currentEditingResultVersion', null);
     }
     
-    // Add event listeners to entry fields for sum calculation
-    infoDiv.querySelectorAll('input[data-entry]').forEach(field => {
+    // Add event listeners to ring count fields for sum calculation
+    infoDiv.querySelectorAll('input[data-ring]').forEach(field => {
         field.addEventListener('input', updateResultSum);
     });
     
@@ -348,17 +381,39 @@ function handleResultFormAction(event) {
     }
 }
 
-// Update result sum calculation
-function updateResultSum() {
+// Read the ring count fields; invalid is set when a field holds no whole, non-negative number
+function readRingCounts() {
+    const counts = {};
+    let shots = 0;
     let sum = 0;
-    for (let i = 1; i <= 10; i++) {
-        const entryField = document.querySelector(`input[data-entry="${i}"]`);
-        if (entryField) {
-            const value = parseFloat(entryField.value) || 0;
-            sum += value;
+    let invalid = false;
+    for (let ring = MAX_RING; ring >= 0; ring--) {
+        const field = document.querySelector(`input[data-ring="${ring}"]`);
+        const text = field ? String(field.value).trim() : '';
+        const count = text === '' ? 0 : Number(text);
+        if (!Number.isInteger(count) || count < 0) {
+            invalid = true;
+            continue;
         }
+        counts[ring] = count;
+        shots += count;
+        sum += ring * count;
     }
-    
+    return { counts, shots, sum, invalid };
+}
+
+// Update shot count and sum display
+function updateResultSum() {
+    const { shots, sum, invalid } = readRingCounts();
+
+    const shotCountElement = document.getElementById('result-shot-count');
+    if (shotCountElement) {
+        const complete = !invalid && shots === SHOT_COUNT;
+        shotCountElement.textContent = `${shots} / ${SHOT_COUNT}`;
+        shotCountElement.classList.toggle('text-green-600', complete);
+        shotCountElement.classList.toggle('text-red-600', !complete);
+    }
+
     const sumElement = document.getElementById('result-sum');
     if (sumElement) {
         sumElement.textContent = sum;
@@ -375,16 +430,18 @@ async function saveResult(event) {
         return;
     }
     
-    // Calculate sum of all 10 entries
-    let totalSum = 0;
-    const entries = [];
-    for (let i = 1; i <= 10; i++) {
-        const entryField = document.querySelector(`input[data-entry="${i}"]`);
-        const value = entryField ? parseFloat(entryField.value) || 0 : 0;
-        entries.push(value);
-        totalSum += value;
+    // The ring counts must add up to exactly the number of shots
+    const { counts, shots, sum: totalSum, invalid } = readRingCounts();
+    if (invalid) {
+        showMessage('Shot counts must be whole numbers of 0 or more', 'error');
+        return;
     }
-    
+    if (shots !== SHOT_COUNT) {
+        showMessage(`The shot counts add up to ${shots}, but there must be exactly ${SHOT_COUNT} shots`, 'error');
+        return;
+    }
+    const entries = entriesFromRingCounts(counts);
+
     // Tie-break only decides between equal scores (lower wins); it never replaces the sum
     const overrideText = String(getElementValue('result-override') ?? '').trim();
     const overrideValue = overrideText === '' || isNaN(parseFloat(overrideText)) ? null : parseFloat(overrideText);

@@ -131,6 +131,7 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 ### Scoring and tie-breaks
 
 - An individual result's score is the sum of its shots (`entries`); `value` is stored alongside. The result's `override_value` is a **tie-break value, and the lower value wins** (distance of the furthest shot from the centre); it no longer replaces the score. A result without it loses a tie against one with it.
+- The results page records a result as the number of shots per ring (10, 9, … 0 for a miss), which must add up to 10 shots. It is saved as the list of the 10 shots, best ring first, so `entries` keeps its format.
 - Individual ranking: best four results, then the number of 10s, 9s, … 7s, then the tie-break.
 - One-result ranking (`/api/ranking/best`, `/ranking` page): each competitor's best result only, ranked by its score, then its 10s, 9s, … 1s, then its tie-break (lower wins). Identical results share the rank.
 
