@@ -84,6 +84,32 @@
                     Print Race Bibs
                 </button>
             </div>
+
+            <!-- Lane assignments export -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold mb-1">Lane Assignments (CSV)</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Every lane assignment of the meet as a CSV file, one row per start, in time, range and lane order:
+                    date, relay, start and end time, range, lane, start ID, starter ID, name, club, country and discipline.
+                    Use it e.g. for a mail merge that prints the labels identifying the targets.
+                </p>
+                <div class="flex flex-wrap items-end gap-4">
+                    <div>
+                        <label for="csv-separator" class="block text-sm font-medium text-gray-700 mb-1">Separator</label>
+                        <select id="csv-separator" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="semicolon">Semicolon (Excel, German)</option>
+                            <option value="comma">Comma</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 py-2">
+                        <input type="checkbox" id="csv-unscheduled" class="h-4 w-4">
+                        Also list starts without a lane
+                    </label>
+                    <button type="button" id="export-lanes-btn" class="ml-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        Export CSV
+                    </button>
+                </div>
+            </div>
         </div>
     </main>
 
