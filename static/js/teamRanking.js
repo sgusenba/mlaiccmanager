@@ -1,4 +1,4 @@
-// Team ranking table, shared by the main Ranking tab and the team management page (/tmgmt)
+// Team ranking table and helpers, used by the Ranking page (/ranking)
 
 export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]

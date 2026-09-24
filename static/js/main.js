@@ -4,8 +4,6 @@ import { initializeApp } from './navigation.js';
 import { setupCompetitorEventListeners } from './modules/competitors.js';
 import { setupStartsEventListeners } from './modules/starts.js';
 import { setupResultsEventListeners } from './modules/results.js';
-import { setupRankingEventListeners } from './modules/ranking.js';
-import { loadBuildInfo } from './buildInfo.js';
 
 // Setup all event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,9 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCompetitorEventListeners();
     setupStartsEventListeners();
     setupResultsEventListeners();
-    setupRankingEventListeners();
-
-    loadBuildInfo();
 
     console.log('Application initialized successfully');
 });

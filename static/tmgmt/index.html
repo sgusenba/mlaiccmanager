@@ -3,34 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Management</title>
+    <title>Teams · MLAICC Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../style.css">
 </head>
-<body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-blue-600 text-white shadow-lg no-print">
-        <div class="mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-center justify-between min-h-16 py-2 gap-2">
-                <div class="flex items-center">
-                    <svg class="h-8 w-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                    <h1 class="text-xl font-bold">Team Management</h1>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <a href="#teams" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Teams</a>
-                    <a href="#ranking" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Team Ranking</a>
-                    <a href="../rmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors border-l border-blue-500">Relay Management</a>
-                    <a href="../dmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Discipline Management</a>
-                    <a href="../ranking/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Ranking</a>
-                    <a href="../" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Competition Management</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
+<body class="bg-gray-50 has-sidebar">
     <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900 no-print">Teams</h2>
         <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden no-print"></div>
 
         <!-- Teams Section -->
@@ -84,17 +63,9 @@
             <div id="teams-list" class="space-y-4"></div>
             <div id="no-teams" class="text-center py-12 text-gray-500 hidden">No teams for this discipline yet. Add the first one with "New Team".</div>
         </div>
-
-        <!-- Team Ranking Section -->
-        <div id="ranking-section" class="section hidden px-4">
-            <div class="flex flex-wrap items-center gap-3 mb-6 no-print">
-                <select id="ranking-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-full"></select>
-                <button id="print-ranking-btn" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Print</button>
-            </div>
-            <div id="ranking-content" class="space-y-8"></div>
-        </div>
     </main>
 
+    <script type="module" src="../js/appNav.js"></script>
     <script type="module" src="tmgmt.js"></script>
 </body>
 </html>

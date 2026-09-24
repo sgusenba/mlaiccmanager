@@ -3,8 +3,13 @@
 import { loadCompetitors, loadAvailableDisciplines, loadActiveDisciplines, loadResults } from './api.js';
 import { showMessage } from './utils.js';
 
-// Show specific section
+const SECTIONS = ['competitors', 'starts', 'results'];
+
+// Show the section named in the URL's #hash (the sidebar links there);
+// an unknown or missing hash shows the competitors
 export function showSection(sectionName) {
+    if (!SECTIONS.includes(sectionName)) sectionName = 'competitors';
+
     // Hide all sections
     document.querySelectorAll('.section').forEach(section => {
         section.classList.add('hidden');
@@ -12,11 +17,6 @@ export function showSection(sectionName) {
     
     // Show selected section
     document.getElementById(sectionName + '-section').classList.remove('hidden');
-    
-    // Update nav active state
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('bg-blue-700');
-    });
     
     // Load data for section
     switch (sectionName) {
@@ -29,9 +29,15 @@ export function showSection(sectionName) {
         case 'results':
             loadResultsData();
             break;
-        case 'ranking':
-            loadRankingData();
-            break;
+    }
+}
+
+// Go to a section; the hash change shows it and updates the sidebar
+export function navigateTo(sectionName) {
+    if (location.hash === `#${sectionName}`) {
+        showSection(sectionName);
+    } else {
+        location.hash = sectionName;
     }
 }
 
@@ -75,34 +81,10 @@ async function loadResultsData() {
     }
 }
 
-// Load ranking data
-async function loadRankingData() {
-    try {
-        const { loadActiveDisciplinesForRanking } = await import('./modules/ranking.js');
-        await loadActiveDisciplinesForRanking();
-    } catch (error) {
-        console.error('Error loading ranking data:', error);
-    }
-}
-
-// Setup navigation event listeners
-export function setupNavigationEventListeners() {
-    // Navigation links
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', (event) => {
-            event.preventDefault();
-            const sectionName = link.getAttribute('href').substring(1); // Remove the #
-            showSection(sectionName);
-        });
-    });
-}
-
 // Initialize application
 export function initializeApp() {
-    setupNavigationEventListeners();
-    
-    // Show competitors section by default
-    showSection('competitors');
+    window.addEventListener('hashchange', () => showSection(location.hash.substring(1)));
+    showSection(location.hash.substring(1));
     
     // Load all initial data
     loadInitialData();
