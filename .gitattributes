@@ -1,0 +1,4 @@
+# Windows scripts must keep CRLF even when checked out on Linux (the
+# release workflow packages deploy/windows/ from an ubuntu runner)
+*.bat text eol=crlf
+*.ps1 text eol=crlf
