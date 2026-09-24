@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -531,12 +532,20 @@ public class RelayService {
                         + ", which no longer exists");
                 }
             }
-            Map<String, Integer> laneUse = new HashMap<>();
+            // keyed by relay id, not its number: every day has a "relay 1"
+            Map<String, List<Map<String, Object>>> laneUse = new LinkedHashMap<>();
             for (Map<String, Object> a : assignments) {
-                laneUse.merge(laneLabel(relays, a), 1, Integer::sum);
+                laneUse.computeIfAbsent(a.get("relay_id") + "/" + a.get("range_id") + "/" + a.get("lane_no"),
+                    k -> new ArrayList<>()).add(a);
             }
-            laneUse.forEach((lane, count) -> {
-                if (count > 1) dataIssues.add("Lane " + lane + " is assigned " + count + " times");
+            laneUse.values().forEach(shared -> {
+                if (shared.size() < 2) return;
+                List<String> holders = shared.stream().map(a -> {
+                    Object name = competitorName(resolve(a, registry));
+                    return a.get("start_id") + (name != null ? " (" + name + ")" : "");
+                }).toList();
+                dataIssues.add("Lane " + laneLabel(relays, shared.get(0)) + " holds " + shared.size()
+                    + " starts at once: " + String.join(", ", holders));
             });
 
             Map<String, Object> overview = new LinkedHashMap<>();
@@ -612,8 +621,20 @@ public class RelayService {
 
     private static String laneLabel(Map<String, Object> relays, Map<String, Object> assignment) {
         Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
-        String relayLabel = relay != null ? "relay " + relay.get("sequence_no") : String.valueOf(assignment.get("relay_id"));
-        return relayLabel + " / " + rangeName(relays, (String) assignment.get("range_id")) + " / " + assignment.get("lane_no");
+        Map<String, Object> day = relay != null ? find(listOf(relays, "days"), relay.get("day_id")) : null;
+        String relayLabel = relay == null ? "unknown relay " + assignment.get("relay_id")
+            : "relay " + relay.get("sequence_no") + (day != null ? " on " + formatDate((String) day.get("date")) : "")
+                + " (" + relay.get("start_time") + ")";
+        return assignment.get("lane_no") + " on " + rangeName(relays, (String) assignment.get("range_id")) + ", " + relayLabel;
+    }
+
+    /** "2026-09-25" -> "25.09.2026", as shown in the meet schedule */
+    private static String formatDate(String isoDate) {
+        try {
+            return LocalDate.parse(isoDate).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        } catch (DateTimeParseException | NullPointerException e) {
+            return String.valueOf(isoDate);
+        }
     }
 
     private void recompute(Map<String, Object> relays, Map<String, Object> day) {

@@ -199,6 +199,24 @@ class RelayServiceTest {
     }
 
     @Test
+    void sameLaneInRelay1OfTwoDaysIsNoConflictButADoubleAssignedLaneIsReported() throws Exception {
+        Map<String, Object> otherDay = relayService.createDay(Map.of("date", "2026-10-04", "start_time", "09:00"));
+        String otherRelay1 = (String) relayService.addRelays((String) otherDay.get("id"), Map.of("count", 1)).get(0).get("id");
+        assign(relay1, "m25", 1, "1-52-1");
+        assign(otherRelay1, "m25", 1, "2-52-1");
+        assertEquals(List.of(), relayService.getOverview().get("data_issues"));
+
+        // hand-edited file: Ben's start moved into Anna's lane on 03.10.
+        Path file = tempDir.resolve("relays.json");
+        Files.writeString(file, Files.readString(file).replace("\"relay_id\" : \"" + otherRelay1 + "\"",
+            "\"relay_id\" : \"" + relay1 + "\""));
+        RelayService edited = new RelayService(file.toString(), dataService);
+
+        assertEquals(List.of("Lane 1 on 25m, relay 1 on 03.10.2026 (09:00) holds 2 starts at once: "
+            + "1-52-1 (Anna), 2-52-1 (Ben)"), edited.getOverview().get("data_issues"));
+    }
+
+    @Test
     void assigningReplacesLaneOccupantAndDetectsConcurrentChanges() throws Exception {
         Map<String, Object> anna = assign(relay1, "m50", 4, "1-3-1");
 
