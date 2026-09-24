@@ -23,9 +23,6 @@ export function showSection(sectionName) {
         case 'competitors':
             loadCompetitorsData();
             break;
-        case 'disciplines':
-            loadDisciplinesData();
-            break;
         case 'starts':
             loadStartsData();
             break;
@@ -46,15 +43,6 @@ async function loadCompetitorsData() {
         renderCompetitors();
     } catch (error) {
         console.error('Error loading competitors data:', error);
-    }
-}
-
-// Load disciplines data
-async function loadDisciplinesData() {
-    try {
-        await loadAvailableDisciplines();
-    } catch (error) {
-        console.error('Error loading disciplines data:', error);
     }
 }
 
