@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        #print-header { display: none; }
+        @media print {
+            @page { size: A4 portrait; }
+            .keep-together { break-inside: avoid; page-break-inside: avoid; }
+            #print-header { display: block !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white shadow-lg no-print">
+        <div class="mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between min-h-16 py-2 gap-2">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <h1 class="text-xl font-bold">Ranking</h1>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="../rmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Relay Management</a>
+                    <a href="../tmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Team Management</a>
+                    <a href="../dmgmt/" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Discipline Management</a>
+                    <a href="../" class="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-700 transition-colors">Competition Management</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden no-print"></div>
+
+        <div class="px-4">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-0 max-w-full">
+                        <label for="discipline-select" class="block text-sm font-medium text-gray-700 mb-1">Discipline</label>
+                        <select id="discipline-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-full"></select>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 py-2">
+                        <input type="checkbox" id="page-per-discipline" class="h-4 w-4">
+                        New page per discipline when printing
+                    </label>
+                    <div class="ml-auto flex gap-2">
+                        <button id="refresh-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Refresh</button>
+                        <button id="print-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                            </svg>
+                            Print
+                        </button>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-3">
+                    One result per competitor and discipline: a competitor who started more than once is ranked on the best result only
+                    (score, then 10s, 9s, … 1s of that result, then its tie-break, lower wins).
+                </p>
+            </div>
+
+            <!-- Shown on paper only -->
+            <div id="print-header" class="mb-4">
+                <h1 class="text-xl font-bold">Ranking</h1>
+                <p id="print-date" class="text-sm text-gray-600"></p>
+            </div>
+
+            <div id="ranking-content" class="space-y-8"></div>
+        </div>
+    </main>
+
+    <script type="module" src="ranking.js"></script>
+</body>
+</html>

@@ -79,6 +79,104 @@ public class RankingService {
         return allRankings;
     }
 
+    /**
+     * Ranking that counts just one result per competitor and discipline: the
+     * competitor's best result, ranked by its score, then its 10s, 9s, ... 1s,
+     * then its tie-break (lower wins). Ring counts and tie-break come from that
+     * result only. A team discipline gets the team ranking, which already has
+     * one total per team. Returns null if the discipline does not exist.
+     */
+    public Map<String, Object> getBestResultRanking(int disciplineId) throws Exception {
+        Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
+        if (discipline == null) {
+            return null;
+        }
+        if (TeamService.isTeamDiscipline(discipline)) {
+            return teamService.getRanking(disciplineId);
+        }
+        return bestResultEntry(discipline, getResultsForDiscipline(disciplineId));
+    }
+
+    /** {@link #getBestResultRanking} for every active discipline that has results (team disciplines: teams). */
+    public Map<Integer, Object> getAllBestResultRankings() throws Exception {
+        Map<Integer, Object> allRankings = new LinkedHashMap<>();
+        for (int disciplineId : disciplineService.getActiveDisciplines()) {
+            Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
+            if (discipline == null) {
+                continue;
+            }
+            if (TeamService.isTeamDiscipline(discipline)) {
+                if (teamService.hasTeams(disciplineId)) {
+                    allRankings.put(disciplineId, teamService.getRanking(disciplineId));
+                }
+                continue;
+            }
+            List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
+            if (!disciplineResults.isEmpty()) {
+                allRankings.put(disciplineId, bestResultEntry(discipline, disciplineResults));
+            }
+        }
+        return allRankings;
+    }
+
+    private Map<String, Object> bestResultEntry(Discipline discipline, List<Map<String, Object>> disciplineResults)
+            throws Exception {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = dataService.read(
+            data -> (List<Map<String, Object>>) data.get("competitors"));
+
+        // Keep each competitor's best result, preserving encounter order
+        Map<Integer, BestResult> bestByCompetitor = new LinkedHashMap<>();
+        for (Map<String, Object> result : disciplineResults) {
+            int competitorId = ((Number) result.get("competitor_id")).intValue();
+            BestResult candidate = new BestResult(result);
+            BestResult best = bestByCompetitor.get(competitorId);
+            if (best == null || compareKeys(candidate.key, best.key) > 0) {
+                bestByCompetitor.put(competitorId, candidate);
+            }
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        List<double[]> keys = new ArrayList<>();
+        bestByCompetitor.entrySet().stream()
+            .sorted((a, b) -> compareKeys(b.getValue().key, a.getValue().key))
+            .forEach(entry -> {
+                Map<String, Object> competitorData = findCompetitor(competitorsData, entry.getKey());
+                if (competitorData == null) {
+                    return;
+                }
+                BestResult best = entry.getValue();
+                Map<String, Object> competitor = new LinkedHashMap<>();
+                competitor.put("id", entry.getKey());
+                competitor.put("name", competitorData.get("name"));
+                competitor.put("club", competitorData.get("club"));
+                competitor.put("country", competitorData.get("country"));
+
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("competitor", competitor);
+                row.put("start_id", best.result.get("start_id"));
+                row.put("result_id", best.result.get("id"));
+                row.put("score", best.score);
+                row.put("freq_counts", best.freqCounts);
+                row.put("override_value", best.overrideValue);
+                row.put("notes", best.result.get("notes"));
+                rows.add(row);
+                keys.add(best.key);
+            });
+
+        // Competitors with an identical key share the same rank
+        for (int i = 0; i < rows.size(); i++) {
+            boolean tiedWithPrevious = i > 0 && compareKeys(keys.get(i), keys.get(i - 1)) == 0;
+            rows.get(i).put("rank", tiedWithPrevious ? rows.get(i - 1).get("rank") : i + 1);
+        }
+
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("kind", "individual");
+        entry.put("discipline", buildDisciplineInfo(discipline));
+        entry.put("rankings", rows);
+        return entry;
+    }
+
     private Map<String, Object> buildDisciplineInfo(Discipline discipline) {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("id", discipline.getId());
@@ -239,6 +337,31 @@ public class RankingService {
         ranking.setNotes(aggregate.notes);
 
         return ranking;
+    }
+
+    /** One result with its ranking key: score, then 10s ... 1s, then tie-break. */
+    private static class BestResult {
+        final Map<String, Object> result;
+        final double score;
+        final Map<String, Integer> freqCounts = new LinkedHashMap<>();
+        final Double overrideValue;
+        final double[] key = new double[2 + Scoring.MAX_RING];
+
+        BestResult(Map<String, Object> result) {
+            this.result = result;
+            this.score = Scoring.score(result);
+            this.overrideValue = Scoring.doubleOrNull(result.get("override_value"));
+            int[] rings = Scoring.newRingCounts();
+            Scoring.addRingCounts(result, rings);
+            for (int i = 1; i <= Scoring.MAX_RING; i++) {
+                freqCounts.put(String.valueOf(i), rings[i]);
+            }
+            key[0] = score;
+            for (int ring = Scoring.MAX_RING; ring >= 1; ring--) {
+                key[1 + Scoring.MAX_RING - ring] = rings[ring];
+            }
+            key[key.length - 1] = Scoring.tieBreakKey(overrideValue);
+        }
     }
 
     private static class CompetitorAggregate {
