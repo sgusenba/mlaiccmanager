@@ -35,7 +35,8 @@ const GROUPS = [
         items: [
             { label: 'Disciplines', path: '/dmgmt/' },
             { label: 'Ranges & Relays', path: '/rmgmt/', hash: 'settings' },
-            { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true }
+            { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true },
+            { label: 'Backup & Restore', path: '/backup/' }
         ]
     }
 ];

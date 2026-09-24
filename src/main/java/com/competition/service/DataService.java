@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class DataService {
@@ -72,6 +73,25 @@ public class DataService {
             T result = fn.apply(data);
             saveData(data);
             return result;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Runs action while holding both the data.json and the competition.json
+     * lock, so the files can be copied or replaced as a whole (backup/restore).
+     * Lock order: data.json, then disciplines, as ResultService does.
+     */
+    public <T> T exclusive(Callable<T> action) throws Exception {
+        lock.lock();
+        try {
+            disciplinesLock.lock();
+            try {
+                return action.call();
+            } finally {
+                disciplinesLock.unlock();
+            }
         } finally {
             lock.unlock();
         }

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -872,6 +873,16 @@ public class RelayService {
     }
 
     // --- storage -----------------------------------------------------------
+
+    /** Runs action while holding the relays.json lock, so the file can be copied or replaced as a whole. */
+    public <T> T exclusive(Callable<T> action) throws Exception {
+        lock.lock();
+        try {
+            return action.call();
+        } finally {
+            lock.unlock();
+        }
+    }
 
     private <T> T read(RelayFunction<T> fn) throws Exception {
         lock.lock();

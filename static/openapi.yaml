@@ -24,6 +24,8 @@ tags:
   - name: Teams
   - name: Relay management
     description: Backs the `/rmgmt` page; data lives in `relays.json`.
+  - name: Backup
+    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json` and `relays.json`.
   - name: Build info
 
 paths:
@@ -951,6 +953,55 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RelayOverview" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # --------------------------------------------------------------------- Backup
+  /backup:
+    get:
+      tags: [Backup]
+      summary: Download all runtime data as a zip file
+      operationId: downloadBackup
+      responses:
+        "200":
+          description: The backup, named `mlaiccmanager-backup-<date>-<time>.zip`
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /backup/restore:
+    post:
+      tags: [Backup]
+      summary: Replace all runtime data with a backup's
+      description: |
+        Files missing from the backup are removed. The current data is saved to
+        `backups/pre-restore-<date>-<time>.zip` first. Nothing changes if the file
+        is not a valid backup.
+      operationId: restoreBackup
+      requestBody:
+        required: true
+        content:
+          application/zip:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored_files:
+                    type: array
+                    items: { type: string }
+                  safety_copy:
+                    type: string
+                    nullable: true
+                    description: Where the previous data was saved; `null` if there was none
+        "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   # ----------------------------------------------------------------- Build info

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -662,6 +663,16 @@ public class TeamService {
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> listOf(Map<String, Object> teams) {
         return (List<Map<String, Object>>) teams.get("teams");
+    }
+
+    /** Runs action while holding the teams.json lock, so the file can be copied or replaced as a whole. */
+    public <T> T exclusive(Callable<T> action) throws Exception {
+        lock.lock();
+        try {
+            return action.call();
+        } finally {
+            lock.unlock();
+        }
     }
 
     private <T> T read(TeamFunction<T> fn) throws Exception {
