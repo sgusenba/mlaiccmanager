@@ -39,3 +39,6 @@ Thumbs.db
 
 # Deploy secrets/config (see deploy/pct.env.example)
 deploy/pct.env
+
+# Test feeder: event data extracted from results PDFs (real competitor names)
+tools/testfeeder/data/
