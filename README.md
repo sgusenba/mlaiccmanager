@@ -13,6 +13,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, with a team ranking that also shows up in the main Ranking tab
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
+- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly, optionally one discipline per page
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
 - **JSON file storage** — simple file-based storage, no database required
 
@@ -51,6 +52,7 @@ The server starts on `http://localhost:5000`. Static frontend assets are served 
 The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty:
 
 - **`/`** (`static/index.html` + `static/js/`) — main competition management UI (competitors, starts, disciplines, results, ranking), split into modules under `static/js/modules/`
+- **`/ranking`** (`static/ranking/`) — printable ranking page with one result per competitor and discipline
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page; its ranking table (`static/js/teamRanking.js`) is shared with the main Ranking tab
@@ -106,11 +108,14 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 ### Rankings (`/api/ranking`)
 - `GET /api/ranking` — list rankings
 - `GET /api/ranking/{disciplineId}` — get ranked results for a discipline
+- `GET /api/ranking/best` — like `GET /api/ranking`, but with one result per competitor: each competitor's best result
+- `GET /api/ranking/best/{disciplineId}` — one discipline's ranking with one result per competitor (team disciplines: the team ranking)
 
 ### Scoring and tie-breaks
 
 - An individual result's score is the sum of its shots (`entries`); `value` is stored alongside. The result's `override_value` is a **tie-break value, and the lower value wins** (distance of the furthest shot from the centre); it no longer replaces the score. A result without it loses a tie against one with it.
 - Individual ranking: best four results, then the number of 10s, 9s, … 7s, then the tie-break.
+- One-result ranking (`/api/ranking/best`, `/ranking` page): each competitor's best result only, ranked by its score, then its 10s, 9s, … 1s, then its tie-break (lower wins). Identical results share the rank.
 
 ### Teams (`/api/teams`)
 
@@ -171,6 +176,7 @@ src/main/resources/
 static/                     # Frontend assets served at / (plain HTML/CSS/JS, Tailwind via CDN)
 ├── index.html               # Main competition management UI
 ├── js/                       # Vanilla JS, split by feature (competitors, starts, disciplines, results, ranking)
+├── ranking/                  # Printable one-result-per-discipline ranking page, served at /ranking
 ├── dmgmt/                    # Discipline management page, served at /dmgmt
 ├── rmgmt/                    # Relay management page, served at /rmgmt
 └── tmgmt/                    # Team management page, served at /tmgmt

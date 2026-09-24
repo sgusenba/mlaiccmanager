@@ -35,6 +35,33 @@ public class RankingResource {
     }
 
     @GET
+    @Path("/best")
+    public Response getAllBestResultRankings() {
+        try {
+            return Response.ok(rankingService.getAllBestResultRankings()).build();
+        } catch (Exception e) {
+            logger.error("Error getting best-result rankings", e);
+            return Response.serverError().entity("{\"error\": \"Failed to get rankings\"}").build();
+        }
+    }
+
+    @GET
+    @Path("/best/{disciplineId}")
+    public Response getBestResultRanking(@PathParam("disciplineId") int disciplineId) {
+        try {
+            Map<String, Object> ranking = rankingService.getBestResultRanking(disciplineId);
+            if (ranking == null) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Discipline not found\"}").build();
+            }
+            return Response.ok(ranking).build();
+        } catch (Exception e) {
+            logger.error("Error getting best-result ranking", e);
+            return Response.serverError().entity("{\"error\": \"Failed to get ranking\"}").build();
+        }
+    }
+
+    @GET
     @Path("/{disciplineId}")
     public Response getRanking(@PathParam("disciplineId") int disciplineId) {
         try {

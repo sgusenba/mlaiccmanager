@@ -9,9 +9,9 @@ export const disciplineDisplayName = (event, type) => (type ? `${event} (${type}
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
 
-const formatScore = (value) => (value === null || value === undefined ? '-' : Number(value).toLocaleString('en', { maximumFractionDigits: 2 }));
+export const formatScore = (value) => (value === null || value === undefined ? '-' : Number(value).toLocaleString('en', { maximumFractionDigits: 2 }));
 
-function rankBadge(rank) {
+export function rankBadge(rank) {
     const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
     const color = rank === 1 ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
         : rank === 2 ? 'bg-gray-100 text-gray-800 border-gray-300'

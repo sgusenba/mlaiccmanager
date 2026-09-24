@@ -413,6 +413,45 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /ranking/best:
+    get:
+      tags: [Rankings]
+      summary: One-result rankings of all disciplines that have results
+      description: Each competitor is ranked on their best result only (score, then its 10s ... 1s, then its tie-break, lower wins). Team disciplines return the team ranking.
+      operationId: getAllBestResultRankings
+      responses:
+        "200":
+          description: Rankings keyed by discipline id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  oneOf:
+                    - $ref: "#/components/schemas/BestResultDisciplineRanking"
+                    - $ref: "#/components/schemas/TeamRanking"
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /ranking/best/{disciplineId}:
+    parameters:
+      - $ref: "#/components/parameters/DisciplineId"
+    get:
+      tags: [Rankings]
+      summary: One-result ranking of one discipline
+      description: For team disciplines this returns the team ranking (`kind` = `team`).
+      operationId: getBestResultRanking
+      responses:
+        "200":
+          description: The ranking
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/BestResultDisciplineRanking"
+                  - $ref: "#/components/schemas/TeamRanking"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   # ---------------------------------------------------------------------- Teams
   /teams:
     get:
@@ -1131,6 +1170,35 @@ components:
         rankings:
           type: array
           items: { $ref: "#/components/schemas/Ranking" }
+
+    BestResultRanking:
+      type: object
+      properties:
+        rank: { type: integer, description: Identical results share the rank }
+        competitor:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            club: { type: string }
+            country: { type: string }
+        start_id: { type: string, description: Start of the best result }
+        result_id: { type: integer }
+        score: { type: number }
+        freq_counts:
+          type: object
+          description: Number of shots per ring value, of the best result only
+          additionalProperties: { type: integer }
+        override_value: { type: number, nullable: true, description: Tie-break of the best result, lower wins }
+        notes: { type: string }
+    BestResultDisciplineRanking:
+      type: object
+      properties:
+        kind: { type: string, enum: [individual] }
+        discipline: { $ref: "#/components/schemas/RankingDisciplineInfo" }
+        rankings:
+          type: array
+          items: { $ref: "#/components/schemas/BestResultRanking" }
 
     TeamDisciplineInfo:
       type: object
