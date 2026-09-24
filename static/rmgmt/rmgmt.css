@@ -9,8 +9,67 @@
     cursor: not-allowed;
 }
 
+/* Searchable lane picker: text input with a dropdown chevron */
+.lane-search {
+    text-overflow: ellipsis;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+}
+
+.lane-search::placeholder {
+    color: #111827;
+}
+
+.lane-search:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+.lane-options {
+    position: fixed;
+    z-index: 50;
+    max-width: min(36rem, calc(100vw - 16px));
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+}
+
+.lane-options li {
+    padding: 6px 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lane-options li[data-current] {
+    font-weight: 600;
+}
+
+.lane-options li[aria-selected="true"] {
+    background: #dbeafe;
+}
+
+.lane-options .lane-option-empty {
+    color: #6b7280;
+}
+
+.lane-options .lane-option-none {
+    color: #6b7280;
+    cursor: default;
+}
+
 @media print {
-    .lane-select {
+    .lane-search,
+    .lane-options {
         display: none !important;
     }
 
