@@ -127,6 +127,21 @@ async function refreshStarterSelects() {
 
 // --- printouts -------------------------------------------------------------
 
+/** Compares two texts case-insensitively; empty texts go last. */
+function compareText(a, b) {
+    const x = String(a || '').trim();
+    const y = String(b || '').trim();
+    return (!x) - (!y) || x.localeCompare(y, undefined, { sensitivity: 'base' });
+}
+
+/** Print order of start cards and race bibs: by country, club, name, then starter ID. */
+function printOrder(a, b) {
+    return compareText(a.country, b.country)
+        || compareText(a.club, b.club)
+        || compareText(a.name, b.name)
+        || a.id - b.id;
+}
+
 function meetLine() {
     return [meet.location, meet.dateText].filter(Boolean).map(escapeHtml).join(' · ');
 }
@@ -221,7 +236,7 @@ async function renderPrintout(kind) {
         kind === 'cards' ? api('/rmgmt/overview') : null,
         refreshMeet()
     ]);
-    const chosen = selected ? starters.filter(c => String(c.id) === selected) : starters;
+    const chosen = (selected ? starters.filter(c => String(c.id) === selected) : starters).sort(printOrder);
     if (chosen.length === 0) throw new Error('There are no starters to print.');
 
     let pages;

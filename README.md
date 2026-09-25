@@ -199,7 +199,7 @@ Backs the page at `/meet` and stores everything in `meet.json`.
 - `GET /api/meet` — `name`, `location`, `host`, `date_from`, `date_to` (`YYYY-MM-DD` or `null`) and `version`; empty until first saved
 - `PUT /api/meet` — replace all of them (send `version`; 409 if someone else saved first, 400 for a bad date or a first day after the last)
 
-When the dates are empty, the printouts use the first and last meet day of the relay management. The start card lists every start of a starter with day, relay, time, range and lane, then the starts that have no lane yet. The starter ID printed on the start card and race bib is the competitor ID.
+When the dates are empty, the printouts use the first and last meet day of the relay management. The start card lists every start of a starter with day, relay, time, range and lane, then the starts that have no lane yet. The starter ID printed on the start card and race bib is the competitor ID. Start cards and race bibs are printed sorted by country, then club, then name (starters without a country or club come last).
 
 The **lane assignments CSV** (built in the browser from `/api/rmgmt/overview`) has one row per start, sorted by date, time, range and lane, with the columns Date (`YYYY-MM-DD`), Weekday, Relay, Start time, End time, Range, Lane, Start ID, Starter ID, Name, Club, Country, Discipline, Event, Type, Category, Meet and Venue. It is UTF-8 with a byte order mark and semicolons (or commas) between the fields, so Excel and mail-merge label programs open it directly; starts without a lane can be added at the end with empty relay and lane fields.
 
