@@ -113,16 +113,42 @@ async function loadStarters() {
     return (competitors || []).filter(c => startCount(c) > 0).sort((a, b) => a.id - b.id);
 }
 
-async function refreshStarterSelects() {
-    const starters = await loadStarters();
-    document.querySelectorAll('.starter-select').forEach(select => {
-        const previous = select.value;
-        select.innerHTML = `<option value="">All starters (${starters.length})</option>` + starters
-            .map(c => `<option value="${c.id}">${c.id} · ${escapeHtml(c.name)}${c.club ? ` (${escapeHtml(c.club)})` : ''}</option>`)
-            .join('');
-        select.value = [...select.options].some(o => o.value === previous) ? previous : '';
+// Case- and accent-insensitive: "wurfl" finds "Würflingsdobler"
+const normalize = (text) => String(text ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+/** Starters matching every word of the search text in their ID, name, club or country. */
+function matchingStarters(starters, query) {
+    const terms = normalize(query).split(/\s+/).filter(Boolean);
+    return starters.filter(c => {
+        const text = normalize([c.id, c.name, c.club, c.country].join(' '));
+        return terms.every(term => text.includes(term));
     });
-    document.querySelectorAll('.print-btn').forEach(button => { button.disabled = starters.length === 0; });
+}
+
+const starterLabel = (c) => {
+    const from = [c.club, c.country].filter(Boolean).map(escapeHtml).join(', ');
+    return `${c.id} · ${escapeHtml(c.name)}${from ? ` (${from})` : ''}`;
+};
+
+let starterList = [];
+
+/** Lists the starters matching the search field above the select; "All" prints all of them. */
+function renderStarterSelect(search) {
+    const select = document.getElementById(search.dataset.select);
+    const filtered = search.value.trim() !== '';
+    const matches = matchingStarters(starterList, search.value);
+    const previous = select.value;
+    select.innerHTML = `<option value="">${filtered ? 'All matching starters' : 'All starters'} (${matches.length})</option>`
+        + matches.map(c => `<option value="${c.id}">${starterLabel(c)}</option>`).join('');
+    select.value = [...select.options].some(o => o.value === previous) ? previous : '';
+    // one match: pick it, so printing a single starter is search + print
+    if (filtered && matches.length === 1) select.value = String(matches[0].id);
+    select.closest('div').querySelector('.print-btn').disabled = matches.length === 0;
+}
+
+async function refreshStarterSelects() {
+    starterList = await loadStarters();
+    document.querySelectorAll('.starter-search').forEach(renderStarterSelect);
 }
 
 // --- printouts -------------------------------------------------------------
@@ -230,13 +256,15 @@ function bib(competitor) {
 
 /** Fills the print area for 'cards' or 'bibs' with the selected starters' pages. */
 async function renderPrintout(kind) {
-    const selected = document.getElementById(kind === 'cards' ? 'cards-starter' : 'bibs-starter').value;
+    const selected = document.getElementById(`${kind}-starter`).value;
+    const query = document.getElementById(`${kind}-search`).value;
     const [starters, overview] = await Promise.all([
         loadStarters(),
         kind === 'cards' ? api('/rmgmt/overview') : null,
         refreshMeet()
     ]);
-    const chosen = (selected ? starters.filter(c => String(c.id) === selected) : starters).sort(printOrder);
+    const chosen = (selected ? starters.filter(c => String(c.id) === selected) : matchingStarters(starters, query))
+        .sort(printOrder);
     if (chosen.length === 0) throw new Error('There are no starters to print.');
 
     let pages;
@@ -319,6 +347,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('print-cards-btn').addEventListener('click', e => printPages('cards', e.currentTarget));
     document.getElementById('print-bibs-btn').addEventListener('click', e => printPages('bibs', e.currentTarget));
     document.getElementById('export-lanes-btn').addEventListener('click', e => exportLanes(e.currentTarget));
+    document.querySelectorAll('.starter-search').forEach(search => {
+        search.addEventListener('input', () => renderStarterSelect(search));
+    });
     const separator = document.getElementById('csv-separator');
     separator.value = readStored(SEPARATOR_KEY) === 'comma' ? 'comma' : 'semicolon';
     window.addEventListener('afterprint', () => {
