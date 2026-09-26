@@ -70,7 +70,7 @@
                     class="starter-search w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
                 <select id="cards-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
                 <button type="button" id="print-cards-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
-                    Print Start Cards
+                    Export Start Cards
                 </button>
             </div>
 
@@ -87,7 +87,7 @@
                     class="starter-search w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
                 <select id="bibs-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
                 <button type="button" id="print-bibs-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
-                    Print Race Bibs
+                    Export Race Bibs
                 </button>
             </div>
 
@@ -118,6 +118,27 @@
             </div>
         </div>
     </main>
+
+    <dialog id="export-dialog" class="no-print rounded-lg shadow-xl p-0 w-full max-w-sm">
+        <form method="dialog" class="p-6">
+            <h3 id="export-title" class="text-lg font-semibold mb-1">Export</h3>
+            <p class="text-sm text-gray-600 mb-4">For the starters chosen in the list:</p>
+            <label class="flex items-start gap-2 text-sm text-gray-700 mb-3">
+                <input type="radio" name="export-format" value="print" class="h-4 w-4 mt-0.5" checked>
+                <span><span class="font-medium">Print</span><br>
+                    <span class="text-gray-500">Opens the print dialog; choose "Save as PDF" there for a PDF file</span></span>
+            </label>
+            <label class="flex items-start gap-2 text-sm text-gray-700 mb-5">
+                <input type="radio" name="export-format" value="word" class="h-4 w-4 mt-0.5">
+                <span><span class="font-medium">Word (.docx)</span><br>
+                    <span class="text-gray-500">One page per starter, to edit or print in Word</span></span>
+            </label>
+            <div class="flex justify-end gap-2">
+                <button value="cancel" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                <button value="export" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Export</button>
+            </div>
+        </form>
+    </dialog>
 
     <!-- Filled right before printing; shown on paper only -->
     <div id="print-area"></div>
