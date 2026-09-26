@@ -1,9 +1,12 @@
 // Meet page: the meet's name, venue, host and dates, and the printouts made
 // from them: a start card per starter (A4 portrait) and a race bib per
-// starter (A4 landscape), plus the lane assignments as a CSV file.
+// starter (A4 landscape), printed or exported as Word documents, plus the
+// lane assignments as a CSV file.
 
 import { escapeHtml, formatDateRange, loadMeet } from '../js/meet.js';
-import { download, laneRows, toCsv } from './laneExport.js';
+import { downloadBlob, exportFileName } from '../js/officeFiles.js';
+import { laneRows, toCsv } from './laneExport.js';
+import { raceBibsDocx, startCardsDocx } from './wordExport.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
@@ -11,6 +14,9 @@ const PAGE_SIZES = {
 };
 
 const SEPARATOR_KEY = 'meet.csvSeparator';
+const FORMAT_KEY = 'meet.exportFormat';
+const EXPORT_TITLES = { cards: 'Export Start Cards', bibs: 'Export Race Bibs' };
+const FILE_PREFIXES = { cards: 'start-cards', bibs: 'race-bibs' };
 
 let meet = null;
 
@@ -254,8 +260,11 @@ function bib(competitor) {
         </section>`;
 }
 
-/** Fills the print area for 'cards' or 'bibs' with the selected starters' pages. */
-async function renderPrintout(kind) {
+/**
+ * What to print or export for 'cards' or 'bibs': the selected starter, or all
+ * starters matching the search, in print order; for cards also their starts.
+ */
+async function loadPrintout(kind) {
     const selected = document.getElementById(`${kind}-starter`).value;
     const query = document.getElementById(`${kind}-search`).value;
     const [starters, overview] = await Promise.all([
@@ -265,28 +274,58 @@ async function renderPrintout(kind) {
     ]);
     const chosen = (selected ? starters.filter(c => String(c.id) === selected) : matchingStarters(starters, query))
         .sort(printOrder);
-    if (chosen.length === 0) throw new Error('There are no starters to print.');
+    if (chosen.length === 0) throw new Error('There are no starters to export.');
+    const rows = new Map((overview?.rows || []).map(row => [row.competitor?.id, row]));
+    return { chosen, rows, printedAt: new Date().toLocaleString() };
+}
 
-    let pages;
-    if (kind === 'cards') {
-        const rows = new Map((overview?.rows || []).map(row => [row.competitor?.id, row]));
-        const printedAt = new Date().toLocaleString();
-        pages = chosen.map(c => startCard(c, rows.get(c.id), printedAt));
-    } else {
-        pages = chosen.map(bib);
-    }
+/** Fills the print area for 'cards' or 'bibs' with the selected starters' pages. */
+async function renderPrintout(kind) {
+    const { chosen, rows, printedAt } = await loadPrintout(kind);
+    const pages = kind === 'cards'
+        ? chosen.map(c => startCard(c, rows.get(c.id), printedAt))
+        : chosen.map(bib);
     document.getElementById('page-size').textContent = PAGE_SIZES[kind];
     document.getElementById('print-area').innerHTML = pages.join('');
     return chosen.length;
 }
 
-async function printPages(kind, button) {
+async function exportWord(kind) {
+    const { chosen, rows, printedAt } = await loadPrintout(kind);
+    const file = kind === 'cards'
+        ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay })
+        : raceBibsDocx(meet, chosen);
+    downloadBlob(file, exportFileName(FILE_PREFIXES[kind], 'docx'));
+    const what = kind === 'cards' ? 'start card' : 'race bib';
+    showMessage(`Exported ${chosen.length} ${what}${chosen.length === 1 ? '' : 's'} as a Word document.`, 'success');
+}
+
+// The Export buttons open one dialog; it remembers which printout it is for
+let exportKind = null;
+
+function openExportDialog(kind) {
+    exportKind = kind;
+    document.getElementById('export-title').textContent = EXPORT_TITLES[kind];
+    const format = readStored(FORMAT_KEY) === 'word' ? 'word' : 'print';
+    document.querySelector(`#export-dialog input[name="export-format"][value="${format}"]`).checked = true;
+    document.getElementById('export-dialog').showModal();
+}
+
+async function exportFromDialog() {
+    const kind = exportKind;
+    const format = document.querySelector('#export-dialog input[name="export-format"]:checked')?.value || 'print';
+    store(FORMAT_KEY, format);
+    const button = document.getElementById(`print-${kind}-btn`);
     button.disabled = true;
     try {
-        await renderPrintout(kind);
-        window.print();
+        if (format === 'word') {
+            await exportWord(kind);
+        } else {
+            await renderPrintout(kind);
+            window.print();
+        }
     } catch (error) {
-        showMessage(`Could not prepare the printout: ${error.message}`);
+        showMessage(`Could not export: ${error.message}`);
     } finally {
         button.disabled = false;
     }
@@ -302,13 +341,6 @@ function store(key, value) {
     try { localStorage.setItem(key, value); } catch { /* private mode: not remembered */ }
 }
 
-function csvFileName() {
-    const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    return `lane-assignments-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-        + `-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
-}
-
 async function exportLanes(button) {
     const separator = document.getElementById('csv-separator').value;
     store(SEPARATOR_KEY, separator);
@@ -322,7 +354,7 @@ async function exportLanes(button) {
             includeUnscheduled: document.getElementById('csv-unscheduled').checked
         });
         if (rows.length === 0) throw new Error('There are no lane assignments yet.');
-        download(toCsv(rows, separator), csvFileName());
+        downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName('lane-assignments', 'csv'));
         const lanes = rows.filter(row => row.scheduled).length;
         showMessage(`Exported ${lanes} lane assignment${lanes === 1 ? '' : 's'}`
             + (rows.length > lanes ? ` and ${rows.length - lanes} start${rows.length - lanes === 1 ? '' : 's'} without a lane` : '')
@@ -344,8 +376,12 @@ window.meetPrintPreview = async (kind) => {
 
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('meet-form').addEventListener('submit', saveMeet);
-    document.getElementById('print-cards-btn').addEventListener('click', e => printPages('cards', e.currentTarget));
-    document.getElementById('print-bibs-btn').addEventListener('click', e => printPages('bibs', e.currentTarget));
+    document.getElementById('print-cards-btn').addEventListener('click', () => openExportDialog('cards'));
+    document.getElementById('print-bibs-btn').addEventListener('click', () => openExportDialog('bibs'));
+    // The dialog's form closes it; its Export button also exports
+    document.querySelector('#export-dialog form').addEventListener('submit', event => {
+        if (event.submitter?.value === 'export') exportFromDialog();
+    });
     document.getElementById('export-lanes-btn').addEventListener('click', e => exportLanes(e.currentTarget));
     document.querySelectorAll('.starter-search').forEach(search => {
         search.addEventListener('input', () => renderStarterSelect(search));

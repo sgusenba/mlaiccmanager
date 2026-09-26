@@ -13,9 +13,9 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
-- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly, optionally one discipline per page
+- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
-- **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, and exports all lane assignments as a CSV file (e.g. for target labels); the ranking can be printed with a cover page and a statistics page (starters and starts per country and discipline)
+- **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, and exports all lane assignments as a CSV file (e.g. for target labels); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
 - **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one
 - **JSON file storage** — simple file-based storage, no database required
 
@@ -73,11 +73,11 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
 - **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
-- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); printing asks whether to add the cover and statistics pages (`static/ranking/printPages.js`)
+- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
-- **`/meet`** (`static/meet/`) — meet details, start cards, race bibs and the lane assignments CSV (`static/meet/laneExport.js`); the meet details and dates for all printouts come from `static/js/meet.js`
+- **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) and the lane assignments CSV (`static/meet/laneExport.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
 - **`/backup`** (`static/backup/`) — backup download and restore
 
 Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
@@ -200,6 +200,8 @@ Backs the page at `/meet` and stores everything in `meet.json`.
 - `PUT /api/meet` — replace all of them (send `version`; 409 if someone else saved first, 400 for a bad date or a first day after the last)
 
 When the dates are empty, the printouts use the first and last meet day of the relay management. The start card lists every start of a starter with day, relay, time, range and lane, then the starts that have no lane yet. The starter ID printed on the start card and race bib is the competitor ID. Start cards and race bibs are printed sorted by country, then club, then name (starters without a country or club come last). The search field above each starter list filters it by starter ID, name, club or country (case- and accent-insensitive, every word must match); with "All matching starters" selected, only the matching starters are printed, and a search with a single match selects that starter.
+
+The **Export Start Cards** and **Export Race Bibs** buttons ask for the format: **Print** opens the browser's print dialog (choose "Save as PDF" there for a PDF file), **Word (.docx)** downloads the same pages as a Word document to edit or print. The Ranking page's **Export** button offers Print, Word and Excel: the Word document has the ranking laid out like the printout (with the cover and statistics pages when chosen, and one discipline per page when that option is on); the Excel workbook has one sheet per discipline (team disciplines one row per team with its members) with numbers as numbers, and a Statistics sheet when the statistics are chosen. The last chosen format is remembered.
 
 The **lane assignments CSV** (built in the browser from `/api/rmgmt/overview`) has one row per start, sorted by date, time, range and lane, with the columns Date (`YYYY-MM-DD`), Weekday, Relay, Start time, End time, Range, Lane, Start ID, Starter ID, Name, Club, Country, Discipline, Event, Type, Category, Meet and Venue. It is UTF-8 with a byte order mark and semicolons (or commas) between the fields, so Excel and mail-merge label programs open it directly; starts without a lane can be added at the end with empty relay and lane fields.
 

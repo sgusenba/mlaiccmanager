@@ -1,15 +1,20 @@
 // Ranking page: one result per competitor and discipline (the best one),
-// from /api/ranking/best, laid out for printing. Team disciplines show the
-// team ranking, which already has one total per team.
+// from /api/ranking/best, laid out for printing and exported as Word or
+// Excel files. Team disciplines show the team ranking, which already has one
+// total per team.
 
 import { escapeHtml, disciplineDisplayName, formatScore, rankBadge, teamRankingCard } from '../js/teamRanking.js';
 import { loadMeet } from '../js/meet.js';
+import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
+import { rankingDocx, rankingXlsx } from './rankingExport.js';
 
 const DISCIPLINE_KEY = 'ranking.discipline';
 const PAGE_BREAK_KEY = 'ranking.pagePerDiscipline';
 const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
+const FORMAT_KEY = 'ranking.exportFormat';
+const FORMATS = ['print', 'word', 'excel'];
 const RINGS = ['10', '9', '8', '7'];
 
 // --- helpers ---------------------------------------------------------------
@@ -108,10 +113,14 @@ function emptyState(text) {
         </div>`;
 }
 
+// What the page shows, for the Word and Excel export
+let shownRankings = [];
+
 function render(rankings, emptyText) {
     const pagePerDiscipline = document.getElementById('page-per-discipline').checked;
     const content = document.getElementById('ranking-content');
     const withData = rankings.filter(data => data.kind === 'team' || data.rankings?.length);
+    shownRankings = withData;
 
     if (withData.length === 0) {
         content.innerHTML = emptyState(emptyText);
@@ -146,6 +155,7 @@ async function loadRanking() {
             render(Object.values(await api('/ranking/best')), 'There are no active disciplines with results to display.');
         }
     } catch (error) {
+        shownRankings = [];
         showMessage(`Error loading ranking: ${error.message}`);
     }
 }
@@ -187,17 +197,59 @@ function fillPrintHeader() {
     document.getElementById('print-stats').innerHTML = printData ? statisticsPage(meet, printData.stats) : '';
 }
 
+const chosenFormat = () => document.querySelector('#print-dialog input[name="export-format"]:checked')?.value || 'print';
+
+// A cover page is part of a document; Excel only gets the statistics sheet
+function updateCoverOption() {
+    const excel = chosenFormat() === 'excel';
+    document.getElementById('print-with-cover').disabled = excel;
+    document.getElementById('print-cover-option').classList.toggle('opacity-50', excel);
+}
+
 function openPrintDialog() {
+    const stored = readStored(FORMAT_KEY);
+    const format = FORMATS.includes(stored) ? stored : 'print';
+    document.querySelector(`#print-dialog input[name="export-format"][value="${format}"]`).checked = true;
     document.getElementById('print-with-cover').checked = readStored(COVER_KEY) === 'true';
     document.getElementById('print-with-stats').checked = readStored(STATS_KEY) === 'true';
+    updateCoverOption();
     document.getElementById('print-dialog').showModal();
 }
 
-async function printFromDialog() {
-    store(COVER_KEY, String(document.getElementById('print-with-cover').checked));
-    store(STATS_KEY, String(document.getElementById('print-with-stats').checked));
+async function exportFromDialog() {
+    const format = chosenFormat();
+    const withCover = document.getElementById('print-with-cover').checked;
+    const withStats = document.getElementById('print-with-stats').checked;
+    store(FORMAT_KEY, format);
+    store(COVER_KEY, String(withCover));
+    store(STATS_KEY, String(withStats));
     await Promise.all([loadPrintData(), loadRanking()]);
-    window.print();
+    if (format === 'print') {
+        window.print();
+        return;
+    }
+    if (shownRankings.length === 0) {
+        showMessage('There is no ranking to export yet.');
+        return;
+    }
+    const options = {
+        meet: printData?.meet,
+        stats: printData?.stats,
+        scope: printScope(),
+        rankings: shownRankings,
+        withCover,
+        withStats,
+        pagePerDiscipline: document.getElementById('page-per-discipline').checked
+    };
+    try {
+        if (format === 'excel') {
+            downloadBlob(rankingXlsx(options), exportFileName('ranking', 'xlsx'));
+        } else {
+            downloadBlob(rankingDocx(options), exportFileName('ranking', 'docx'));
+        }
+    } catch (error) {
+        showMessage(`Could not export the ranking: ${error.message}`);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -218,9 +270,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadPrintData();
     });
     document.getElementById('print-btn').addEventListener('click', openPrintDialog);
-    // The dialog's form closes it; its Print button also prints
+    // The dialog's form closes it; its Export button also exports
     document.querySelector('#print-dialog form').addEventListener('submit', event => {
-        if (event.submitter?.value === 'print') printFromDialog();
+        if (event.submitter?.value === 'export') exportFromDialog();
+    });
+    document.querySelectorAll('#print-dialog input[name="export-format"]').forEach(radio => {
+        radio.addEventListener('change', updateCoverOption);
     });
     window.addEventListener('beforeprint', fillPrintHeader);
     applyPrintOptions();
