@@ -33,7 +33,7 @@ public final class Scoring {
         return result.get("value") instanceof Number n ? n.doubleValue() : 0.0;
     }
 
-    /** Adds the result's shots to counts, indexed by ring (1-10); misses and odd values are ignored. */
+    /** Adds the result's shots to counts, indexed by ring (0 = miss, 1-10); odd values are ignored. */
     public static void addRingCounts(Map<String, Object> result, int[] counts) {
         if (result == null || !(result.get("entries") instanceof List<?> entries)) {
             return;
@@ -43,7 +43,7 @@ public final class Scoring {
                 double value = n.doubleValue();
                 int ring = (int) value;
                 // Entries saved by Java come back as 10.0, those saved by the Python version as 10
-                if (ring == value && ring >= 1 && ring <= MAX_RING) {
+                if (ring == value && ring >= 0 && ring <= MAX_RING) {
                     counts[ring]++;
                 }
             }

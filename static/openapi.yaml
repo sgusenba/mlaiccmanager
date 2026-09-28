@@ -1264,7 +1264,7 @@ components:
         total_sum: { type: number }
         freq_counts:
           type: object
-          description: Number of shots per ring value
+          description: Number of shots per ring value, "0" to "10" ("0" = misses)
           additionalProperties: { type: integer }
         override_value: { type: number, nullable: true }
         notes: { type: string }
@@ -1295,7 +1295,7 @@ components:
         freq_counts:
           type: object
           nullable: true
-          description: Number of shots per ring value, of the best result only
+          description: Number of shots per ring value, "0" to "10" ("0" = misses), of the best result only
           additionalProperties: { type: integer }
         override_value: { type: number, nullable: true, description: Tie-break of the best result, lower wins }
         notes: { type: string }

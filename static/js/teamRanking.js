@@ -7,7 +7,7 @@ export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c =
 /** "Miquelet (original)": the event alone is ambiguous, it exists once per type. */
 export const disciplineDisplayName = (event, type) => (type ? `${event} (${type})` : event);
 
-const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
 export const formatScore = (value) => (value === null || value === undefined ? '-' : Number(value).toLocaleString('en', { maximumFractionDigits: 2 }));
 
