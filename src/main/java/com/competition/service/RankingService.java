@@ -97,7 +97,7 @@ public class RankingService {
         return bestResultEntry(discipline, getResultsForDiscipline(disciplineId));
     }
 
-    /** {@link #getBestResultRanking} for every active discipline that has results (team disciplines: teams). */
+    /** {@link #getBestResultRanking} for every active discipline that has results or starts (team disciplines: teams). */
     public Map<Integer, Object> getAllBestResultRankings() throws Exception {
         Map<Integer, Object> allRankings = new LinkedHashMap<>();
         for (int disciplineId : disciplineService.getActiveDisciplines()) {
@@ -111,9 +111,9 @@ public class RankingService {
                 }
                 continue;
             }
-            List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
-            if (!disciplineResults.isEmpty()) {
-                allRankings.put(disciplineId, bestResultEntry(discipline, disciplineResults));
+            Map<String, Object> entry = bestResultEntry(discipline, getResultsForDiscipline(disciplineId));
+            if (!((List<?>) entry.get("rankings")).isEmpty()) {
+                allRankings.put(disciplineId, entry);
             }
         }
         return allRankings;
@@ -160,6 +160,7 @@ public class RankingService {
                 row.put("freq_counts", best.freqCounts);
                 row.put("override_value", best.overrideValue);
                 row.put("notes", best.result.get("notes"));
+                row.put("has_result", true);
                 rows.add(row);
                 keys.add(best.key);
             });
@@ -170,11 +171,51 @@ public class RankingService {
             rows.get(i).put("rank", tiedWithPrevious ? rows.get(i - 1).get("rank") : i + 1);
         }
 
+        // Everyone else who started in this discipline follows without a rank
+        rows.addAll(startersWithoutResult(competitorsData, discipline.getId(), bestByCompetitor.keySet()));
+
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("kind", "individual");
         entry.put("discipline", buildDisciplineInfo(discipline));
         entry.put("rankings", rows);
         return entry;
+    }
+
+    /** Rows for the competitors with a start in the discipline but no result yet, by name. */
+    private List<Map<String, Object>> startersWithoutResult(List<Map<String, Object>> competitorsData,
+            int disciplineId, Set<Integer> withResult) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Map<String, Object> competitorData : competitorsData) {
+            int competitorId = ((Number) competitorData.get("id")).intValue();
+            if (withResult.contains(competitorId)
+                    || !(competitorData.get("starts") instanceof Map<?, ?> startsByDiscipline)
+                    || !(startsByDiscipline.get(String.valueOf(disciplineId)) instanceof List<?> starts)
+                    || starts.isEmpty()
+                    || !(starts.get(0) instanceof Map<?, ?> firstStart)) {
+                continue;
+            }
+            Map<String, Object> competitor = new LinkedHashMap<>();
+            competitor.put("id", competitorId);
+            competitor.put("name", competitorData.get("name"));
+            competitor.put("club", competitorData.get("club"));
+            competitor.put("country", competitorData.get("country"));
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("rank", null);
+            row.put("competitor", competitor);
+            row.put("start_id", firstStart.get("generated_id"));
+            row.put("result_id", null);
+            row.put("score", null);
+            row.put("freq_counts", null);
+            row.put("override_value", null);
+            row.put("notes", null);
+            row.put("has_result", false);
+            rows.add(row);
+        }
+        rows.sort(Comparator.comparing(
+            row -> Objects.toString(((Map<?, ?>) row.get("competitor")).get("name"), ""),
+            String.CASE_INSENSITIVE_ORDER));
+        return rows;
     }
 
     private Map<String, Object> buildDisciplineInfo(Discipline discipline) {

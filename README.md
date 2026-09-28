@@ -13,7 +13,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
-- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one) and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
+- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 1 and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
 - **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, and exports all lane assignments as a CSV file (e.g. for target labels); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
 - **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one

@@ -420,8 +420,8 @@ paths:
   /ranking/best:
     get:
       tags: [Rankings]
-      summary: One-result rankings of all disciplines that have results
-      description: Each competitor is ranked on their best result only (score, then its 10s ... 1s, then its tie-break, lower wins). Team disciplines return the team ranking.
+      summary: One-result rankings of all disciplines that have starts or results
+      description: Each competitor is ranked on their best result only (score, then its 10s ... 1s, then its tie-break, lower wins); competitors with a start but no result follow without a rank. Team disciplines return the team ranking.
       operationId: getAllBestResultRankings
       responses:
         "200":
@@ -1280,7 +1280,7 @@ components:
     BestResultRanking:
       type: object
       properties:
-        rank: { type: integer, description: Identical results share the rank }
+        rank: { type: integer, nullable: true, description: Identical results share the rank; null for a start without result }
         competitor:
           type: object
           properties:
@@ -1288,11 +1288,13 @@ components:
             name: { type: string }
             club: { type: string }
             country: { type: string }
-        start_id: { type: string, description: Start of the best result }
-        result_id: { type: integer }
-        score: { type: number }
+        start_id: { type: string, description: Start of the best result (without result, the competitor's first start) }
+        result_id: { type: integer, nullable: true }
+        score: { type: number, nullable: true }
+        has_result: { type: boolean, description: False for competitors who started but have no result yet; they come after the ranked ones, by name }
         freq_counts:
           type: object
+          nullable: true
           description: Number of shots per ring value, of the best result only
           additionalProperties: { type: integer }
         override_value: { type: number, nullable: true, description: Tie-break of the best result, lower wins }
