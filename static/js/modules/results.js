@@ -593,4 +593,15 @@ export function setupResultsEventListeners() {
     if (searchBtn) {
         searchBtn.addEventListener('click', searchStartById);
     }
+
+    // Pressing Enter in the start ID field triggers the search
+    const searchInput = document.getElementById('result-start-search');
+    if (searchInput) {
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchStartById();
+            }
+        });
+    }
 }
