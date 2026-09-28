@@ -15,7 +15,7 @@ const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
 const FORMAT_KEY = 'ranking.exportFormat';
 const FORMATS = ['print', 'word', 'excel'];
-const RINGS = ['10', '9', '8', '7'];
+const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
 
 // --- helpers ---------------------------------------------------------------
 
@@ -49,12 +49,15 @@ function store(key, value) {
 
 // --- rendering -------------------------------------------------------------
 
+// Competitors who started but have no result yet are listed after the ranked ones, without a rank
+const hasResult = (row) => row.has_result !== false;
+
 function individualCard(data, extraClass) {
     const rows = data.rankings || [];
     const discipline = data.discipline;
     const hasNotes = rows.some(row => row.notes);
-    const th = (label, align = 'left', title = '') =>
-        `<th class="px-4 py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
+    const th = (label, align = 'left', title = '', padding = 'px-4') =>
+        `<th class="${padding} py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
 
     return `
         <div class="bg-white rounded-lg shadow-md ${extraClass}">
@@ -75,13 +78,13 @@ function individualCard(data, extraClass) {
                                 ${th('Club')}
                                 ${th('Country')}
                                 ${th('Result', 'center')}
-                                ${RINGS.map(ring => th(`${ring}s`, 'center')).join('')}
+                                ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
                                 ${th('Tie-break', 'center', 'Distance of the furthest shot; the lower value wins')}
                                 ${hasNotes ? th('Notes') : ''}
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            ${rows.map(row => `
+                            ${rows.map(row => hasResult(row) ? `
                                 <tr class="hover:bg-gray-50 ${row.rank <= 3 ? 'font-bold' : ''}">
                                     <td class="px-4 py-3 whitespace-nowrap">${rankBadge(row.rank)}</td>
                                     <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">${escapeHtml(row.start_id)}</td>
@@ -89,9 +92,21 @@ function individualCard(data, extraClass) {
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
-                                    ${RINGS.map(ring => `<td class="px-4 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
+                                    ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
                                     <td class="px-4 py-3 text-center text-sm font-normal">${row.override_value ?? '-'}</td>
                                     ${hasNotes ? `<td class="px-4 py-3 text-sm font-normal text-gray-500">${escapeHtml(row.notes || '')}</td>` : ''}
+                                </tr>
+                            ` : `
+                                <tr class="hover:bg-gray-50 text-gray-500">
+                                    <td class="px-4 py-3 text-center text-sm">-</td>
+                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs">${escapeHtml(row.start_id)}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">${escapeHtml(row.competitor.name)}</td>
+                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
+                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>
+                                    ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
+                                    <td class="px-4 py-3"></td>
+                                    ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -150,9 +165,9 @@ async function loadRanking() {
     const disciplineId = document.getElementById('discipline-select').value;
     try {
         if (disciplineId) {
-            render([await api(`/ranking/best/${disciplineId}`)], 'There are no results for this discipline yet.');
+            render([await api(`/ranking/best/${disciplineId}`)], 'There are no starts or results for this discipline yet.');
         } else {
-            render(Object.values(await api('/ranking/best')), 'There are no active disciplines with results to display.');
+            render(Object.values(await api('/ranking/best')), 'There are no active disciplines with starts or results to display.');
         }
     } catch (error) {
         shownRankings = [];

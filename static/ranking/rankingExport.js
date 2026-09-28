@@ -5,7 +5,9 @@
 import { disciplineDisplayName, formatScore } from '../js/teamRanking.js';
 import { docx, paragraph, table, xlsx } from '../js/officeFiles.js';
 
-const RINGS = ['10', '9', '8', '7'];
+const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+// Competitors who started but have no result yet come after the ranked ones, without a rank
+const hasResult = (row) => row.has_result !== false;
 const GREY = '555555';
 // A4 portrait with 10mm margins leaves 190mm
 const PAGE_WIDTH = 190;
@@ -104,16 +106,17 @@ function statisticsPage(meet, stats, pageBreakBefore) {
 function individualTable(data) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
+    const ringWidths = RINGS.map(() => 6);
     const widths = hasNotes
-        ? [11, 22, 32, 26, 18, 15, 9, 9, 9, 9, 14, 16]
-        : [11, 22, 38, 32, 22, 15, 9, 9, 9, 9, 14];
+        ? [9, 20, 28, 20, 15, 12, ...ringWidths, 12, 14]
+        : [9, 20, 32, 27, 18, 12, ...ringWidths, 12];
     const center = (text) => ({ text, align: 'center' });
     return table([
         {
             cells: ['Rank', 'Start', 'Name', 'Club', 'Country', center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
                 center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
-        ...rows.map(row => ({
+        ...rows.map(row => (hasResult(row) ? {
             bold: row.rank <= 3,
             cells: [
                 center(row.rank),
@@ -125,6 +128,18 @@ function individualTable(data) {
                 ...RINGS.map(ring => ({ text: row.freq_counts?.[ring] ?? 0, align: 'center', bold: false })),
                 { text: row.override_value ?? '-', align: 'center', bold: false },
                 ...(hasNotes ? [{ text: row.notes || '', bold: false, color: GREY }] : [])
+            ]
+        } : {
+            cells: [
+                center('-'),
+                { text: row.start_id, mono: true, size: 7.5, color: GREY },
+                { text: row.competitor.name, color: GREY },
+                { text: row.competitor.club || '', color: GREY },
+                { text: row.competitor.country || '', color: GREY },
+                { text: 'no result', align: 'center', italic: true, color: GREY },
+                ...RINGS.map(() => ''),
+                '',
+                ...(hasNotes ? [''] : [])
             ]
         }))
     ], { widths, header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
@@ -158,7 +173,7 @@ function teamTable(data) {
                 { text: team.tie_break ?? '-', align: 'center', bold: false }
             ]
         }))
-    ], { widths: [11, 40, 74, 15, 9, 9, 9, 9, 14], header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
+    ], { widths: [9, 36, 58, 13, ...RINGS.map(() => 6), 14], header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
 }
 
 function disciplineSection(data, pageBreakBefore) {
@@ -210,11 +225,17 @@ function individualSheet(data) {
             ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             ...(hasNotes ? [{ header: 'Notes', width: 30 }] : [])
         ],
-        rows: rows.map(row => [
-            row.rank, row.start_id, row.competitor.name, row.competitor.club || '', row.competitor.country || '',
-            number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0), number(row.override_value),
-            ...(hasNotes ? [row.notes || ''] : [])
-        ])
+        rows: rows.map(row => (hasResult(row)
+            ? [
+                row.rank, row.start_id, row.competitor.name, row.competitor.club || '', row.competitor.country || '',
+                number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0), number(row.override_value),
+                ...(hasNotes ? [row.notes || ''] : [])
+            ]
+            : [
+                '', row.start_id, row.competitor.name, row.competitor.club || '', row.competitor.country || '',
+                'no result', ...RINGS.map(() => ''), '',
+                ...(hasNotes ? [''] : [])
+            ]))
     };
 }
 

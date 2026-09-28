@@ -79,4 +79,42 @@ class RankingServiceTest {
         assertEquals("SV", ((Map<String, Object>) anna.get("competitor")).get("club"));
         assertNull(rankingService.getBestResultRanking(99));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void bestResultRankingListsStartersWithoutResultUnranked() throws Exception {
+        Files.writeString(tempDir.resolve("disciplines.json"),
+            "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"Miquelet\",\"active\":true},"
+            + "{\"id\":2,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"Kuchenreuter\",\"active\":true},"
+            + "{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"Minie\",\"active\":true}]");
+        // Ben and Cara started in discipline 1 without a result; Dora started only in discipline 2
+        Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":["
+            + competitor(1, "Anna") + "," + competitor(2, "cara") + "," + competitor(3, "Ben") + ","
+            + "{\"id\":4,\"name\":\"Dora\",\"starts\":{\"2\":[{\"generated_id\":\"4-2-1\",\"start_number\":1}]}},"
+            + "{\"id\":5,\"name\":\"Emil\"}"
+            + "],\"results\":["
+            + "{\"id\":1,\"start_id\":\"1-1-1\",\"discipline_id\":1,\"competitor_id\":1,\"entries\":[10,9]}"
+            + "]}");
+        DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
+            tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
+        RankingService rankingService = new RankingService(dataService, new DisciplineService(dataService),
+            new TeamService(tempDir.resolve("teams.json").toString(), dataService));
+
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) rankingService.getBestResultRanking(1).get("rankings");
+        assertEquals(List.of("Anna", "Ben", "cara"),
+            rows.stream().map(r -> ((Map<String, Object>) r.get("competitor")).get("name")).toList());
+        assertEquals(1, rows.get(0).get("rank"));
+        assertEquals(true, rows.get(0).get("has_result"));
+        Map<String, Object> ben = rows.get(1);
+        assertNull(ben.get("rank"));
+        assertNull(ben.get("score"));
+        assertEquals(false, ben.get("has_result"));
+        assertEquals("3-1-1", ben.get("start_id"));
+
+        Map<Integer, Object> all = rankingService.getAllBestResultRankings();
+        assertEquals(List.of(1, 2), List.copyOf(all.keySet()), "disciplines with starts are listed, empty ones are not");
+        List<Map<String, Object>> second = (List<Map<String, Object>>) ((Map<String, Object>) all.get(2)).get("rankings");
+        assertEquals(1, second.size());
+        assertEquals("Dora", ((Map<String, Object>) second.get(0).get("competitor")).get("name"));
+    }
 }
