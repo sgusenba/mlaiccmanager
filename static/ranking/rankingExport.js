@@ -5,7 +5,7 @@
 import { disciplineDisplayName, formatScore } from '../js/teamRanking.js';
 import { docx, paragraph, table, xlsx } from '../js/officeFiles.js';
 
-const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 // Competitors who started but have no result yet come after the ranked ones, without a rank
 const hasResult = (row) => row.has_result !== false;
 const GREY = '555555';
@@ -108,8 +108,8 @@ function individualTable(data) {
     const hasNotes = rows.some(row => row.notes);
     const ringWidths = RINGS.map(() => 6);
     const widths = hasNotes
-        ? [9, 20, 28, 20, 15, 12, ...ringWidths, 12, 14]
-        : [9, 20, 32, 27, 18, 12, ...ringWidths, 12];
+        ? [9, 20, 26, 18, 13, 12, ...ringWidths, 12, 14]
+        : [9, 20, 30, 24, 17, 12, ...ringWidths, 12];
     const center = (text) => ({ text, align: 'center' });
     return table([
         {
@@ -173,7 +173,7 @@ function teamTable(data) {
                 { text: team.tie_break ?? '-', align: 'center', bold: false }
             ]
         }))
-    ], { widths: [9, 36, 58, 13, ...RINGS.map(() => 6), 14], header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
+    ], { widths: [9, 34, 54, 13, ...RINGS.map(() => 6), 14], header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
 }
 
 function disciplineSection(data, pageBreakBefore) {

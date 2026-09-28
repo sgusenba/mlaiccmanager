@@ -15,7 +15,7 @@ const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
 const FORMAT_KEY = 'ranking.exportFormat';
 const FORMATS = ['print', 'word', 'excel'];
-const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
+const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
 // --- helpers ---------------------------------------------------------------
 

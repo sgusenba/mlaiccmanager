@@ -93,7 +93,7 @@ class RankingServiceTest {
             + "{\"id\":4,\"name\":\"Dora\",\"starts\":{\"2\":[{\"generated_id\":\"4-2-1\",\"start_number\":1}]}},"
             + "{\"id\":5,\"name\":\"Emil\"}"
             + "],\"results\":["
-            + "{\"id\":1,\"start_id\":\"1-1-1\",\"discipline_id\":1,\"competitor_id\":1,\"entries\":[10,9]}"
+            + "{\"id\":1,\"start_id\":\"1-1-1\",\"discipline_id\":1,\"competitor_id\":1,\"entries\":[10,9,0,0.0]}"
             + "]}");
         DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
             tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
@@ -105,6 +105,7 @@ class RankingServiceTest {
             rows.stream().map(r -> ((Map<String, Object>) r.get("competitor")).get("name")).toList());
         assertEquals(1, rows.get(0).get("rank"));
         assertEquals(true, rows.get(0).get("has_result"));
+        assertEquals(2, ((Map<String, Integer>) rows.get(0).get("freq_counts")).get("0"), "misses are counted as 0s");
         Map<String, Object> ben = rows.get(1);
         assertNull(ben.get("rank"));
         assertNull(ben.get("score"));

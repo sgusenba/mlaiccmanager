@@ -425,7 +425,7 @@ public class TeamService {
 
     private static Map<String, Integer> freqCounts(int[] rings) {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        for (int ring = Scoring.MAX_RING; ring >= 1; ring--) {
+        for (int ring = Scoring.MAX_RING; ring >= 0; ring--) {
             counts.put(String.valueOf(ring), rings[ring]);
         }
         return counts;

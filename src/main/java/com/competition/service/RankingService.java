@@ -313,7 +313,7 @@ public class RankingService {
             Scoring.addRingCounts(result, rings);
         }
         Map<String, Integer> freqCounts = new LinkedHashMap<>();
-        for (int i = 1; i <= Scoring.MAX_RING; i++) {
+        for (int i = 0; i <= Scoring.MAX_RING; i++) {
             freqCounts.put(String.valueOf(i), rings[i]);
         }
 
@@ -394,7 +394,7 @@ public class RankingService {
             this.overrideValue = Scoring.doubleOrNull(result.get("override_value"));
             int[] rings = Scoring.newRingCounts();
             Scoring.addRingCounts(result, rings);
-            for (int i = 1; i <= Scoring.MAX_RING; i++) {
+            for (int i = 0; i <= Scoring.MAX_RING; i++) {
                 freqCounts.put(String.valueOf(i), rings[i]);
             }
             key[0] = score;
