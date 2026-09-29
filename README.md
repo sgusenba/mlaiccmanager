@@ -14,7 +14,8 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
 - **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 0 (misses) and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
-- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges
+- **Todos page** — separate page at `/todos` that lists the ranking entries still needing a tie-break value: same result and same number of 10s, 9s, … 1s as another entry of the discipline, with the tie-break missing or the same; laid out like the Ranking page without the rank, empty when there is nothing to do
+- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes
 - **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, and exports all lane assignments as a CSV file (e.g. for target labels); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
 - **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one
 - **JSON file storage** — simple file-based storage, no database required
@@ -64,6 +65,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | | Starter Overview | `/rmgmt/#overview` |
 | **Results** | Enter Results | `/#results` |
 | **Rankings** | Ranking | `/ranking/` |
+| | Todos | `/todos/` |
 | **Management** | Meet | `/meet/` |
 | | Disciplines | `/dmgmt/` |
 | | Ranges & Relays | `/rmgmt/#settings` |
@@ -73,7 +75,8 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
 - **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
-- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`)
+- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether the timestamp says "Intermediate Result" or "Final Result"
+- **`/todos`** (`static/todos/`) — the entries that still need a tie-break, drawn with the Ranking page's cards (`static/ranking/rankingCard.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page

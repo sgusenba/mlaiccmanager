@@ -27,7 +27,8 @@ const GROUPS = [
     {
         label: 'Rankings',
         items: [
-            { label: 'Ranking', path: '/ranking/' }
+            { label: 'Ranking', path: '/ranking/' },
+            { label: 'Todos', path: '/todos/' }
         ]
     },
     {

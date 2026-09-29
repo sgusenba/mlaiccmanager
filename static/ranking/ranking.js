@@ -3,19 +3,21 @@
 // Excel files. Team disciplines show the team ranking, which already has one
 // total per team.
 
-import { escapeHtml, disciplineDisplayName, formatScore, rankBadge, teamRankingCard } from '../js/teamRanking.js';
+import { escapeHtml, disciplineDisplayName, teamRankingCard } from '../js/teamRanking.js';
 import { loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
-import { rankingDocx, rankingXlsx } from './rankingExport.js';
+import { rankingDocx, rankingXlsx, timestampLine } from './rankingExport.js';
+import { individualCard } from './rankingCard.js';
 
 const DISCIPLINE_KEY = 'ranking.discipline';
 const PAGE_BREAK_KEY = 'ranking.pagePerDiscipline';
 const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
 const FORMAT_KEY = 'ranking.exportFormat';
+const RESULT_LABEL_KEY = 'ranking.resultLabel';
+const RESULT_LABELS = ['Intermediate Result', 'Final Result'];
 const FORMATS = ['print', 'word', 'excel'];
-const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
 // --- helpers ---------------------------------------------------------------
 
@@ -49,75 +51,8 @@ function store(key, value) {
 
 // --- rendering -------------------------------------------------------------
 
-// Competitors who started but have no result yet are listed after the ranked ones, without a rank
-const hasResult = (row) => row.has_result !== false;
-
-function individualCard(data, extraClass) {
-    const rows = data.rankings || [];
-    const discipline = data.discipline;
-    const hasNotes = rows.some(row => row.notes);
-    const th = (label, align = 'left', title = '', padding = 'px-4') =>
-        `<th class="${padding} py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
-
-    return `
-        <div class="bg-white rounded-lg shadow-md ${extraClass}">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">
-                    ${escapeHtml(disciplineDisplayName(discipline.name, discipline.type))}
-                    <span class="text-sm text-gray-500 ml-2">${escapeHtml(discipline.category)}</span>
-                </h3>
-            </div>
-            <div class="p-6">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                ${th('Rank')}
-                                ${th('Start')}
-                                ${th('Name')}
-                                ${th('Club')}
-                                ${th('Country')}
-                                ${th('Result', 'center')}
-                                ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
-                                ${th('Tie-break', 'center', 'Distance of the furthest shot; the lower value wins')}
-                                ${hasNotes ? th('Notes') : ''}
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            ${rows.map(row => hasResult(row) ? `
-                                <tr class="hover:bg-gray-50 ${row.rank <= 3 ? 'font-bold' : ''}">
-                                    <td class="px-4 py-3 whitespace-nowrap">${rankBadge(row.rank)}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">${escapeHtml(row.start_id)}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${escapeHtml(row.competitor.name)}</td>
-                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
-                                    ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
-                                    <td class="px-4 py-3 text-center text-sm font-normal">${row.override_value ?? '-'}</td>
-                                    ${hasNotes ? `<td class="px-4 py-3 text-sm font-normal text-gray-500">${escapeHtml(row.notes || '')}</td>` : ''}
-                                </tr>
-                            ` : `
-                                <tr class="hover:bg-gray-50 text-gray-500">
-                                    <td class="px-4 py-3 text-center text-sm">-</td>
-                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs">${escapeHtml(row.start_id)}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm">${escapeHtml(row.competitor.name)}</td>
-                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>
-                                    ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
-                                    <td class="px-4 py-3"></td>
-                                    ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>`;
-}
-
 function card(data, extraClass) {
-    return data.kind === 'team' ? teamRankingCard(data, { extraClass }) : individualCard(data, extraClass);
+    return data.kind === 'team' ? teamRankingCard(data, { extraClass }) : individualCard(data, { extraClass });
 }
 
 function emptyState(text) {
@@ -197,6 +132,12 @@ function printScope() {
     return select.value ? select.options[select.selectedIndex].text : 'All disciplines';
 }
 
+// "Intermediate Result", "Final Result" or '' as chosen in the export dialog
+function resultLabel() {
+    const stored = readStored(RESULT_LABEL_KEY);
+    return RESULT_LABELS.includes(stored) ? stored : '';
+}
+
 function applyPrintOptions() {
     document.body.classList.toggle('with-cover', readStored(COVER_KEY) === 'true');
     document.body.classList.toggle('with-stats', readStored(STATS_KEY) === 'true');
@@ -206,7 +147,7 @@ function applyPrintOptions() {
 function fillPrintHeader() {
     const meet = printData?.meet;
     document.querySelector('#print-header h1').textContent = meet?.name ? `${meet.name} · Ranking` : 'Ranking';
-    document.getElementById('print-date').textContent = `${printScope()} · as of ${new Date().toLocaleString()}`;
+    document.getElementById('print-date').textContent = timestampLine(printScope(), resultLabel());
     applyPrintOptions();
     document.querySelector('#print-cover .cover-inner').innerHTML = meet ? coverPage(meet, printScope()) : '';
     document.getElementById('print-stats').innerHTML = printData ? statisticsPage(meet, printData.stats) : '';
@@ -214,12 +155,17 @@ function fillPrintHeader() {
 
 const chosenFormat = () => document.querySelector('#print-dialog input[name="export-format"]:checked')?.value || 'print';
 
-// A cover page is part of a document; Excel only gets the statistics sheet
+// A cover page and the timestamp are part of a document; Excel only gets the statistics sheet
 function updateCoverOption() {
     const excel = chosenFormat() === 'excel';
     document.getElementById('print-with-cover').disabled = excel;
     document.getElementById('print-cover-option').classList.toggle('opacity-50', excel);
+    document.querySelectorAll('#print-dialog .print-result-label').forEach(box => { box.disabled = excel; });
+    document.getElementById('print-result-options').classList.toggle('opacity-50', excel);
 }
+
+const resultLabelBoxes = () => [...document.querySelectorAll('#print-dialog .print-result-label')];
+const chosenResultLabel = () => resultLabelBoxes().find(box => box.checked)?.value || '';
 
 function openPrintDialog() {
     const stored = readStored(FORMAT_KEY);
@@ -227,6 +173,8 @@ function openPrintDialog() {
     document.querySelector(`#print-dialog input[name="export-format"][value="${format}"]`).checked = true;
     document.getElementById('print-with-cover').checked = readStored(COVER_KEY) === 'true';
     document.getElementById('print-with-stats').checked = readStored(STATS_KEY) === 'true';
+    const label = resultLabel();
+    resultLabelBoxes().forEach(box => { box.checked = box.value === label; });
     updateCoverOption();
     document.getElementById('print-dialog').showModal();
 }
@@ -238,6 +186,7 @@ async function exportFromDialog() {
     store(FORMAT_KEY, format);
     store(COVER_KEY, String(withCover));
     store(STATS_KEY, String(withStats));
+    store(RESULT_LABEL_KEY, chosenResultLabel());
     await Promise.all([loadPrintData(), loadRanking()]);
     if (format === 'print') {
         window.print();
@@ -251,6 +200,7 @@ async function exportFromDialog() {
         meet: printData?.meet,
         stats: printData?.stats,
         scope: printScope(),
+        resultLabel: resultLabel(),
         rankings: shownRankings,
         withCover,
         withStats,
@@ -292,6 +242,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('#print-dialog input[name="export-format"]').forEach(radio => {
         radio.addEventListener('change', updateCoverOption);
     });
+    // Intermediate or final: checking one unchecks the other
+    resultLabelBoxes().forEach(box => box.addEventListener('change', () => {
+        if (box.checked) resultLabelBoxes().forEach(other => { if (other !== box) other.checked = false; });
+    }));
     window.addEventListener('beforeprint', fillPrintHeader);
     applyPrintOptions();
     loadPrintData();

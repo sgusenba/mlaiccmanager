@@ -1,4 +1,4 @@
-// Team ranking table and helpers, used by the Ranking page (/ranking)
+// Team ranking table and helpers, used by the Ranking page (/ranking) and the Todos page (/todos)
 
 export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -31,8 +31,15 @@ function memberLine(member) {
         </div>`;
 }
 
-/** Card with the ranked teams of one team discipline (response of /api/teams/ranking/{id}). */
-export function teamRankingCard(data, { extraClass = '' } = {}) {
+/** Tie-break cell of a row whose tie-break still has to be entered. */
+export const missingTieBreakCell = '<span class="inline-block px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs font-medium">missing</span>';
+
+/**
+ * Card with the ranked teams of one team discipline (response of /api/teams/ranking/{id}).
+ * showRank: false leaves out the rank column. rowClass(team, index): extra
+ * classes for a row. markMissingTieBreak: shows a missing tie-break as such instead of "-".
+ */
+export function teamRankingCard(data, { extraClass = '', showRank = true, rowClass = () => '', markMissingTieBreak = false } = {}) {
     const discipline = data.discipline;
     const header = `
         <div class="px-6 py-4 border-b border-gray-200">
@@ -59,7 +66,7 @@ export function teamRankingCard(data, { extraClass = '' } = {}) {
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                                ${showRank ? '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>' : ''}
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
                                 <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
@@ -68,9 +75,9 @@ export function teamRankingCard(data, { extraClass = '' } = {}) {
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            ${data.rankings.map(team => `
-                                <tr class="hover:bg-gray-50 align-top ${team.rank <= 3 ? 'font-bold' : ''}">
-                                    <td class="px-4 py-3 whitespace-nowrap">${rankBadge(team.rank)}</td>
+                            ${data.rankings.map((team, i) => `
+                                <tr class="hover:bg-gray-50 align-top ${showRank && team.rank <= 3 ? 'font-bold' : ''} ${rowClass(team, i)}">
+                                    ${showRank ? `<td class="px-4 py-3 whitespace-nowrap">${rankBadge(team.rank)}</td>` : ''}
                                     <td class="px-4 py-3">
                                         <div class="text-sm font-medium text-gray-900">${escapeHtml(team.name)}</div>
                                         ${team.complete ? '' : '<span class="inline-block mt-1 text-xs font-normal px-2 py-0.5 rounded bg-yellow-100 text-yellow-800">incomplete</span>'}
@@ -79,7 +86,7 @@ export function teamRankingCard(data, { extraClass = '' } = {}) {
                                     <td class="px-4 py-3 font-normal min-w-[16rem]">${team.members.map(memberLine).join('') || '<span class="text-sm text-gray-400">-</span>'}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm">${formatScore(team.total)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${team.freq_counts[ring] ?? 0}</td>`).join('')}
-                                    <td class="px-4 py-3 text-center text-sm font-normal">${team.tie_break ?? '-'}</td>
+                                    <td class="px-4 py-3 text-center text-sm font-normal">${team.tie_break ?? (markMissingTieBreak ? missingTieBreakCell : '-')}</td>
                                 </tr>
                             `).join('')}
                         </tbody>

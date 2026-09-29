@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todos · MLAICC Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        /* A thicker line between two groups of tied entries */
+        #todos-content tr.tie-group-start { border-top: 3px solid #9ca3af !important; }
+    </style>
+</head>
+<body class="bg-gray-50 has-sidebar">
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900 no-print">Todos</h2>
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden no-print"></div>
+
+        <div class="px-4">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
+                <div class="flex flex-wrap items-start gap-3">
+                    <p class="text-sm text-gray-600 flex-1 min-w-[16rem]">
+                        Entries that need a tie-break value: they have the same result and the same number of 10s, 9s, … 1s
+                        as another entry of the discipline, and the tie-break is missing or the same.
+                        Enter the tie-break on the <a href="/#results" class="text-blue-600 hover:underline">Enter Results</a> page,
+                        for teams on the <a href="/tmgmt/" class="text-blue-600 hover:underline">Teams</a> page.
+                    </p>
+                    <button id="refresh-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Refresh</button>
+                </div>
+            </div>
+
+            <div id="todos-content" class="space-y-8"></div>
+        </div>
+    </main>
+
+    <script type="module" src="../js/appNav.js"></script>
+    <script type="module" src="todos.js"></script>
+</body>
+</html>

@@ -12,6 +12,10 @@ const GREY = '555555';
 // A4 portrait with 10mm margins leaves 190mm
 const PAGE_WIDTH = 190;
 
+/** "All disciplines · Final Result · as of …", the label only when one was chosen. */
+export const timestampLine = (scope, label) =>
+    [scope, label, `as of ${new Date().toLocaleString()}`].filter(Boolean).join(' · ');
+
 const disciplineTitle = (discipline) => disciplineDisplayName(discipline.name, discipline.type);
 const memberText = (member) => member.missing
     ? `${member.start_id} · start deleted`
@@ -196,15 +200,16 @@ function disciplineSection(data, pageBreakBefore) {
 /**
  * rankings: the disciplines with data, as shown on the page (individual:
  * /api/ranking/best, team: /api/teams/ranking). scope: "All disciplines" or
- * the chosen one.
+ * the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
+ * (none), added to the timestamp.
  */
-export function rankingDocx({ meet, scope, rankings, stats, withCover, withStats, pagePerDiscipline }) {
+export function rankingDocx({ meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
     const body = [];
     if (withCover && meet) body.push(...coverPage(meet, scope));
     if (withStats && stats) body.push(...statisticsPage(meet || {}, stats, body.length > 0));
     body.push(
         paragraph(meet?.name ? `${meet.name} · Ranking` : 'Ranking', { size: 16, bold: true, pageBreakBefore: body.length > 0 }),
-        paragraph(`${scope} · as of ${new Date().toLocaleString()}`, { size: 9, color: GREY, spaceAfter: 12 })
+        paragraph(timestampLine(scope, resultLabel), { size: 9, color: GREY, spaceAfter: 12 })
     );
     rankings.forEach((data, i) => body.push(...disciplineSection(data, pagePerDiscipline && i > 0)));
     return docx(body, { margin: 10 });
