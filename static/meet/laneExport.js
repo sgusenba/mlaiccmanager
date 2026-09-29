@@ -2,6 +2,8 @@
 // labels that identify the targets. Built from the relay overview, so every
 // lane of the whole meet is in it, in time, range and lane order.
 
+import { startIdToEan13 } from '../js/startBarcode.js';
+
 const SEPARATORS = { semicolon: ';', comma: ',' };
 
 const COLUMNS = [
@@ -13,6 +15,7 @@ const COLUMNS = [
     ['Range', row => row.range],
     ['Lane', row => row.lane],
     ['Start ID', row => row.startId],
+    ['Barcode (EAN-13)', row => row.barcode],
     ['Starter ID', row => row.starterId],
     ['Name', row => row.name],
     ['Club', row => row.club],
@@ -67,6 +70,7 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
             range: scheduled ? entry.range_name ?? entry.range_id ?? '' : '',
             lane: scheduled ? entry.lane_no ?? '' : '',
             startId: entry.start_id,
+            barcode: startIdToEan13(entry.start_id),
             starterId: competitor.id ?? '',
             name: competitor.name ?? '',
             club: competitor.club ?? '',

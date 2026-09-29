@@ -2,6 +2,7 @@
 
 import { getState, setState } from '../config.js';
 import { saveResult as apiSaveResult, deleteResult as apiDeleteResult, loadResults, loadCompetitors } from '../api.js';
+import { ean13ToStartId } from '../startBarcode.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, scrollToElement } from '../utils.js';
 
 // A result's score is the sum of its shots; older results stored the override as value
@@ -152,7 +153,9 @@ function handleResultAction(event) {
 
 // Search start by ID
 export function searchStartById() {
-    const startId = getElementValue('result-start-search').trim();
+    const input = getElementValue('result-start-search').trim();
+    // A scanned target label barcode stands for its start ID
+    const startId = ean13ToStartId(input) || input;
     
     if (!startId) {
         showMessage('Please enter a start ID', 'error');
