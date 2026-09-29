@@ -147,7 +147,8 @@ function applyPrintOptions() {
 function fillPrintHeader() {
     const meet = printData?.meet;
     document.querySelector('#print-header h1').textContent = meet?.name ? `${meet.name} · Ranking` : 'Ranking';
-    document.getElementById('print-date').textContent = timestampLine(printScope(), resultLabel());
+    document.getElementById('print-date').textContent = timestampLine(printScope());
+    document.getElementById('print-watermark').textContent = resultLabel();
     applyPrintOptions();
     document.querySelector('#print-cover .cover-inner').innerHTML = meet ? coverPage(meet, printScope()) : '';
     document.getElementById('print-stats').innerHTML = printData ? statisticsPage(meet, printData.stats) : '';
@@ -155,7 +156,7 @@ function fillPrintHeader() {
 
 const chosenFormat = () => document.querySelector('#print-dialog input[name="export-format"]:checked')?.value || 'print';
 
-// A cover page and the timestamp are part of a document; Excel only gets the statistics sheet
+// A cover page and the watermark are part of a document; Excel only gets the statistics sheet
 function updateCoverOption() {
     const excel = chosenFormat() === 'excel';
     document.getElementById('print-with-cover').disabled = excel;

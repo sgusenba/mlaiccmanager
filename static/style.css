@@ -222,6 +222,11 @@ input:focus:invalid {
         white-space: normal !important;
     }
 
+    /* The start id below the competitor's name */
+    #ranking-content td .start-id {
+        font-size: 6pt !important;
+    }
+
     #ranking-content th {
         background-color: #f5f5f5 !important;
         font-weight: bold;

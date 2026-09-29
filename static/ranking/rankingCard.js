@@ -8,6 +8,11 @@ const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 // Competitors who started but have no result yet are listed after the ranked ones, without a rank
 export const hasResult = (row) => row.has_result !== false;
 
+// The name with the start id below it, much smaller
+const nameCell = (row) => `
+    <div>${escapeHtml(row.competitor.name)}</div>
+    <div class="start-id font-mono font-normal text-gray-400" style="font-size: 0.65rem">${escapeHtml(row.start_id)}</div>`;
+
 /**
  * showRank: false leaves out the rank column. rowClass(row, index): extra
  * classes for a row. markMissingTieBreak: shows a missing tie-break as such
@@ -35,7 +40,6 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                         <thead class="bg-gray-50">
                             <tr>
                                 ${showRank ? th('Rank') : ''}
-                                ${th('Start')}
                                 ${th('Name')}
                                 ${th('Club')}
                                 ${th('Country')}
@@ -49,8 +53,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                             ${rows.map((row, i) => hasResult(row) ? `
                                 <tr class="hover:bg-gray-50 ${showRank && row.rank <= 3 ? 'font-bold' : ''} ${rowClass(row, i)}">
                                     ${showRank ? `<td class="px-4 py-3 whitespace-nowrap">${rankBadge(row.rank)}</td>` : ''}
-                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-500">${escapeHtml(row.start_id)}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${escapeHtml(row.competitor.name)}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${nameCell(row)}</td>
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
@@ -61,8 +64,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                             ` : `
                                 <tr class="hover:bg-gray-50 text-gray-500 ${rowClass(row, i)}">
                                     ${showRank ? '<td class="px-4 py-3 text-center text-sm">-</td>' : ''}
-                                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs">${escapeHtml(row.start_id)}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm">${escapeHtml(row.competitor.name)}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">${nameCell(row)}</td>
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>

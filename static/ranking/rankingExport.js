@@ -12,9 +12,8 @@ const GREY = '555555';
 // A4 portrait with 10mm margins leaves 190mm
 const PAGE_WIDTH = 190;
 
-/** "All disciplines · Final Result · as of …", the label only when one was chosen. */
-export const timestampLine = (scope, label) =>
-    [scope, label, `as of ${new Date().toLocaleString()}`].filter(Boolean).join(' · ');
+/** "All disciplines · as of …" */
+export const timestampLine = (scope) => `${scope} · as of ${new Date().toLocaleString()}`;
 
 const disciplineTitle = (discipline) => disciplineDisplayName(discipline.name, discipline.type);
 const memberText = (member) => member.missing
@@ -112,20 +111,26 @@ function individualTable(data) {
     const hasNotes = rows.some(row => row.notes);
     const ringWidths = RINGS.map(() => 6);
     const widths = hasNotes
-        ? [9, 20, 26, 18, 13, 12, ...ringWidths, 12, 14]
-        : [9, 20, 30, 24, 17, 12, ...ringWidths, 12];
+        ? [9, 34, 24, 15, 12, ...ringWidths, 12, 18]
+        : [9, 40, 31, 20, 12, ...ringWidths, 12];
     const center = (text) => ({ text, align: 'center' });
+    // The name with the start id below it, much smaller
+    const nameCell = (row, style) => ({
+        paragraphs: [
+            paragraph(row.competitor.name, { size: 8, ...style }),
+            paragraph(row.start_id, { size: 5.5, mono: true, color: GREY })
+        ]
+    });
     return table([
         {
-            cells: ['Rank', 'Start', 'Name', 'Club', 'Country', center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
+            cells: ['Rank', 'Name', 'Club', 'Country', center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
                 center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
         ...rows.map(row => (hasResult(row) ? {
             bold: row.rank <= 3,
             cells: [
                 center(row.rank),
-                { text: row.start_id, mono: true, size: 7.5 },
-                row.competitor.name,
+                nameCell(row, { bold: row.rank <= 3 }),
                 { text: row.competitor.club || '', bold: false },
                 { text: row.competitor.country || '', bold: false },
                 center(formatScore(row.score)),
@@ -136,8 +141,7 @@ function individualTable(data) {
         } : {
             cells: [
                 center('-'),
-                { text: row.start_id, mono: true, size: 7.5, color: GREY },
-                { text: row.competitor.name, color: GREY },
+                nameCell(row, { color: GREY }),
                 { text: row.competitor.club || '', color: GREY },
                 { text: row.competitor.country || '', color: GREY },
                 { text: 'no result', align: 'center', italic: true, color: GREY },
@@ -201,18 +205,18 @@ function disciplineSection(data, pageBreakBefore) {
  * rankings: the disciplines with data, as shown on the page (individual:
  * /api/ranking/best, team: /api/teams/ranking). scope: "All disciplines" or
  * the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
- * (none), added to the timestamp.
+ * (none), a watermark across the ranking pages (not the cover and statistics).
  */
 export function rankingDocx({ meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
-    const body = [];
-    if (withCover && meet) body.push(...coverPage(meet, scope));
-    if (withStats && stats) body.push(...statisticsPage(meet || {}, stats, body.length > 0));
-    body.push(
-        paragraph(meet?.name ? `${meet.name} · Ranking` : 'Ranking', { size: 16, bold: true, pageBreakBefore: body.length > 0 }),
-        paragraph(timestampLine(scope, resultLabel), { size: 9, color: GREY, spaceAfter: 12 })
-    );
+    const frontMatter = [];
+    if (withCover && meet) frontMatter.push(...coverPage(meet, scope));
+    if (withStats && stats) frontMatter.push(...statisticsPage(meet || {}, stats, frontMatter.length > 0));
+    const body = [
+        paragraph(meet?.name ? `${meet.name} · Ranking` : 'Ranking', { size: 16, bold: true }),
+        paragraph(timestampLine(scope), { size: 9, color: GREY, spaceAfter: 12 })
+    ];
     rankings.forEach((data, i) => body.push(...disciplineSection(data, pagePerDiscipline && i > 0)));
-    return docx(body, { margin: 10 });
+    return docx(body, { margin: 10, watermark: resultLabel, frontMatter });
 }
 
 // --- Excel -----------------------------------------------------------------
