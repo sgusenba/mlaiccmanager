@@ -72,6 +72,11 @@ public class MeetService {
         });
     }
 
+    /** Removes the meet details (meet.json). Returns whether there were any. */
+    public boolean clear() throws Exception {
+        return exclusive(() -> Files.deleteIfExists(Paths.get(meetFilePath)));
+    }
+
     /** Runs action while holding the meet.json lock, so the file can be copied or replaced as a whole. */
     public <T> T exclusive(Callable<T> action) throws Exception {
         lock.lock();

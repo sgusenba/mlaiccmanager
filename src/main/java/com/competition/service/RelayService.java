@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 /**
  * Relay management: meet days, relays (heats) and lane assignments. Everything
@@ -894,6 +895,35 @@ public class RelayService {
     }
 
     // --- storage -----------------------------------------------------------
+
+    // --- danger zone -------------------------------------------------------
+
+    /** Clears every lane holding one of the given starts, locked days included. Returns how many lanes were cleared. */
+    public int clearAssignments(Predicate<String> startIds) throws Exception {
+        return update(relays -> {
+            List<Map<String, Object>> assignments = listOf(relays, "assignments");
+            int before = assignments.size();
+            assignments.removeIf(a -> startIds.test(String.valueOf(a.get("start_id"))));
+            return before - assignments.size();
+        });
+    }
+
+    /**
+     * Deletes every meet day with its relays and lane assignments, locked days
+     * included. Ranges, relay duration and break stay.
+     *
+     * @return how many days, relays and lane assignments were deleted
+     */
+    public Map<String, Integer> clearDays() throws Exception {
+        return update(relays -> {
+            Map<String, Integer> cleared = new LinkedHashMap<>();
+            for (String key : new String[] {"days", "relays", "assignments"}) {
+                cleared.put(key, listOf(relays, key).size());
+                listOf(relays, key).clear();
+            }
+            return cleared;
+        });
+    }
 
     /** Runs action while holding the relays.json lock, so the file can be copied or replaced as a whole. */
     public <T> T exclusive(Callable<T> action) throws Exception {

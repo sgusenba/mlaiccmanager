@@ -354,6 +354,27 @@ public class DataService {
         }
     }
 
+    /**
+     * Drops this competition's discipline changes (active list, edits, added and
+     * removed disciplines), so the shipped catalog applies as is. The competition
+     * file is written rather than deleted, so the one-time migration in
+     * ApplicationBinder does not bring the old settings back on the next start.
+     *
+     * @return the ids of the disciplines there are now
+     */
+    public Set<Integer> resetDisciplines() throws IOException {
+        disciplinesLock.lock();
+        try {
+            List<Discipline> catalog = toDisciplines(loadCatalog());
+            saveDisciplinesInternal(catalog);
+            Set<Integer> ids = new HashSet<>();
+            catalog.forEach(d -> ids.add(d.getId()));
+            return ids;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
     /** Whether the competition file exists yet; see ApplicationBinder for the one-time migration. */
     public boolean hasCompetitionSettings() {
         return new File(competitionFilePath).exists();

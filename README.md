@@ -18,6 +18,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes
 - **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, and exports all lane assignments as a CSV file (e.g. for target labels); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
 - **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one
+- **Danger Zone** — separate page at `/danger` to clear results, lane assignments, starts, competitors, teams, meet days and relays or the meet details, or to reset the discipline settings; locked until its master switch is on, and each button needs its own switch as well
 - **JSON file storage** — simple file-based storage, no database required
 
 ## Technology Stack
@@ -71,6 +72,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | | Ranges & Relays | `/rmgmt/#settings` |
 | | Meet Days | `/rmgmt/#schedule` |
 | | Backup & Restore | `/backup/` |
+| | Danger Zone | `/danger/` |
 
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
@@ -82,6 +84,7 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
 - **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) and the lane assignments CSV (`static/meet/laneExport.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
 - **`/backup`** (`static/backup/`) — backup download and restore
+- **`/danger`** (`static/danger/`) — the Danger Zone: clears one kind of data at a time
 
 Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
 
@@ -99,6 +102,23 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 The **Backup & Restore** page (`/backup`) downloads `data.json`, `competition.json`, `teams.json`, `relays.json` and `meet.json` as one zip file (`mlaiccmanager-backup-<date>-<time>.zip`, plus a `backup-info.json` with the time it was taken). The catalog `disciplines.json` is not included, since it ships with every release. The zip contains the competitors' personal data, so keep it safe.
 
 Restoring a backup replaces all five files; a file the backup does not contain is removed, so the app is exactly in the state the backup was taken in. Before that, the current files are saved to `backups/pre-restore-<date>-<time>.zip` next to `data.json`, so a restore can be undone by restoring that file. An upload that is not a zip, has no `data.json` or holds a file that is not a JSON object is rejected and changes nothing. Backup and restore hold every file's lock, so they never see or leave a half-saved state. The page does not refresh other open pages: reload them after a restore.
+
+### Danger Zone
+
+The **Danger Zone** page (`/danger`), the last entry under Management, clears one kind of data at a time. Everything on it is locked until the switch at the top is turned on; each clear button also needs its own switch, which turns off again after every clear. Leaving or reloading the page locks it again. Next to each entry the page shows how much there is of it.
+
+| Button | Clears | Also clears |
+|---|---|---|
+| Results | every result | — |
+| Lane Assignments | every lane of every relay, locked days included | — |
+| Starts | every start | their results, lane assignments and team memberships (teams stay, empty) |
+| Competitors | every competitor | their starts, results, lane assignments and team memberships |
+| Teams | every team | — |
+| Meet Days & Relays | every meet day and relay, locked days included | their lane assignments (ranges, relay duration and break stay) |
+| Meet Details | the meet's name, venue, host and dates | — |
+| Discipline Settings (reset) | this competition's discipline changes, so the shipped catalog applies like on a fresh install | added disciplines' starts (with their results, lanes and team memberships) and teams |
+
+Before every clear, all data files are saved to `backups/pre-clear-<what>-<date>-<time>.zip`, so a clear can be undone by restoring that file on the Backup & Restore page. Like backup and restore, a clear holds every file's lock.
 
 ## Multiple Users
 
@@ -212,6 +232,10 @@ The **lane assignments CSV** (built in the browser from `/api/rmgmt/overview`) h
 - `GET /api/backup` — all runtime data as a zip file (`Content-Disposition: attachment`)
 - `POST /api/backup/restore` — restore from a backup; the request body is the zip file itself (e.g. `Content-Type: application/zip`). Returns `{"restored_files": [...], "safety_copy": "backups/pre-restore-….zip"}`; `400` with the reason if the file is not a valid backup
 
+### Danger zone (`/api/danger-zone`)
+- `GET /api/danger-zone` — how much there is of each kind of data: `results`, `starts`, `competitors`, `lanes`, `days`, `relays`, `teams`, `meet` (1 if saved), `active_disciplines`, `added_disciplines`
+- `POST /api/danger-zone/clear/{target}` — clear `results`, `lanes`, `starts`, `competitors`, `teams`, `days`, `meet` or `disciplines` (reset to the catalog) and what depends on it (see [Danger Zone](#danger-zone)). Returns `{"target": ..., "cleared": {"starts": 12, "results": 8, ...}, "safety_copy": "backups/pre-clear-….zip"}`; `400` for an unknown target
+
 ## Project Structure
 
 ```
@@ -232,6 +256,7 @@ static/                     # Frontend assets served at / (plain HTML/CSS/JS, Ta
 ├── rmgmt/                    # Relay management page, served at /rmgmt
 ├── meet/                     # Meet details, start cards, race bibs and lane CSV, served at /meet
 ├── backup/                   # Backup & restore page, served at /backup
+├── danger/                   # Danger Zone page (clear data), served at /danger
 └── tmgmt/                    # Team management page, served at /tmgmt
 ```
 
