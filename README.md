@@ -77,7 +77,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
 - **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
-- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether the timestamp says "Intermediate Result" or "Final Result"
+- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether "Intermediate Result" or "Final Result" is printed as a watermark across the ranking pages (not the cover and statistics pages); the start id is shown in small print below each name
 - **`/todos`** (`static/todos/`) — the entries that still need a tie-break, drawn with the Ranking page's cards (`static/ranking/rankingCard.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page

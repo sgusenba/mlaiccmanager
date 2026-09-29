@@ -214,22 +214,49 @@ export function table(rows, options = {}) {
         + rows.map(rowXml).join('') + '</w:tbl>';
 }
 
+// Watermark: text across the middle of every page of its section, as Word's
+// own watermarks are made: a WordArt shape in the (otherwise empty) header
+const V_NS = 'urn:schemas-microsoft-com:vml';
+const O_NS = 'urn:schemas-microsoft-com:office:office';
+
+function watermarkHeader(text, pageWidthMm) {
+    // Diagonal across the page; the shape's size fixes the text size
+    const width = Math.min(pageWidthMm * 0.9, text.length * 13);
+    const height = width / Math.max(text.length, 1) * 1.6;
+    const shape = `<v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e">`
+        + '<v:path textpathok="t" o:connecttype="custom"/><v:textpath on="t" fitshape="t"/><o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype>'
+        + `<v:shape id="Watermark" o:spid="_x0000_s1025" type="#_x0000_t136" fillcolor="#c0c0c0" stroked="f" `
+        + `style="position:absolute;margin-left:0;margin-top:0;width:${width.toFixed(1)}mm;height:${height.toFixed(1)}mm;rotation:315;`
+        + 'z-index:-251657216;mso-position-horizontal:center;mso-position-horizontal-relative:margin;'
+        + 'mso-position-vertical:center;mso-position-vertical-relative:margin">'
+        + '<v:fill opacity=".35"/>'
+        + `<v:textpath style="font-family:&quot;Arial&quot;;font-size:1pt;font-weight:bold" string="${xml(text)}"/></v:shape>`;
+    return `${XML_HEAD}<w:hdr xmlns:w="${W_NS}" xmlns:r="${DOC_REL}" xmlns:v="${V_NS}" xmlns:o="${O_NS}">`
+        + `<w:p><w:pPr><w:spacing w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:pict>${shape}</w:pict></w:r></w:p></w:hdr>`;
+}
+
 /**
- * A Word document of one A4 section. body: paragraphs and tables in order.
- * options: landscape, margin (mm), pageBorder (pt): a border around every page.
+ * A Word document on A4. body: paragraphs and tables in order.
+ * options: landscape, margin (mm), pageBorder (pt): a border around every page,
+ * watermark: text across every page of the body, frontMatter: paragraphs and
+ * tables before the body, on their own pages without the watermark.
  */
-export function docx(body, { landscape = false, margin = 15, pageBorder = 0 } = {}) {
+export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [] } = {}) {
     const [width, height] = landscape ? [16838, 11906] : [11906, 16838];
     const m = twips(margin);
     const pageBorders = pageBorder
         ? `<w:pgBorders w:offsetFrom="text">${['top', 'left', 'bottom', 'right']
             .map(side => border(side, pageBorder, '000000', 4)).join('')}</w:pgBorders>`
         : '';
-    // Word wants a paragraph after a table that ends the document
-    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${body.join('')}<w:p/>`
-        + `<w:sectPr><w:pgSz w:w="${width}" w:h="${height}"${landscape ? ' w:orient="landscape"' : ''}/>`
+    const sectionProperties = (header) => `<w:sectPr>${header ? '<w:headerReference w:type="default" r:id="rId2"/>' : ''}`
+        + `<w:pgSz w:w="${width}" w:h="${height}"${landscape ? ' w:orient="landscape"' : ''}/>`
         + `<w:pgMar w:top="${m}" w:right="${m}" w:bottom="${m}" w:left="${m}" w:header="0" w:footer="0" w:gutter="0"/>`
-        + `${pageBorders}</w:sectPr></w:body></w:document>`;
+        + `${pageBorders}</w:sectPr>`;
+    // The front matter ends in a section break, so the body starts on a new page
+    const front = frontMatter.length ? `${frontMatter.join('')}<w:p><w:pPr>${sectionProperties(false)}</w:pPr></w:p>` : '';
+    // Word wants a paragraph after a table that ends the document
+    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${front}${body.join('')}<w:p/>`
+        + `${sectionProperties(Boolean(watermark))}</w:body></w:document>`;
 
     const styles = `${XML_HEAD}<w:styles xmlns:w="${W_NS}"><w:docDefaults>`
         + '<w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:eastAsia="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
@@ -245,13 +272,17 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0 } = 
             + '<Default Extension="xml" ContentType="application/xml"/>'
             + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
             + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+            + (watermark ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : '')
             + '</Types>'],
         ['_rels/.rels', `${XML_HEAD}<Relationships xmlns="${REL_NS}">`
             + `<Relationship Id="rId1" Type="${DOC_REL}/officeDocument" Target="word/document.xml"/></Relationships>`],
         ['word/_rels/document.xml.rels', `${XML_HEAD}<Relationships xmlns="${REL_NS}">`
-            + `<Relationship Id="rId1" Type="${DOC_REL}/styles" Target="styles.xml"/></Relationships>`],
+            + `<Relationship Id="rId1" Type="${DOC_REL}/styles" Target="styles.xml"/>`
+            + (watermark ? `<Relationship Id="rId2" Type="${DOC_REL}/header" Target="header1.xml"/>` : '')
+            + '</Relationships>'],
         ['word/document.xml', document],
-        ['word/styles.xml', styles]
+        ['word/styles.xml', styles],
+        ...(watermark ? [['word/header1.xml', watermarkHeader(watermark, (landscape ? 297 : 210) - 2 * margin)]] : [])
     ], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }
 
