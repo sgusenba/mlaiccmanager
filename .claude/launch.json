@@ -4,7 +4,7 @@
     {
       "name": "mlaiccmanager",
       "runtimeExecutable": "java",
-      "runtimeArgs": ["-jar", "target/mlaiccmanager-1.0.0-shaded.jar"],
+      "runtimeArgs": ["-jar", "target/mlaiccmanager-1.0.0.jar"],
       "port": 5000
     }
   ]
