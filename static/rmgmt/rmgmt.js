@@ -7,6 +7,9 @@ const API = '/api/rmgmt';
 const state = {
     data: null,          // GET /api/rmgmt: config, ranges, disciplines, days, relays, assignments
     relayId: null,       // relay shown in the assignment grid
+    relayView: null,     // that relay's lanes and the starts available per range
+    disciplines: [],     // active individual disciplines, for the lane filters
+    laneFilters: {},     // range id -> discipline id the range's lane pickers are filtered by ('' = all)
     overview: null
 };
 
@@ -99,6 +102,20 @@ function startLabel(entry) {
 
 async function loadData() {
     state.data = await api('');
+}
+
+// Active disciplines without the team ones: only individual starts take a lane
+async function loadDisciplines() {
+    const get = async (path) => {
+        const response = await fetch(`/api${path}`);
+        if (!response.ok) throw new ApiError(response.status, null);
+        return response.json();
+    };
+    const [active, available] = await Promise.all([get('/active-disciplines'), get('/available-disciplines')]);
+    state.disciplines = (active || [])
+        .map(id => available.find(d => d.id === id))
+        .filter(d => d && d.level !== 'team')
+        .map(d => ({ id: String(d.id), name: d.type ? `${d.event} (${d.type})` : d.event }));
 }
 
 // --- navigation ------------------------------------------------------------
@@ -316,7 +333,11 @@ function setupScheduleListeners() {
 // --- lane assignment -------------------------------------------------------
 
 async function refreshAssignment() {
-    await loadData();
+    await Promise.all([loadData(), loadDisciplines().catch(error => {
+        // the lanes still work, just without the discipline filter
+        state.disciplines = [];
+        showMessage(`Could not load the disciplines for the filter: ${error.message}`);
+    })]);
     const relays = orderedRelays();
     document.getElementById('no-relays').classList.toggle('hidden', relays.length > 0);
 
@@ -343,7 +364,12 @@ async function renderRelay() {
     ]);
     if (relayId !== state.relayId) return; // user switched relay meanwhile
 
-    const availableByRange = new Map(state.data.ranges.map((r, i) => [r.id, available[i]]));
+    state.relayView = { relay, availableByRange: new Map(state.data.ranges.map((r, i) => [r.id, available[i]])) };
+    drawRelay();
+}
+
+function drawRelay() {
+    const { relay, availableByRange } = state.relayView;
     const end = addMinutes(relay.start_time, relay.relay_duration_min);
 
     document.getElementById('relay-detail').innerHTML = `
@@ -356,9 +382,17 @@ async function renderRelay() {
         </div>`;
 }
 
-function laneBlock(block, available) {
+// The discipline the range's lane pickers are filtered by, '' if none (or no longer active)
+function laneFilter(rangeId) {
+    const filter = state.laneFilters[rangeId] || '';
+    return state.disciplines.some(d => d.id === filter) ? filter : '';
+}
+
+function laneBlock(block, allAvailable) {
     const taken = block.lanes.filter(l => l.assignment).length;
     const locked = block.locked;
+    const filter = laneFilter(block.id);
+    const available = filter ? allAvailable.filter(start => String(start.discipline_id) === filter) : allAvailable;
     const optionsFor = (assignment) => {
         const current = assignment
             ? `<option value="${escapeHtml(assignment.start_id)}" selected>${escapeHtml(startLabel(assignment))}</option>`
@@ -376,6 +410,13 @@ function laneBlock(block, available) {
                     ${locked ? '<span class="no-print text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-full px-2 py-0.5">Locked</span>' : ''}
                 </h3>
                 <span class="text-sm text-gray-600">${taken} / ${block.lane_count} lanes</span>
+            </div>
+            <div class="px-4 py-2 border-b border-gray-200 no-print">
+                <select class="lane-filter w-full px-2 py-1 border rounded-md text-sm ${filter ? 'border-blue-300 bg-blue-50' : 'border-gray-300'}"
+                    data-range-id="${escapeHtml(block.id)}" aria-label="Show only the starts of this discipline on ${escapeHtml(block.name)}">
+                    <option value="">All disciplines</option>
+                    ${state.disciplines.map(d => `<option value="${escapeHtml(d.id)}" ${d.id === filter ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+                </select>
             </div>
             <table class="min-w-full divide-y divide-gray-100">
                 <tbody>
@@ -563,6 +604,11 @@ function setupAssignmentListeners() {
     document.getElementById('print-relay-btn').addEventListener('click', () => window.print());
 
     document.getElementById('relay-detail').addEventListener('change', (event) => {
+        if (event.target.classList.contains('lane-filter')) {
+            state.laneFilters[event.target.dataset.rangeId] = event.target.value;
+            drawRelay();
+            return;
+        }
         if (!event.target.classList.contains('lane-select')) return;
         const row = event.target.closest('tr');
         const assignmentId = row.dataset.assignmentId || null;
