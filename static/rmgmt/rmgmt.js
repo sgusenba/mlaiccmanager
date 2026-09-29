@@ -8,7 +8,7 @@ const state = {
     data: null,          // GET /api/rmgmt: config, ranges, disciplines, days, relays, assignments
     relayId: null,       // relay shown in the assignment grid
     relayView: null,     // that relay's lanes and the starts available per range
-    disciplines: [],     // active individual disciplines, for the lane filters
+    disciplines: [],     // active individual disciplines with their range, for the lane filters
     laneFilters: {},     // range id -> discipline id the range's lane pickers are filtered by ('' = all)
     overview: null
 };
@@ -115,8 +115,15 @@ async function loadDisciplines() {
     state.disciplines = (active || [])
         .map(id => available.find(d => d.id === id))
         .filter(d => d && d.level !== 'team')
-        .map(d => ({ id: String(d.id), name: d.type ? `${d.event} (${d.type})` : d.event }));
+        .map(d => ({
+            id: String(d.id),
+            name: d.type ? `${d.event} (${d.type})` : d.event,
+            range: d.shooting_distance?.trim() ? d.shooting_distance : null
+        }));
 }
+
+// Disciplines whose starts may take a lane on this range: mapped to it or to no range at all
+const disciplinesOfRange = (rangeId) => state.disciplines.filter(d => !d.range || d.range === rangeId);
 
 // --- navigation ------------------------------------------------------------
 
@@ -382,10 +389,10 @@ function drawRelay() {
         </div>`;
 }
 
-// The discipline the range's lane pickers are filtered by, '' if none (or no longer active)
+// The discipline the range's lane pickers are filtered by, '' if none (or no longer active on this range)
 function laneFilter(rangeId) {
     const filter = state.laneFilters[rangeId] || '';
-    return state.disciplines.some(d => d.id === filter) ? filter : '';
+    return disciplinesOfRange(rangeId).some(d => d.id === filter) ? filter : '';
 }
 
 function laneBlock(block, allAvailable) {
@@ -415,7 +422,7 @@ function laneBlock(block, allAvailable) {
                 <select class="lane-filter w-full px-2 py-1 border rounded-md text-sm ${filter ? 'border-blue-300 bg-blue-50' : 'border-gray-300'}"
                     data-range-id="${escapeHtml(block.id)}" aria-label="Show only the starts of this discipline on ${escapeHtml(block.name)}">
                     <option value="">All disciplines</option>
-                    ${state.disciplines.map(d => `<option value="${escapeHtml(d.id)}" ${d.id === filter ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+                    ${disciplinesOfRange(block.id).map(d => `<option value="${escapeHtml(d.id)}" ${d.id === filter ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
                 </select>
             </div>
             <table class="min-w-full divide-y divide-gray-100">
