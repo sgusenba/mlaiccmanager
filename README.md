@@ -10,6 +10,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Start management** — register competitors for specific disciplines with unique start IDs
 - **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
 - **Results management** — record detailed results with individual scoring entries and override values
+- **Results-only port** — port `5001` serves nothing but the Enter Results page (`/results/`) and the API calls it needs, so result entry stations can be given that port without reaching the rest of the app
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
@@ -51,6 +52,8 @@ run.bat
 
 The server starts on `http://localhost:5000`. Static frontend assets are served from `static/`, and the REST API is mounted under `/api`.
 
+It also listens on `http://localhost:5001`, which shows just the Enter Results page. On that port every other page and API call answers 404; only these pass: the page itself (`/results/`, redirected to from `/`), `/js/*`, `/style.css`, reading `/api/competitors`, `/api/available-disciplines`, `/api/active-disciplines` and `/api/results`, and saving (`POST /api/results`) or deleting (`DELETE /api/results/{id}`) a result. The page reloads the starts and results before every search, so it can stay open all day, and puts the cursor back in the start ID field after every save, delete or cancel, ready for the next barcode scan. This only separates what the port offers: to keep a station off the full app, let it reach port 5001 only (e.g. in the firewall).
+
 ## Frontend
 
 The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty.
@@ -77,6 +80,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting `class="has-sidebar"` on `<body>` and loading `appNav.js`.
 
 - **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
+- **`/results`** (`static/results/`) — just the result entry of `/#results`, without the sidebar; the only page on port 5001
 - **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether "Intermediate Result" or "Final Result" is printed as a watermark across the ranking pages (not the cover and statistics pages); the start id is shown in small print below each name
 - **`/todos`** (`static/todos/`) — the entries that still need a tie-break, drawn with the Ranking page's cards (`static/ranking/rankingCard.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
@@ -252,6 +256,7 @@ static/                     # Frontend assets served at / (plain HTML/CSS/JS, Ta
 ├── index.html               # Competitors, starts and result entry
 ├── js/                       # Vanilla JS: shared sidebar (appNav.js) and modules per feature (competitors, starts, results)
 ├── ranking/                  # Printable one-result-per-discipline ranking page, served at /ranking
+├── results/                  # Enter Results page on its own, served at /results and on port 5001
 ├── dmgmt/                    # Discipline management page, served at /dmgmt
 ├── rmgmt/                    # Relay management page, served at /rmgmt
 ├── meet/                     # Meet details, start cards, race bibs and lane CSV, served at /meet
@@ -279,7 +284,7 @@ Every release also includes a self-contained Windows zip with Java bundled. Noth
 
 1. Download [mlaiccmanager-windows.zip](https://github.com/sgusenba/mlaiccmanager/releases/download/latest/mlaiccmanager-windows.zip). If Windows blocks it, right-click the zip, choose **Properties → Unblock**, then unzip it.
 2. Unzip it to a local folder such as `C:\mlaiccmanager`. Don't use a OneDrive-synced Desktop or Documents folder: sync locks can break the app's saves.
-3. Double-click `start.bat`. The app opens in the browser at http://localhost:5000. Closing the console window stops it. If tablets on the network need access, allow Java in the Windows Firewall prompt.
+3. Double-click `start.bat`. The app opens in the browser at http://localhost:5000. Closing the console window stops it. If tablets on the network need access, allow Java in the Windows Firewall prompt. Result entry stations can use port 5001, which shows only the Enter Results page.
 
 On every start, `start.bat` checks for a newer build and swaps it in. It only replaces `mlaiccmanager.jar`, `static\` and `disciplines.json`, so your data is never touched. When offline, it simply starts the current version. To freeze the version, for example during a competition, create an empty file named `no-auto-update` in the folder. All data (`data.json`, `competition.json`, `logs\`, …) lives in that folder. To upgrade the bundled Java, download the zip again and copy your data files over.
 
