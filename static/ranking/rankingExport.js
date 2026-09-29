@@ -12,8 +12,13 @@ const GREY = '555555';
 // A4 portrait with 10mm margins leaves 190mm
 const PAGE_WIDTH = 190;
 
+/** The current date and time to the minute, e.g. "29.9.2026, 22:15" */
+export const nowText = () => new Date().toLocaleString(undefined, {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+});
+
 /** "All disciplines · as of …" */
-export const timestampLine = (scope) => `${scope} · as of ${new Date().toLocaleString()}`;
+export const timestampLine = (scope) => `${scope} · as of ${nowText()}`;
 
 const disciplineTitle = (discipline) => disciplineDisplayName(discipline.name, discipline.type);
 const memberText = (member) => member.missing
@@ -51,7 +56,7 @@ function statisticsPage(meet, stats, pageBreakBefore) {
         {
             paragraphs: [
                 paragraph('Starters and entries', { bold: true, size: 9, align: 'right' }),
-                paragraph(`as of ${new Date().toLocaleString()}`, { size: 9, align: 'right' })
+                paragraph(`as of ${nowText()}`, { size: 9, align: 'right' })
             ],
             borders: { bottom: 1.5 }
         }
