@@ -9,7 +9,11 @@
     <style>
         #print-header, #print-cover, #print-stats { display: none; }
         @media print {
-            @page { size: A4 portrait; }
+            /* No page margin leaves no room for the browser's own header and footer
+               (date, page title, address); the margin is the padding of main instead,
+               repeated on every page */
+            @page { size: A4 portrait; margin: 0; }
+            body main { padding: 10mm !important; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
             .keep-together { break-inside: avoid; page-break-inside: avoid; }
             #print-header { display: block !important; }
             body.with-cover #print-cover,

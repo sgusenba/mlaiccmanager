@@ -3,6 +3,7 @@
 // country and discipline.
 
 import { escapeHtml } from '../js/meet.js';
+import { nowText } from './rankingExport.js';
 
 // Discipline columns per table; more are continued in another table below.
 // Column widths in mm: 26 + 2 × 12 + 8 × 16 = 178, fits an A4 page with margins.
@@ -113,7 +114,7 @@ export function statisticsPage(meet, stats) {
             </div>
             <div class="text-right">
                 <div class="font-bold">Starters and entries</div>
-                <div>as of ${escapeHtml(new Date().toLocaleString())}</div>
+                <div>as of ${escapeHtml(nowText())}</div>
             </div>
         </div>
         ${stats.total.persons === 0
