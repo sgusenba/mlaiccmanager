@@ -96,15 +96,7 @@ public class BackupService {
     public Map<String, Object> restore(InputStream zip) throws Exception {
         Map<String, byte[]> files = readBackup(zip);
         return locked(() -> {
-            Map<String, byte[]> previous = readFiles();
-            Path safetyCopy = null;
-            if (!previous.isEmpty()) {
-                Path dir = Files.createDirectories(baseDir.resolve(SAFETY_COPY_DIR));
-                safetyCopy = dir.resolve("pre-restore-" + LocalDateTime.now().format(FILE_TIME) + ".zip");
-                try (OutputStream out = Files.newOutputStream(safetyCopy)) {
-                    writeZip(out, previous);
-                }
-            }
+            String safetyCopy = saveSafetyCopy("pre-restore");
 
             for (String name : FILES) {
                 Path target = baseDir.resolve(name);
@@ -121,12 +113,38 @@ public class BackupService {
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("restored_files", new ArrayList<>(files.keySet()));
-            result.put("safety_copy", safetyCopy != null ? SAFETY_COPY_DIR + "/" + safetyCopy.getFileName() : null);
+            result.put("safety_copy", safetyCopy);
             return result;
         });
     }
 
-    private <T> T locked(Callable<T> action) throws Exception {
+    /**
+     * Saves the current data files to backups/&lt;prefix&gt;-&lt;time&gt;.zip, so a
+     * change that replaces or clears them can be undone by restoring it.
+     * Caller holds the locks.
+     *
+     * @return the copy's path relative to the data folder, or null if there was no data to save
+     */
+    String saveSafetyCopy(String prefix) throws IOException {
+        Map<String, byte[]> current = readFiles();
+        if (current.isEmpty()) {
+            return null;
+        }
+        Path dir = Files.createDirectories(baseDir.resolve(SAFETY_COPY_DIR));
+        String name = prefix + "-" + LocalDateTime.now().format(FILE_TIME);
+        Path safetyCopy = dir.resolve(name + ".zip");
+        // Never overwrite an earlier copy taken in the same second: it may hold data the later one lacks
+        for (int n = 2; Files.exists(safetyCopy); n++) {
+            safetyCopy = dir.resolve(name + "-" + n + ".zip");
+        }
+        try (OutputStream out = Files.newOutputStream(safetyCopy)) {
+            writeZip(out, current);
+        }
+        return SAFETY_COPY_DIR + "/" + safetyCopy.getFileName();
+    }
+
+    /** Runs action while holding every data file's lock, in the order the class comment gives. */
+    <T> T locked(Callable<T> action) throws Exception {
         return meetService.exclusive(() -> teamService.exclusive(
             () -> relayService.exclusive(() -> dataService.exclusive(action))));
     }

@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 /**
  * Teams of the MLAIC team disciplines, stored in teams.json. A team member is
@@ -655,6 +656,35 @@ public class TeamService {
             }
 
             return new Registry(competitors, starts, resultsByStart, disciplines);
+        });
+    }
+
+    // --- danger zone -------------------------------------------------------
+
+    /** Deletes the teams of the given disciplines, or all of them. Returns how many were deleted. */
+    public int deleteTeams(Predicate<Integer> disciplineIds) throws Exception {
+        return update(teams -> {
+            List<Map<String, Object>> list = listOf(teams);
+            int before = list.size();
+            list.removeIf(team -> disciplineIds.test(RelayRules.intOf(team.get("discipline_id"))));
+            return before - list.size();
+        });
+    }
+
+    /** Takes the given starts out of every team; the teams stay. Returns how many members were removed. */
+    public int removeMembers(Predicate<String> startIds) throws Exception {
+        return update(teams -> {
+            int removed = 0;
+            for (Map<String, Object> team : listOf(teams)) {
+                List<String> members = membersOf(team);
+                List<String> kept = members.stream().filter(startId -> !startIds.test(startId)).toList();
+                if (kept.size() < members.size()) {
+                    removed += members.size() - kept.size();
+                    team.put("members", new ArrayList<>(kept));
+                    DataService.bumpVersion(team);
+                }
+            }
+            return removed;
         });
     }
 

@@ -28,6 +28,8 @@ tags:
     description: Backs the `/meet` page; the meet's name, venue, host and dates live in `meet.json`.
   - name: Backup
     description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json`, `relays.json` and `meet.json`.
+  - name: Danger zone
+    description: Backs the `/danger` page; clears one kind of data at a time, saving a safety copy first.
   - name: Build info
 
 paths:
@@ -1036,6 +1038,76 @@ paths:
                   restored_files:
                     type: array
                     items: { type: string }
+                  safety_copy:
+                    type: string
+                    nullable: true
+                    description: Where the previous data was saved; `null` if there was none
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  # ---------------------------------------------------------------- Danger zone
+  /danger-zone:
+    get:
+      tags: [Danger zone]
+      summary: How much there is of each kind of data that can be cleared
+      operationId: getDangerZoneSummary
+      responses:
+        "200":
+          description: The counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results: { type: integer }
+                  starts: { type: integer }
+                  competitors: { type: integer }
+                  lanes: { type: integer, description: Lane assignments }
+                  days: { type: integer, description: Meet days }
+                  relays: { type: integer }
+                  teams: { type: integer }
+                  meet: { type: integer, description: 1 if meet details were saved, else 0 }
+                  active_disciplines: { type: integer }
+                  added_disciplines: { type: integer, description: Disciplines added for this competition (ids from 1000) }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /danger-zone/clear/{target}:
+    post:
+      tags: [Danger zone]
+      summary: Clear one kind of data and what depends on it
+      description: |
+        - `results` — all results
+        - `lanes` — all lane assignments, locked days included
+        - `starts` — all starts, with their results, lane assignments and team memberships
+        - `competitors` — all competitors, with their starts, results, lane assignments and team memberships
+        - `teams` — all teams
+        - `days` — all meet days with their relays and lane assignments; ranges, relay duration and break stay
+        - `meet` — the meet details (`meet.json`)
+        - `disciplines` — reset to the shipped catalog (every catalog discipline active); added disciplines go,
+          with their starts (and those starts' results, lanes and team memberships) and teams
+
+        The current data is saved to `backups/pre-clear-<target>-<date>-<time>.zip` first.
+      operationId: clearDangerZoneTarget
+      parameters:
+        - name: target
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [results, lanes, starts, competitors, teams, days, meet, disciplines]
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target: { type: string }
+                  cleared:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: How many records of each kind were cleared, e.g. `{"starts": 12, "results": 8}`
                   safety_copy:
                     type: string
                     nullable: true

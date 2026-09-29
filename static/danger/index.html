@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danger Zone · MLAICC Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="danger.css">
+</head>
+<body class="bg-gray-50 has-sidebar">
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 id="page-title" class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900">Danger Zone</h2>
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden"></div>
+
+        <div class="px-4 max-w-5xl space-y-6">
+            <!-- Master switch: everything below stays locked until it is on -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-2 border-red-300">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-red-700 mb-2">Enable Danger Zone</h3>
+                        <p class="text-sm text-gray-600 mb-2">
+                            Clears data of this competition for good. Everything on this page is locked until
+                            this is turned on, and each clear button needs its own switch as well.
+                            Leaving or reloading the page locks it again.
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            Before every clear, all current data is saved on the server in the
+                            <code>backups/</code> folder, so it can be undone on
+                            <a href="/backup/" class="text-blue-600 hover:underline">Backup &amp; Restore</a>.
+                        </p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                        <input type="checkbox" id="master-toggle" class="danger-toggle" aria-label="Enable Danger Zone">
+                        <span class="danger-switch"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="clear-list" class="bg-white rounded-lg shadow-md divide-y divide-gray-200 transition-opacity opacity-50"></div>
+        </div>
+    </main>
+
+    <script type="module" src="../js/appNav.js"></script>
+    <script type="module" src="danger.js"></script>
+</body>
+</html>
