@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ranking · MLAICC Manager</title>
+    <link rel="icon" type="image/png" href="/img/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="../style.css">
     <style>
@@ -15,7 +16,7 @@
             @page { size: A4 portrait; margin: 0; }
             body main { padding: 10mm !important; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
             .keep-together { break-inside: avoid; page-break-inside: avoid; }
-            #print-header { display: block !important; }
+            #print-header { display: flex !important; }
             body.with-cover #print-cover,
             body.with-stats #print-stats { display: block; break-after: page; }
             #print-watermark:not(:empty) { display: flex; }
@@ -104,9 +105,12 @@
             <div id="print-watermark"></div>
             <section id="print-cover"><div class="cover-inner"></div></section>
             <section id="print-stats"></section>
-            <div id="print-header" class="mb-4">
-                <h1 class="text-xl font-bold">Ranking</h1>
-                <p id="print-date" class="text-sm text-gray-600"></p>
+            <div id="print-header" class="mb-4 items-center gap-4">
+                <img src="/img/logo.png" alt="" class="h-16 w-16">
+                <div>
+                    <h1 class="text-xl font-bold">Ranking</h1>
+                    <p id="print-date" class="text-sm text-gray-600"></p>
+                </div>
             </div>
 
             <div id="ranking-content" class="space-y-8"></div>

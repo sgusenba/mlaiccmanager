@@ -180,6 +180,16 @@ function openPrintDialog() {
     document.getElementById('print-dialog').showModal();
 }
 
+// The logo for the Word header; the export goes ahead without it if it can't be loaded
+async function loadLogo() {
+    try {
+        const response = await fetch('/img/logo.png');
+        return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+    } catch {
+        return null;
+    }
+}
+
 async function exportFromDialog() {
     const format = chosenFormat();
     const withCover = document.getElementById('print-with-cover').checked;
@@ -198,6 +208,7 @@ async function exportFromDialog() {
         return;
     }
     const options = {
+        logo: format === 'word' ? await loadLogo() : null,
         meet: printData?.meet,
         stats: printData?.stats,
         scope: printScope(),

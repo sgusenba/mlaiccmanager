@@ -20,7 +20,7 @@ function crc32(bytes) {
     return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-/** ZIP archive of the given [path, text] entries as a Blob of the given type. */
+/** ZIP archive of the given [path, text or bytes] entries as a Blob of the given type. */
 export function zip(entries, type) {
     const encoder = new TextEncoder();
     const now = new Date();
@@ -32,7 +32,7 @@ export function zip(entries, type) {
 
     for (const [path, text] of entries) {
         const name = encoder.encode(path);
-        const data = encoder.encode(text);
+        const data = typeof text === 'string' ? encoder.encode(text) : text;
         const crc = crc32(data);
 
         const local = new DataView(new ArrayBuffer(30));
@@ -109,6 +109,9 @@ const DOC_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relations
 // point for border widths.
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const WP_NS = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const PIC_NS = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
 const twips = (mm) => Math.round(mm * 56.6929);
 const pt20 = (pt) => Math.round(pt * 20);
 
@@ -214,6 +217,24 @@ export function table(rows, options = {}) {
         + rows.map(rowXml).join('') + '</w:tbl>';
 }
 
+// The app logo (PNG) in a paragraph; docx() embeds the bytes it is given as
+// its `logo` option and relates them as rId3
+const LOGO_REL_ID = 'rId3';
+
+/** A paragraph with the logo, sizeMm wide and high (the logo is square). */
+export function logoParagraph(sizeMm, style = {}) {
+    const emu = Math.round(sizeMm * 36000);
+    const drawing = `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="${WP_NS}">`
+        + `<wp:extent cx="${emu}" cy="${emu}"/><wp:docPr id="1" name="Logo" descr="MLAIC Competition Manager"/>`
+        + `<a:graphic xmlns:a="${A_NS}"><a:graphicData uri="${PIC_NS}"><pic:pic xmlns:pic="${PIC_NS}">`
+        + '<pic:nvPicPr><pic:cNvPr id="1" name="logo.png"/><pic:cNvPicPr/></pic:nvPicPr>'
+        + `<pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+        + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm>`
+        + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>'
+        + '</wp:inline></w:drawing></w:r>';
+    return `<w:p><w:pPr><w:spacing w:after="${pt20(style.spaceAfter ?? 0)}"/></w:pPr>${drawing}</w:p>`;
+}
+
 // Watermark: text across the middle of every page of its section, as Word's
 // own watermarks are made: a WordArt shape in the (otherwise empty) header
 const V_NS = 'urn:schemas-microsoft-com:vml';
@@ -241,7 +262,7 @@ function watermarkHeader(text, pageWidthMm) {
  * watermark: text across every page of the body, frontMatter: paragraphs and
  * tables before the body, on their own pages without the watermark.
  */
-export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [] } = {}) {
+export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null } = {}) {
     const [width, height] = landscape ? [16838, 11906] : [11906, 16838];
     const m = twips(margin);
     const pageBorders = pageBorder
@@ -272,6 +293,7 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
             + '<Default Extension="xml" ContentType="application/xml"/>'
             + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
             + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+            + (logo ? '<Default Extension="png" ContentType="image/png"/>' : '')
             + (watermark ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : '')
             + '</Types>'],
         ['_rels/.rels', `${XML_HEAD}<Relationships xmlns="${REL_NS}">`
@@ -279,9 +301,11 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
         ['word/_rels/document.xml.rels', `${XML_HEAD}<Relationships xmlns="${REL_NS}">`
             + `<Relationship Id="rId1" Type="${DOC_REL}/styles" Target="styles.xml"/>`
             + (watermark ? `<Relationship Id="rId2" Type="${DOC_REL}/header" Target="header1.xml"/>` : '')
+            + (logo ? `<Relationship Id="${LOGO_REL_ID}" Type="${DOC_REL}/image" Target="media/logo.png"/>` : '')
             + '</Relationships>'],
         ['word/document.xml', document],
         ['word/styles.xml', styles],
+        ...(logo ? [['word/media/logo.png', logo]] : []),
         ...(watermark ? [['word/header1.xml', watermarkHeader(watermark, (landscape ? 297 : 210) - 2 * margin)]] : [])
     ], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }

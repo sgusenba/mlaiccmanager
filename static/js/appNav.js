@@ -74,15 +74,14 @@ function render() {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
+            <img src="/img/logo.png" alt="" class="h-8 w-8 rounded">
             <span class="font-bold">MLAICC Manager</span>
             <span class="app-topbar-current text-blue-100 text-sm truncate"></span>
         </div>
         <div class="app-backdrop"></div>
         <aside id="app-sidebar" class="app-sidebar">
             <a href="/" class="flex items-center px-4 h-16 border-b border-blue-500 shrink-0">
-                <svg class="h-7 w-7 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+                <img src="/img/logo.png" alt="" class="h-11 w-11 mr-2 shrink-0 rounded">
                 <span class="text-lg font-bold">MLAICC Manager</span>
             </a>
             <nav class="flex-1 overflow-y-auto py-3">
