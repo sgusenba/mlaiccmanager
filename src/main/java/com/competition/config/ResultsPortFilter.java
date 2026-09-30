@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 public class ResultsPortFilter implements Filter {
     public static final String PAGE = "/results/";
 
-    private static final Pattern STATIC = Pattern.compile("/results/.*|/js/.*|/style\\.css");
+    private static final Pattern STATIC = Pattern.compile("/results/.*|/js/.*|/img/.*|/style\\.css");
     private static final Pattern READABLE_API = Pattern.compile("/api/(competitors|available-disciplines|active-disciplines|results)");
     private static final Pattern RESULT_BY_ID = Pattern.compile("/api/results/\\d+");
 
