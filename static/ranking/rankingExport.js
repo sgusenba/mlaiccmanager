@@ -3,7 +3,7 @@
 // per discipline, optionally a statistics sheet).
 
 import { disciplineDisplayName, formatScore } from '../js/teamRanking.js';
-import { docx, paragraph, table, xlsx } from '../js/officeFiles.js';
+import { docx, logoParagraph, paragraph, table, xlsx } from '../js/officeFiles.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 // Competitors who started but have no result yet come after the ranked ones, without a rank
@@ -212,16 +212,21 @@ function disciplineSection(data, pageBreakBefore) {
  * the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
  * (none), a watermark across the ranking pages (not the cover and statistics).
  */
-export function rankingDocx({ meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
+export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
     const frontMatter = [];
     if (withCover && meet) frontMatter.push(...coverPage(meet, scope));
     if (withStats && stats) frontMatter.push(...statisticsPage(meet || {}, stats, frontMatter.length > 0));
-    const body = [
+    const title = [
         paragraph(meet?.name ? `${meet.name} · Ranking` : 'Ranking', { size: 16, bold: true }),
-        paragraph(timestampLine(scope), { size: 9, color: GREY, spaceAfter: 12 })
+        paragraph(timestampLine(scope), { size: 9, color: GREY })
     ];
+    // The logo beside the title when there is one; the page is 210 - 2 * 10 mm wide
+    const body = logo
+        ? [table([[{ paragraphs: [logoParagraph(16)] }, { paragraphs: title }]],
+            { widths: [20, 170], borders: 'none', padding: 0, vAlign: 'center' }), paragraph('', { spaceAfter: 12 })]
+        : [title[0], paragraph(timestampLine(scope), { size: 9, color: GREY, spaceAfter: 12 })];
     rankings.forEach((data, i) => body.push(...disciplineSection(data, pagePerDiscipline && i > 0)));
-    return docx(body, { margin: 10, watermark: resultLabel, frontMatter });
+    return docx(body, { margin: 10, watermark: resultLabel, frontMatter, logo });
 }
 
 // --- Excel -----------------------------------------------------------------
