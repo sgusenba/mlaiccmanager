@@ -75,6 +75,18 @@ public class RelayResource {
         return handle("update config lock", () -> relayService.setConfigLock(request));
     }
 
+    @PUT
+    @Path("/config/auto-assign")
+    public Response setAutoAssignEnabled(Map<String, Object> request) {
+        return handle("update auto assign switch", () -> relayService.setAutoAssignEnabled(request));
+    }
+
+    @POST
+    @Path("/auto-assign")
+    public Response autoAssign(Map<String, Object> request) {
+        return handle("auto assign lanes", () -> relayService.autoAssign(request));
+    }
+
     @POST
     @Path("/ranges")
     public Response createRange(Map<String, Object> request) {

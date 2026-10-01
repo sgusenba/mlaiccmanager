@@ -184,7 +184,7 @@ public class BackupService {
      * Entries are matched by file name, so a zip of a folder holding the files
      * works too; anything else in the zip is ignored.
      */
-    static Map<String, byte[]> readBackup(InputStream in) throws IOException {
+    public static Map<String, byte[]> readBackup(InputStream in) throws IOException {
         Map<String, byte[]> files = new LinkedHashMap<>();
         boolean empty = true;
         try (ZipInputStream zip = new ZipInputStream(in)) {

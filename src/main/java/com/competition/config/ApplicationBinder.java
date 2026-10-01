@@ -42,6 +42,10 @@ public class ApplicationBinder extends AbstractBinder {
         MeetService meetService = new MeetService(basePath + "/meet.json");
         BackupService backupService = new BackupService(Paths.get(basePath), dataService, teamService, relayService,
                                                         meetService);
+        SettingsService settingsService = new SettingsService(Paths.get(basePath, "appsettings.json"));
+        ExternalBackupService externalBackupService = new ExternalBackupService(backupService, settingsService,
+                                                                                Paths.get(basePath));
+        externalBackupService.start();
         DangerZoneService dangerZoneService = new DangerZoneService(dataService, teamService, relayService,
                                                                     meetService, backupService);
 
@@ -56,6 +60,8 @@ public class ApplicationBinder extends AbstractBinder {
         bind(meetService).to(MeetService.class);
         bind(backupService).to(BackupService.class);
         bind(dangerZoneService).to(DangerZoneService.class);
+        bind(settingsService).to(SettingsService.class);
+        bind(externalBackupService).to(ExternalBackupService.class);
     }
 
     /**
