@@ -345,6 +345,29 @@ class RelayServiceTest {
     }
 
     @Test
+    void firstLaneNumberShiftsLanesAndRenumbersAssignments() throws Exception {
+        relayService.setConfigLock(Map.of("locked", false));
+        assign(relay1, "m25", 5, "1-52-1");
+
+        relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 15, "first_lane_no", 101));
+
+        Map<?, ?> m25 = ((List<?>) relayService.getRelay(relay1).get("ranges")).stream()
+            .map(r -> (Map<?, ?>) r).filter(r -> "m25".equals(r.get("id"))).findFirst().orElseThrow();
+        List<?> lanes = (List<?>) m25.get("lanes");
+        assertEquals(101, ((Map<?, ?>) lanes.get(0)).get("lane_no"));
+        assertEquals(115, ((Map<?, ?>) lanes.get(14)).get("lane_no"));
+        assertNotNull(((Map<?, ?>) lanes.get(4)).get("assignment"));
+        assertThrows(IllegalArgumentException.class, () -> assign(relay1, "m25", 1, "2-52-1"));
+
+        IllegalArgumentException shrinkError = assertThrows(IllegalArgumentException.class,
+            () -> relayService.updateRange("m25", Map.of("name", "25m", "lane_count", 4)));
+        assertTrue(shrinkError.getMessage().contains("lane 105 is still assigned"));
+
+        Map<String, Object> created = relayService.createRange(Map.of("name", "200m", "lane_count", 6));
+        assertEquals(1, created.get("first_lane_no"));
+    }
+
+    @Test
     void rangeCannotBeDeletedWhileADisciplineFiresOnIt() throws Exception {
         relayService.setConfigLock(Map.of("locked", false));
         setShootingDistances("3", "m100");

@@ -252,12 +252,16 @@ function renderConfigLock(locked, ranges) {
                 value="${escapeHtml(r.name)}" ${locked ? 'disabled' : ''} aria-label="Distance name">
             <input type="number" class="range-edit-lanes px-2 py-1 border border-gray-300 rounded-md text-sm w-20"
                 min="1" max="200" value="${r.lane_count}" ${locked ? 'disabled' : ''} aria-label="Lanes">
+            <input type="number" class="range-edit-first px-2 py-1 border border-gray-300 rounded-md text-sm w-24"
+                min="1" max="9999" value="${r.first_lane_no ?? 1}" ${locked ? 'disabled' : ''} aria-label="First lane number" title="First lane number">
             <button type="button" class="range-save-btn no-print px-2 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50" ${locked ? 'disabled' : ''}>Update</button>
             <button type="button" class="range-delete-btn no-print px-2 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50" ${locked ? 'disabled' : ''}>Delete</button>
+            <span class="text-xs text-gray-500 self-center">lanes ${r.first_lane_no ?? 1}–${(r.first_lane_no ?? 1) + r.lane_count - 1}</span>
         </div>`).join('');
 
     document.getElementById('range-name').disabled = locked;
     document.getElementById('range-lane-count').disabled = locked;
+    document.getElementById('range-first-lane').disabled = locked;
     document.getElementById('range-add-btn').disabled = locked;
 }
 
@@ -287,8 +291,9 @@ function setupScheduleListeners() {
     document.getElementById('range-add-btn').addEventListener('click', () => {
         const name = document.getElementById('range-name').value.trim();
         const laneCount = parseInt(document.getElementById('range-lane-count').value, 10);
+        const firstLane = parseInt(document.getElementById('range-first-lane').value, 10) || 1;
         if (!name || !laneCount) return;
-        perform(() => api('/ranges', 'POST', { name, lane_count: laneCount }), refreshSettings);
+        perform(() => api('/ranges', 'POST', { name, lane_count: laneCount, first_lane_no: firstLane }), refreshSettings);
     });
 
     document.getElementById('ranges-list').addEventListener('click', (event) => {
@@ -300,7 +305,9 @@ function setupScheduleListeners() {
         if (button.classList.contains('range-save-btn')) {
             const name = rangeEl.querySelector('.range-edit-name').value;
             const laneCount = parseInt(rangeEl.querySelector('.range-edit-lanes').value, 10);
-            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT', { name, lane_count: laneCount }), refreshSettings);
+            const firstLane = parseInt(rangeEl.querySelector('.range-edit-first').value, 10);
+            perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT',
+                { name, lane_count: laneCount, first_lane_no: firstLane }), refreshSettings);
         } else if (button.classList.contains('range-delete-btn')) {
             if (!confirm('Delete this distance? Only possible if no lanes are assigned on it.')) return;
             perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'DELETE'), refreshSettings);
