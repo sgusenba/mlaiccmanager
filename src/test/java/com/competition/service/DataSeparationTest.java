@@ -77,6 +77,22 @@ class DataSeparationTest {
     }
 
     @Test
+    void shortNameIsStoredTrimmedAndClearedWhenBlank() throws Exception {
+        disciplineService.updateCatalogDiscipline(1, Map.of("short_name", "  A sh  "));
+        Discipline added = disciplineService.createCatalogDiscipline(Map.of("event", "Custom", "short_name", "Cu"));
+
+        assertEquals("{\"short_name\":\"A sh\"}", competitionJson().get("discipline_overrides").get("1").toString());
+        List<Discipline> reloaded = newDataService().loadDisciplines();
+        assertEquals("A sh", byId(reloaded, 1).getShortName());
+        assertEquals("Cu", byId(reloaded, added.getId()).getShortName());
+        assertNull(byId(reloaded, 2).getShortName());
+
+        disciplineService.updateCatalogDiscipline(1, Map.of("short_name", " "));
+        assertNull(byId(newDataService().loadDisciplines(), 1).getShortName());
+        assertNull(competitionJson().path("discipline_overrides").get("1"));
+    }
+
+    @Test
     void aNewCatalogReleaseKeepsTheCompetitionSettings() throws Exception {
         disciplineService.setActiveDisciplines(List.of(2), null);
         disciplineService.updateShootingDistances(Map.of("2", "m50"));

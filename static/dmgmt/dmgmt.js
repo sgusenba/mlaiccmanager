@@ -65,7 +65,7 @@ function categoryBadge(category) {
 function renderTable() {
     const tbody = document.getElementById('discipline-table-body');
     if (!state.disciplines.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
         return;
     }
 
@@ -84,6 +84,7 @@ function renderTable() {
         <tr data-id="${d.id}">
             <td class="px-4 py-2 text-sm text-gray-500">${d.id}</td>
             <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.event)}</td>
+            <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(d.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${categoryBadge(d.category)}</td>
             <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
             <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
@@ -133,6 +134,7 @@ function showForm(discipline) {
         title.textContent = 'Edit Discipline';
         document.getElementById('form-id').value = discipline.id;
         document.getElementById('form-event').value = discipline.event || '';
+        document.getElementById('form-short-name').value = discipline.short_name || '';
         document.getElementById('form-category').value = discipline.category || 'rifle';
         document.getElementById('form-level').value = discipline.level || 'individual';
         document.getElementById('form-type').value = discipline.type || 'original';
@@ -158,6 +160,7 @@ function formData() {
     const level = document.getElementById('form-level').value;
     const data = {
         event: document.getElementById('form-event').value.trim(),
+        short_name: document.getElementById('form-short-name').value.trim() || null,
         category: document.getElementById('form-category').value,
         level,
         type: document.getElementById('form-type').value
