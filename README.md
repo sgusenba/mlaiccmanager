@@ -2,8 +2,6 @@
 
 A Java backend for managing historical firearms shooting competitions (MLAIC events). It handles competitors, starts, results, and rankings for historical rifle and pistol competitions, with support for original, reproduction, and combined categories.
 
-This is a Java/Jetty/Jersey implementation of the same competition-management concept as the [Python/Flask version](https://github.com/sgusenba/windsurf-project).
-
 ## Features
 
 - **Competitor management** — add, edit, and delete competitors with full details (name, gender, club, email, phone, address, year of birth)
