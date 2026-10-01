@@ -212,6 +212,33 @@ class LaneAutoAssignTest {
     }
 
     @Test
+    void usesTheLaneNumbersOfARangeThatDoesNotStartAtOne() throws Exception {
+        relayService.setConfigLock(Map.of("locked", false));
+        relayService.updateRange("m50", Map.of("name", "50m", "lane_count", 2, "first_lane_no", 16));
+        relayService.setConfigLock(Map.of("locked", true));
+        relays(20);
+        enable();
+        String relay1 = firstRelay();
+        relayService.assign(Map.of("relay_id", relay1, "range_id", "m50", "lane_no", 17, "start_id", "4-21-1"));
+
+        relayService.autoAssign(Map.of());
+
+        for (Map<String, Object> a : assignments()) {
+            if ("m50".equals(a.get("range_id"))) {
+                assertTrue((Integer) a.get("lane_no") >= 16 && (Integer) a.get("lane_no") <= 17, "lane " + a.get("lane_no"));
+            }
+        }
+        // lane 17 of relay 1 was taken, so only lane 16 is left there
+        assertEquals(2, assignments().stream().filter(a -> relay1.equals(a.get("relay_id")) && "m50".equals(a.get("range_id"))).count());
+        // and every lane shows in the relay view
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) relayService.getRelay(relay1).get("ranges");
+        long shown = blocks.stream().filter(b -> "m50".equals(b.get("id")))
+            .flatMap(b -> ((List<Map<String, Object>>) b.get("lanes")).stream()).filter(l -> l.get("assignment") != null).count();
+        assertEquals(2, shown);
+    }
+
+    @Test
     void neverTouchesLockedDays() throws Exception {
         relays(1);
         String lockedRelay = firstRelay();
