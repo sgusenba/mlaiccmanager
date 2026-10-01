@@ -31,6 +31,25 @@
                         <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Day</button>
                     </div>
                 </form>
+
+                <div id="auto-assign-card" class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-start gap-2 mb-1">
+                        <h3 class="text-lg font-semibold">Auto Lane Assignment</h3>
+                        <label class="flex items-center gap-2 text-sm text-gray-700 shrink-0 cursor-pointer">
+                            <input type="checkbox" id="auto-assign-toggle" class="h-4 w-4">
+                            <span id="auto-assign-toggle-label">Off</span>
+                        </label>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">Fills the lanes of all unlocked days: every start gets one lane on its discipline's distance, a competitor never has two lanes in one relay. A discipline is kept in consecutive relays, and original, reproduction and combined of an event run back to back. Locked days are never changed.</p>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="button" id="auto-assign-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Assign lanes automatically</button>
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" id="auto-assign-replace" class="h-4 w-4">
+                            Start over (clear the lanes of unlocked days first)
+                        </label>
+                    </div>
+                    <div id="auto-assign-result" class="mt-4 text-sm hidden"></div>
+                </div>
             </div>
 
             <div id="days-list" class="space-y-6"></div>
