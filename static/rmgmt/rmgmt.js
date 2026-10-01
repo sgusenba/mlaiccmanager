@@ -151,8 +151,32 @@ async function refreshSchedule() {
     renderSchedule();
 }
 
+function renderAutoAssign() {
+    const enabled = state.data.config.auto_assign_enabled === true;
+    document.getElementById('auto-assign-toggle').checked = enabled;
+    document.getElementById('auto-assign-toggle-label').textContent = enabled ? 'On' : 'Off';
+    const button = document.getElementById('auto-assign-btn');
+    button.disabled = !enabled;
+    button.title = enabled ? '' : 'Switch auto lane assignment on first';
+    document.getElementById('auto-assign-replace').disabled = !enabled;
+}
+
+function showAutoAssignResult(result) {
+    const el = document.getElementById('auto-assign-result');
+    const unplaced = result.unplaced || [];
+    el.innerHTML = `
+        <p class="${unplaced.length ? 'text-amber-700' : 'text-green-700'} font-medium">
+            ${result.assigned} lane${result.assigned === 1 ? '' : 's'} assigned${result.cleared ? `, ${result.cleared} cleared first` : ''}${unplaced.length ? `, ${unplaced.length} start${unplaced.length === 1 ? '' : 's'} could not be placed:` : '.'}
+        </p>
+        ${unplaced.length ? `<ul class="mt-2 list-disc pl-5 text-gray-700 max-h-64 overflow-y-auto">${unplaced.map(u =>
+            `<li>${escapeHtml(startLabel(u))} — ${escapeHtml(u.reason)}</li>`).join('')}</ul>
+        <p class="mt-2 text-gray-600">Add relays or lanes and run it again; lanes already assigned are kept.</p>` : ''}`;
+    el.classList.remove('hidden');
+}
+
 function renderSchedule() {
     const { config, ranges, days, assignments } = state.data;
+    renderAutoAssign();
 
     const filled = new Map();
     assignments.forEach(a => {
@@ -281,6 +305,24 @@ function setupScheduleListeners() {
         const date = document.getElementById('day-date').value;
         const start = document.getElementById('day-start').value;
         perform(() => api('/days', 'POST', { date, start_time: start }), refreshSchedule);
+    });
+
+    document.getElementById('auto-assign-toggle').addEventListener('change', (event) => {
+        const enabled = event.target.checked;
+        perform(() => api('/config/auto-assign', 'PUT', { enabled }), refreshSchedule);
+    });
+
+    document.getElementById('auto-assign-btn').addEventListener('click', () => {
+        const replace = document.getElementById('auto-assign-replace').checked;
+        if (replace && !confirm('Clear all lanes of the unlocked days and assign them again?')) return;
+        const button = document.getElementById('auto-assign-btn');
+        button.disabled = true;
+        let result = null;
+        perform(async () => {
+            result = await api('/auto-assign', 'POST', { replace });
+        }, refreshSchedule).then(() => {
+            if (result) showAutoAssignResult(result);
+        });
     });
 
     document.getElementById('config-lock-btn').addEventListener('click', () => {

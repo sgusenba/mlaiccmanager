@@ -669,6 +669,75 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /rmgmt/config/auto-assign:
+    put:
+      tags: [Relay management]
+      summary: Switch the automatic lane assignment on or off
+      description: Off by default. Independent of the config lock.
+      operationId: setAutoAssignEnabled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200":
+          description: The relay config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelayConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/auto-assign:
+    post:
+      tags: [Relay management]
+      summary: Assign the lanes of all unlocked days automatically
+      description: |
+        Only allowed while the auto mode is switched on (`400` otherwise). Every start
+        of an active, individual discipline without a lane gets one on its discipline's
+        distance (disciplines without a distance are placed on the least busy one as a
+        whole). A start takes one lane, a competitor has at most one lane per relay and
+        a distance never holds more starts than it has lanes. A discipline is kept in
+        consecutive relays, and original, reproduction and combined of one event follow
+        each other. Locked days are never changed. Starts that do not fit are returned
+        in `unplaced` with the reason; they are not an error.
+      operationId: autoAssignLanes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                replace:
+                  type: boolean
+                  default: false
+                  description: Clear every lane of the unlocked days first instead of keeping them
+      responses:
+        "200":
+          description: What was done
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assigned: { type: integer }
+                  cleared: { type: integer }
+                  unplaced:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/StartSummary"
+                        - type: object
+                          properties:
+                            reason: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   /rmgmt/ranges:
     post:
       tags: [Relay management]
@@ -1582,6 +1651,7 @@ components:
         relay_duration_min: { type: integer }
         break_min: { type: integer, description: "Minutes between relays, meet-wide (default 15)" }
         locked: { type: boolean }
+        auto_assign_enabled: { type: boolean, description: "Switch for the automatic lane assignment (default false)" }
     RangeInput:
       type: object
       required: [name, lane_count]
