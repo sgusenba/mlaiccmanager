@@ -1484,12 +1484,14 @@ components:
       properties:
         name: { type: string, example: 25m }
         lane_count: { type: integer, example: 15 }
+        first_lane_no: { type: integer, minimum: 1, maximum: 9999, example: 1, description: "Number of the first lane (default 1, unchanged on update if omitted). Changing it renumbers the range's assigned lanes." }
     Range:
       type: object
       properties:
         id: { type: string, example: m25 }
         name: { type: string, example: 25m }
         lane_count: { type: integer, example: 15 }
+        first_lane_no: { type: integer, example: 1, description: "Lanes are numbered first_lane_no .. first_lane_no + lane_count - 1" }
     DayInput:
       type: object
       required: [date, start_time]

@@ -127,6 +127,7 @@ public class RelayService {
     public Map<String, Object> createRange(Map<String, Object> request) throws Exception {
         String name = requireString(request, "name");
         int laneCount = requireLaneCount(request);
+        Integer firstLane = optionalFirstLane(request);
         return update(relays -> {
             requireConfigUnlocked(relays);
             List<Map<String, Object>> ranges = listOf(relays, "ranges");
@@ -134,25 +135,42 @@ public class RelayService {
             range.put("id", nextId(ranges, "range"));
             range.put("name", name);
             range.put("lane_count", laneCount);
+            range.put("first_lane_no", firstLane != null ? firstLane : 1);
             ranges.add(range);
             return range;
         });
     }
 
-    /** Renames a range or changes its lane count. Blocked while locked, or if shrinking would orphan an assigned lane. */
+    /**
+     * Renames a range, changes its lane count or the number its first lane
+     * starts at. Blocked while locked, or if shrinking would orphan an
+     * assigned lane. A new first lane number renumbers the assigned lanes
+     * with it, so every start keeps its position on the range.
+     */
     public Map<String, Object> updateRange(String rangeId, Map<String, Object> request) throws Exception {
         String name = requireString(request, "name");
         int laneCount = requireLaneCount(request);
+        Integer requestedFirstLane = optionalFirstLane(request);
         return update(relays -> {
             requireConfigUnlocked(relays);
             Map<String, Object> range = findRange(relays, rangeId);
+            int oldFirstLane = firstLaneNo(range);
             int highestAssignedLane = highestAssignedLane(relays, rangeId);
-            if (laneCount < highestAssignedLane) {
+            if (highestAssignedLane > 0 && laneCount < highestAssignedLane - oldFirstLane + 1) {
                 throw new IllegalArgumentException("Cannot shrink " + range.get("name") + " to " + laneCount
                     + " lanes: lane " + highestAssignedLane + " is still assigned");
             }
+            int firstLane = requestedFirstLane != null ? requestedFirstLane : oldFirstLane;
+            if (firstLane != oldFirstLane) {
+                for (Map<String, Object> a : listOf(relays, "assignments")) {
+                    if (rangeId.equals(a.get("range_id"))) {
+                        a.put("lane_no", RelayRules.intOf(a.get("lane_no")) - oldFirstLane + firstLane);
+                    }
+                }
+            }
             range.put("name", name);
             range.put("lane_count", laneCount);
+            range.put("first_lane_no", firstLane);
             return range;
         });
     }
@@ -280,8 +298,9 @@ public class RelayService {
             List<Map<String, Object>> blocks = new ArrayList<>();
             for (Map<String, Object> range : listOf(relays, "ranges")) {
                 List<Map<String, Object>> lanes = new ArrayList<>();
-                int laneCount = RelayRules.intOf(range.get("lane_count"));
-                for (int laneNo = 1; laneNo <= laneCount; laneNo++) {
+                int firstLane = firstLaneNo(range);
+                int lastLane = firstLane + RelayRules.intOf(range.get("lane_count")) - 1;
+                for (int laneNo = firstLane; laneNo <= lastLane; laneNo++) {
                     Map<String, Object> assignment = findLane(relays, relayId, (String) range.get("id"), laneNo);
                     Map<String, Object> lane = new LinkedHashMap<>();
                     lane.put("lane_no", laneNo);
@@ -355,9 +374,10 @@ public class RelayService {
             Map<String, Object> relay = findRelay(relays, relayId);
             Map<String, Object> range = findRange(relays, rangeId);
             requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), "Cannot change lanes");
-            int laneCount = RelayRules.intOf(range.get("lane_count"));
-            if (laneNo < 1 || laneNo > laneCount) {
-                throw new IllegalArgumentException("Lane must be between 1 and " + laneCount + " for " + range.get("name"));
+            int firstLane = firstLaneNo(range);
+            int lastLane = firstLane + RelayRules.intOf(range.get("lane_count")) - 1;
+            if (laneNo < firstLane || laneNo > lastLane) {
+                throw new IllegalArgumentException("Lane must be between " + firstLane + " and " + lastLane + " for " + range.get("name"));
             }
 
             Registry registry = registry();
@@ -714,6 +734,12 @@ public class RelayService {
         }
     }
 
+    /** The number the range's first lane carries; lanes run from it to first + lane_count - 1. */
+    private static int firstLaneNo(Map<String, Object> range) {
+        Object first = range.get("first_lane_no");
+        return first != null ? RelayRules.intOf(first) : 1;
+    }
+
     private static int highestAssignedLane(Map<String, Object> relays, String rangeId) {
         int max = 0;
         for (Map<String, Object> a : listOf(relays, "assignments")) {
@@ -857,6 +883,18 @@ public class RelayService {
         return laneCount;
     }
 
+    /** first_lane_no if given (1-9999), otherwise null. */
+    private static Integer optionalFirstLane(Map<String, Object> request) {
+        if (request == null || request.get("first_lane_no") == null) {
+            return null;
+        }
+        int firstLane = requireInt(request, "first_lane_no");
+        if (firstLane < 1 || firstLane > 9999) {
+            throw new IllegalArgumentException("first_lane_no must be between 1 and 9999");
+        }
+        return firstLane;
+    }
+
     private static String requireDate(Map<String, Object> request) {
         String date = requireString(request, "date");
         try {
@@ -981,6 +1019,8 @@ public class RelayService {
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }
+        // Older files have no first lane number: their lanes start at 1
+        listOf(relays, "ranges").forEach(range -> range.putIfAbsent("first_lane_no", 1));
         for (String key : new String[] {"days", "relays", "assignments"}) {
             if (!(relays.get(key) instanceof List)) {
                 relays.put(key, new ArrayList<>());
@@ -1044,6 +1084,7 @@ public class RelayService {
         range.put("id", id);
         range.put("name", name);
         range.put("lane_count", laneCount);
+        range.put("first_lane_no", 1);
         return range;
     }
 
