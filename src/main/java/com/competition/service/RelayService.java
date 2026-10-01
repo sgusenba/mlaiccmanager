@@ -179,9 +179,12 @@ public class RelayService {
                 String startId = (String) a.get("start_id");
                 assignedStarts.add(startId);
                 String relayId = (String) a.get("relay_id");
+                // the planner counts lanes 1..lane_count; stored lane numbers start at the range's first_lane_no
+                Map<String, Object> assignedRange = find(listOf(relays, "ranges"), a.get("range_id"));
+                int laneIndex = RelayRules.intOf(a.get("lane_no")) - (assignedRange != null ? firstLaneNo(assignedRange) : 1) + 1;
                 occupied.computeIfAbsent(relayId, k -> new HashMap<>())
                     .computeIfAbsent((String) a.get("range_id"), k -> new HashSet<>())
-                    .add(RelayRules.intOf(a.get("lane_no")));
+                    .add(laneIndex);
                 Integer competitorId = competitorOfStart.get(startId);
                 if (competitorId != null) {
                     shooters.computeIfAbsent(relayId, k -> new HashSet<>()).add(competitorId);
@@ -213,7 +216,7 @@ public class RelayService {
                 assignment.put("id", nextId(assignments, "a"));
                 assignment.put("relay_id", placement.relayId());
                 assignment.put("range_id", placement.rangeId());
-                assignment.put("lane_no", placement.laneNo());
+                assignment.put("lane_no", firstLaneNo(findRange(relays, placement.rangeId())) + placement.laneNo() - 1);
                 assignment.put("start_id", placement.startId());
                 assignments.add(assignment);
             }
