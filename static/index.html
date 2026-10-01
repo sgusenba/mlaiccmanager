@@ -14,7 +14,7 @@
         <!-- Competitors Section -->
         <div id="competitors-section" class="section">
             <div class="px-4 py-6">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
                     <h2 class="text-2xl font-bold text-gray-900 flex items-center">
                         <svg class="h-8 w-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -93,6 +93,42 @@
                     </form>
                 </div>
 
+                <!-- Competitors Search & Filters -->
+                <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="sm:col-span-2">
+                            <label for="competitors-search" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Search</label>
+                            <input type="search" id="competitors-search" placeholder="Name, ID, club, email, phone..." autocomplete="off" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="competitors-filter-gender" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Gender</label>
+                            <select id="competitors-filter-gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="__none__">Not specified</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="competitors-filter-club" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Club</label>
+                            <select id="competitors-filter-club" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="competitors-filter-country" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country</label>
+                            <select id="competitors-filter-country" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-3 text-sm text-gray-500">
+                        <span id="competitors-count"></span>
+                        <button type="button" id="competitors-clear-filters-btn" class="text-blue-600 hover:text-blue-800 hidden">Clear filters</button>
+                    </div>
+                </div>
+
                 <!-- Competitors Table -->
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <div class="overflow-x-auto">
@@ -117,6 +153,9 @@
                         </table>
                         <div id="no-competitors" class="text-center py-8 text-gray-500 hidden">
                             No competitors found. Add your first competitor to get started.
+                        </div>
+                        <div id="no-matching-competitors" class="text-center py-8 text-gray-500 hidden">
+                            No competitors match the current search or filters.
                         </div>
                     </div>
                 </div>

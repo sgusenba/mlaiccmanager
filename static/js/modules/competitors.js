@@ -5,19 +5,99 @@ import { loadCompetitors, saveCompetitor as apiSaveCompetitor, deleteCompetitor 
 import { getCountryNames } from '../countries.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, clearForm } from '../utils.js';
 
+const NOT_SPECIFIED = '__none__';
+const FILTER_IDS = ['competitors-search', 'competitors-filter-gender', 'competitors-filter-club', 'competitors-filter-country'];
+
+function filterValue(elementId) {
+    return (getElementValue(elementId) ?? '').trim();
+}
+
+// Rebuild a filter dropdown from the values present, keeping the current selection
+function refreshFilterOptions(selectId, values) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const selected = select.value;
+    const distinct = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    select.innerHTML = '';
+    select.add(new Option('All', ''));
+    distinct.forEach(value => select.add(new Option(value, value)));
+    if (values.some(value => !value)) {
+        select.add(new Option('Not specified', NOT_SPECIFIED));
+    }
+    select.value = [...select.options].some(o => o.value === selected) ? selected : '';
+}
+
+function matchesSelect(value, filter) {
+    if (!filter) return true;
+    if (filter === NOT_SPECIFIED) return !value;
+    return value === filter;
+}
+
+// Apply the search box and dropdown filters to the competitor list
+function filterCompetitors(competitors) {
+    const terms = filterValue('competitors-search').toLowerCase().split(/\s+/).filter(Boolean);
+    const gender = filterValue('competitors-filter-gender');
+    const club = filterValue('competitors-filter-club');
+    const country = filterValue('competitors-filter-country');
+
+    return competitors.filter(competitor => {
+        if (!matchesSelect(competitor.gender, gender)) return false;
+        if (!matchesSelect(competitor.club, club)) return false;
+        if (!matchesSelect(competitor.country, country)) return false;
+        if (terms.length === 0) return true;
+
+        const haystack = [
+            competitor.name,
+            competitor.year_of_birth,
+            competitor.club,
+            competitor.email,
+            competitor.phone,
+            competitor.country,
+            competitor.address
+        ].filter(Boolean).join(' ').toLowerCase();
+        // Every word must match somewhere; "7" or "#7" matches ID 7 exactly (not 17)
+        const id = String(competitor.id);
+        return terms.every(term => term === id || term === `#${id}` || haystack.includes(term));
+    });
+}
+
+function hasActiveFilters() {
+    return FILTER_IDS.some(id => filterValue(id) !== '');
+}
+
+function clearCompetitorFilters() {
+    FILTER_IDS.forEach(id => setElementValue(id, ''));
+    renderCompetitors();
+}
+
 // Render competitors table
 export function renderCompetitors() {
     const tbody = document.getElementById('competitors-table-body');
-    const noCompetitors = document.getElementById('no-competitors');
-    const competitors = getState('competitors');
-    
+    const allCompetitors = getState('competitors');
+
+    refreshFilterOptions('competitors-filter-club', allCompetitors.map(c => c.club));
+    refreshFilterOptions('competitors-filter-country', allCompetitors.map(c => c.country));
+
+    const competitors = filterCompetitors(allCompetitors);
+    const filtered = hasActiveFilters();
+
+    setElementContent('competitors-count', filtered
+        ? `Showing ${competitors.length} of ${allCompetitors.length} competitors`
+        : `${allCompetitors.length} competitor${allCompetitors.length === 1 ? '' : 's'}`);
+    if (filtered) {
+        showElement('competitors-clear-filters-btn');
+    } else {
+        hideElement('competitors-clear-filters-btn');
+    }
+
+    hideElement('no-competitors');
+    hideElement('no-matching-competitors');
     if (competitors.length === 0) {
         setElementContent('competitors-table-body', '');
-        showElement('no-competitors');
+        showElement(allCompetitors.length === 0 ? 'no-competitors' : 'no-matching-competitors');
         return;
     }
-    
-    hideElement('no-competitors');
+
     tbody.innerHTML = competitors.map(competitor => `
         <tr class="hover:bg-gray-50">
             <td class="px-4 py-4 whitespace-nowrap">
@@ -274,6 +354,22 @@ export function setupCompetitorEventListeners() {
         addCompetitorBtn.addEventListener('click', showCompetitorForm);
     }
     
+    // Search & filters
+    const searchInput = document.getElementById('competitors-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', renderCompetitors);
+    }
+    ['competitors-filter-gender', 'competitors-filter-club', 'competitors-filter-country'].forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+            select.addEventListener('change', renderCompetitors);
+        }
+    });
+    const clearFiltersBtn = document.getElementById('competitors-clear-filters-btn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearCompetitorFilters);
+    }
+
     // Year of birth can't be in the future
     const yearOfBirthInput = document.getElementById('competitor-year-of-birth');
     if (yearOfBirthInput) {
