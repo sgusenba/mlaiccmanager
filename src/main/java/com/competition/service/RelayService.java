@@ -19,6 +19,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,8 @@ public class RelayService {
                             Map<Integer, String> disciplineNames,
                             Map<Integer, String> disciplineLevels,
                             Map<Integer, String> disciplineShootingDistances,
-                            List<Integer> activeDisciplines) {
+                            List<Integer> activeDisciplines,
+                            Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder) {
 
         Map<String, Integer> competitorOfStart() {
             Map<String, Integer> byStart = new HashMap<>();
@@ -120,6 +122,113 @@ public class RelayService {
         return update(relays -> {
             configOf(relays).put("locked", locked);
             return configOf(relays);
+        });
+    }
+
+    /** Switches the automatic lane assignment on or off. Off by default; independent of the configuration lock. */
+    public Map<String, Object> setAutoAssignEnabled(Map<String, Object> request) throws Exception {
+        boolean enabled = requireBoolean(request, "enabled");
+        return update(relays -> {
+            configOf(relays).put("auto_assign_enabled", enabled);
+            return configOf(relays);
+        });
+    }
+
+    /**
+     * Fills the lanes of all unlocked days automatically (see LaneAutoAssigner
+     * for the rules). Only works while the auto mode is enabled. Lanes already
+     * assigned stay unless "replace" is true, which first clears every lane of
+     * the unlocked days. Locked days are never touched. Nothing is saved if
+     * this fails; starts that do not fit are reported, not an error.
+     */
+    public Map<String, Object> autoAssign(Map<String, Object> request) throws Exception {
+        boolean replace = request != null && Boolean.TRUE.equals(request.get("replace"));
+        return update(relays -> {
+            if (!Boolean.TRUE.equals(configOf(relays).get("auto_assign_enabled"))) {
+                throw new IllegalArgumentException("Auto assignment is switched off. Enable it first.");
+            }
+            List<Map<String, Object>> assignments = listOf(relays, "assignments");
+
+            // unlocked relays in schedule order (days are kept sorted)
+            List<String> relayIds = new ArrayList<>();
+            for (Map<String, Object> day : listOf(relays, "days")) {
+                if (!Boolean.TRUE.equals(day.get("locked"))) {
+                    List<Map<String, Object>> ofDay = relaysOfDay(relays, (String) day.get("id"));
+                    ofDay.sort(Comparator.comparingInt(r -> RelayRules.intOf(r.get("sequence_no"))));
+                    ofDay.forEach(r -> relayIds.add((String) r.get("id")));
+                }
+            }
+            if (relayIds.isEmpty()) {
+                throw new IllegalArgumentException("There are no relays on unlocked days to assign lanes in");
+            }
+
+            int cleared = 0;
+            if (replace) {
+                int before = assignments.size();
+                assignments.removeIf(a -> relayIds.contains(a.get("relay_id")));
+                cleared = before - assignments.size();
+            }
+
+            Registry registry = registry();
+            Map<String, Integer> competitorOfStart = registry.competitorOfStart();
+
+            Map<String, Map<String, Set<Integer>>> occupied = new HashMap<>();
+            Map<String, Set<Integer>> shooters = new HashMap<>();
+            Set<String> assignedStarts = new HashSet<>();
+            for (Map<String, Object> a : assignments) {
+                String startId = (String) a.get("start_id");
+                assignedStarts.add(startId);
+                String relayId = (String) a.get("relay_id");
+                occupied.computeIfAbsent(relayId, k -> new HashMap<>())
+                    .computeIfAbsent((String) a.get("range_id"), k -> new HashSet<>())
+                    .add(RelayRules.intOf(a.get("lane_no")));
+                Integer competitorId = competitorOfStart.get(startId);
+                if (competitorId != null) {
+                    shooters.computeIfAbsent(relayId, k -> new HashSet<>()).add(competitorId);
+                }
+            }
+
+            List<LaneAutoAssigner.Pending> pending = new ArrayList<>();
+            for (Map<String, Object> start : registry.starts().values()) {
+                int disciplineId = RelayRules.intOf(start.get("discipline_id"));
+                String startId = (String) start.get("start_id");
+                if (assignedStarts.contains(startId) || "team".equals(registry.disciplineLevels().get(disciplineId))
+                    || !registry.activeDisciplines().contains(disciplineId)) {
+                    continue;
+                }
+                pending.add(new LaneAutoAssigner.Pending(startId, RelayRules.intOf(start.get("competitor_id")),
+                    disciplineId, shootingDistanceOfDiscipline(registry, disciplineId)));
+            }
+
+            List<LaneAutoAssigner.Range> ranges = new ArrayList<>();
+            for (Map<String, Object> range : listOf(relays, "ranges")) {
+                ranges.add(new LaneAutoAssigner.Range((String) range.get("id"), (String) range.get("name"),
+                    RelayRules.intOf(range.get("lane_count"))));
+            }
+
+            LaneAutoAssigner.Plan plan = LaneAutoAssigner.plan(relayIds, ranges, occupied, shooters, pending,
+                registry.disciplineOrder());
+            for (LaneAutoAssigner.Placement placement : plan.placements()) {
+                Map<String, Object> assignment = new LinkedHashMap<>();
+                assignment.put("id", nextId(assignments, "a"));
+                assignment.put("relay_id", placement.relayId());
+                assignment.put("range_id", placement.rangeId());
+                assignment.put("lane_no", placement.laneNo());
+                assignment.put("start_id", placement.startId());
+                assignments.add(assignment);
+            }
+
+            List<Map<String, Object>> unplaced = new ArrayList<>();
+            for (LaneAutoAssigner.Unplaced u : plan.unplaced()) {
+                Map<String, Object> entry = startSummary(registry.starts().get(u.startId()), registry);
+                entry.put("reason", u.reason());
+                unplaced.add(entry);
+            }
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("assigned", plan.placements().size());
+            result.put("cleared", cleared);
+            result.put("unplaced", unplaced);
+            return result;
         });
     }
 
@@ -781,7 +890,16 @@ public class RelayService {
         Map<Integer, String> disciplineLevels = new LinkedHashMap<>();
         Map<Integer, String> disciplineShootingDistances = new LinkedHashMap<>();
         List<Integer> activeDisciplineIds = new ArrayList<>();
+        Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder = new HashMap<>();
+        Map<String, Integer> familyRanks = new HashMap<>();
         for (Discipline discipline : dataService.loadDisciplines()) {
+            // original, reproduction and combined of one event form a family
+            String family = Objects.toString(discipline.getCategory(), "") + "|" + discipline.getEvent();
+            if (!familyRanks.containsKey(family)) {
+                familyRanks.put(family, familyRanks.size());
+            }
+            disciplineOrder.put(discipline.getId(), new LaneAutoAssigner.DisciplineOrder(discipline.getId(), family,
+                familyRanks.get(family), LaneAutoAssigner.DisciplineOrder.typeRank(discipline.getType())));
             disciplineNames.put(discipline.getId(), discipline.getType() != null
                 ? discipline.getEvent() + " (" + discipline.getType() + ")"
                 : discipline.getEvent());
@@ -832,7 +950,7 @@ public class RelayService {
                 }
             }
 
-            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, activeDisciplineIds);
+            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, activeDisciplineIds, disciplineOrder);
         });
     }
 
@@ -1016,6 +1134,7 @@ public class RelayService {
         }
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
         configOf(relays).putIfAbsent("locked", true);
+        configOf(relays).putIfAbsent("auto_assign_enabled", false);
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }

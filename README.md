@@ -96,6 +96,7 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 - **`disciplines.json`** — the MLAIC discipline catalog (event names, categories, levels, default shooting distance). Tracked in the repo, shipped with every release and replaced on every deploy, so the app never writes to it.
 - **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
 - **`teams.json`** — the teams of the team disciplines (name, member start ids, tie-break value, notes). Created on the first saved team; git-ignored like `data.json`. Members are only referenced by start id.
+- **`appsettings.json`** — machine-specific settings (the external backup's receiver URL and token, or the backup receiver's token). Created on the first save on the Backup page; git-ignored, not part of the backup zip. Missing means everything is off.
 - **`meet.json`** — the meet's name, venue, host and optional first/last day. Created on the first save on the Meet page; git-ignored like `data.json`.
 - **`relays.json`** — everything about relays (meet days, relays, lane assignments, ranges with their lane counts, relay duration and break, locked days), kept separate from `data.json`. Created automatically on first use of the relay management page; git-ignored like `data.json`. Competitors and their starts are not copied into it, only referenced by id.
 
@@ -104,6 +105,30 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 The **Backup & Restore** page (`/backup`) downloads `data.json`, `competition.json`, `teams.json`, `relays.json` and `meet.json` as one zip file (`mlaiccmanager-backup-<date>-<time>.zip`, plus a `backup-info.json` with the time it was taken). The catalog `disciplines.json` is not included, since it ships with every release. The zip contains the competitors' personal data, so keep it safe.
 
 Restoring a backup replaces all five files; a file the backup does not contain is removed, so the app is exactly in the state the backup was taken in. Before that, the current files are saved to `backups/pre-restore-<date>-<time>.zip` next to `data.json`, so a restore can be undone by restoring that file. An upload that is not a zip, has no `data.json` or holds a file that is not a JSON object is rejected and changes nothing. Backup and restore hold every file's lock, so they never see or leave a half-saved state. The page does not refresh other open pages: reload them after a restore.
+
+### Automatic external backup
+
+A backup on the same disk does not survive the loss of the machine, so the app can push its backup zip to a **backup receiver** on another machine after every change. It is off by default and configured on the Backup page; the settings are kept in `appsettings.json` next to `data.json` (git-ignored, not part of the backup zip):
+
+```json
+{ "externalBackup": { "enabled": true, "url": "http://192.168.1.20:5100", "token": "…", "debounceSeconds": 60, "maxDelaySeconds": 300 } }
+```
+
+- **When:** the app checks the five data files every 10 seconds. A backup is sent once the data has been quiet for `debounceSeconds` (default 60), and at the latest `maxDelaySeconds` (default 300) after the first change that has not been backed up, so steady editing is still backed up every 5 minutes. Nothing is sent while nothing changed. After a restart, or when the URL changes, one backup is sent right away.
+- **Failures:** if the receiver is down or rejects a backup, the Backup page shows the error and the app retries every minute, sending the newest data once the receiver is back. The app itself is never affected.
+- **Page:** *Test connection* checks URL and token without saving, *Back up now* skips the quiet time. The token is write-only: the page shows only whether one is saved, and leaving the field empty keeps it.
+
+Start the receiver on the other machine with the same jar (see `deploy/mlaiccmanager-backup.service` for a systemd unit):
+
+```
+java -jar mlaiccmanager.jar --backup-server [--port 5100] [--dir ./received-backups]
+```
+
+It needs `{ "backupReceiver": { "token": "…" } }` in the `appsettings.json` of its working directory, the same token as in the app, and does not start without one. Every request must carry it as `Authorization: Bearer <token>`.
+
+- **Storage:** each backup is checked like a restore (a zip with a valid `data.json`, plus the SHA-256 the app sends) and written atomically to `--dir`. Retention: every backup of the last 24 hours, the newest of each day for the 30 days before, the newest of each month beyond that.
+- **Restore:** download a zip from the receiver (`GET /api/backups/<name>`) and restore it on the Backup page like any other backup.
+- **Security:** the token and the backups travel unencrypted over plain HTTP. Use it on a trusted network or VPN, and put an HTTPS reverse proxy (Caddy, nginx) in front for anything else; the Backup page warns for plain-HTTP addresses outside private networks. Anyone with the token can read and write the backups, so keep `appsettings.json` readable only by the service user.
 
 ### Danger Zone
 
@@ -235,6 +260,18 @@ The **Barcode (EAN-13)** column holds the start ID as a 13-digit EAN code for la
 ### Backup (`/api/backup`)
 - `GET /api/backup` — all runtime data as a zip file (`Content-Disposition: attachment`)
 - `POST /api/backup/restore` — restore from a backup; the request body is the zip file itself (e.g. `Content-Type: application/zip`). Returns `{"restored_files": [...], "safety_copy": "backups/pre-restore-….zip"}`; `400` with the reason if the file is not a valid backup
+
+### External backup (`/api/backup/external`)
+- `GET` — the settings (the token is never returned, only `token_set`) and the status: `last_success`, `last_backup_name`, `last_backup_size`, `last_error`, `last_error_at`, `pending`
+- `PUT` — save `{enabled, url, token, debounceSeconds, maxDelaySeconds}` to `appsettings.json`; an empty `token` keeps the stored one; `400` with the reason if invalid
+- `POST /test` — check that the receiver at the posted `url` accepts the `token` (the saved one if empty); `502` with the reason if not
+- `POST /run` — push a backup now; `502` with the reason if the backup is off or the push failed
+
+### Backup receiver (`--backup-server`, port 5100)
+All requests need `Authorization: Bearer <token>`; `401` otherwise.
+- `PUT /api/backups/mlaiccmanager-backup-<yyyyMMdd>-<HHmmss>.zip` — store a backup; optional `X-Content-SHA256` header; `400` if the name, checksum or zip is invalid, `413` above 50 MB
+- `GET /api/backups` — the stored backups, newest first: `[{"name": ..., "size": ..., "time": ...}]`
+- `GET /api/backups/{name}` — download one
 
 ### Danger zone (`/api/danger-zone`)
 - `GET /api/danger-zone` — how much there is of each kind of data: `results`, `starts`, `competitors`, `lanes`, `days`, `relays`, `teams`, `meet` (1 if saved), `active_disciplines`, `added_disciplines`

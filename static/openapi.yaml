@@ -1045,6 +1045,82 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /backup/external:
+    get:
+      tags: [Backup]
+      summary: The automatic external backup's settings and status
+      operationId: getExternalBackup
+      responses:
+        "200":
+          description: Settings (the token is never returned, only whether one is set) and what the last pushes did
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalBackupState" }
+    put:
+      tags: [Backup]
+      summary: Save the automatic external backup's settings
+      description: |
+        Stored in `appsettings.json`. An empty `token` keeps the stored one; enabling the
+        backup needs a URL and a token. Takes effect at the next poll, no restart needed.
+      operationId: updateExternalBackup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalBackupSettingsInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalBackupState" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /backup/external/test:
+    post:
+      tags: [Backup]
+      summary: Check that the receiver at a URL accepts a token
+      description: Uses the posted `url` and `token` (the saved token if empty); nothing is saved.
+      operationId: testExternalBackup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExternalBackupSettingsInput" }
+      responses:
+        "200":
+          description: The receiver answered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "502":
+          description: The receiver could not be reached or rejected the request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /backup/external/run:
+    post:
+      tags: [Backup]
+      summary: Push a backup to the receiver now, ignoring the quiet time
+      operationId: runExternalBackup
+      responses:
+        "200":
+          description: Pushed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalBackupState" }
+        "502":
+          description: The backup is off, or the push failed (the reason is in `error`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   # ---------------------------------------------------------------- Danger zone
   /danger-zone:
     get:
@@ -1192,6 +1268,34 @@ components:
         current:
           nullable: true
           description: The record as currently stored (`null` if it was deleted or not applicable).
+    ExternalBackupSettingsInput:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        url: { type: string, example: "http://192.168.1.20:5100", description: The receiver's base URL }
+        token: { type: string, description: The receiver's token; empty keeps the stored one }
+        debounceSeconds: { type: integer, minimum: 10, maximum: 3600, description: Quiet time before a push }
+        maxDelaySeconds: { type: integer, minimum: 10, maximum: 3600, description: Longest wait after the first unbacked change }
+    ExternalBackupState:
+      type: object
+      properties:
+        settings:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            url: { type: string }
+            token_set: { type: boolean }
+            debounceSeconds: { type: integer }
+            maxDelaySeconds: { type: integer }
+        status:
+          type: object
+          properties:
+            last_success: { type: string, format: date-time, nullable: true }
+            last_backup_name: { type: string, nullable: true }
+            last_backup_size: { type: integer }
+            last_error: { type: string, nullable: true }
+            last_error_at: { type: string, format: date-time, nullable: true }
+            pending: { type: boolean, description: There are changes that are not backed up yet }
     IdList:
       type: array
       items: { type: integer }

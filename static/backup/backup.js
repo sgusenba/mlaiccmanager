@@ -77,5 +77,120 @@ async function restoreBackup(event) {
     }
 }
 
+// --- Automatic external backup ---
+
+const ext = {
+    form: document.getElementById('external-form'),
+    enabled: document.getElementById('ext-enabled'),
+    url: document.getElementById('ext-url'),
+    token: document.getElementById('ext-token'),
+    debounce: document.getElementById('ext-debounce'),
+    maxDelay: document.getElementById('ext-max-delay'),
+    warning: document.getElementById('ext-url-warning'),
+    status: document.getElementById('ext-status'),
+    buttons: ['ext-save-btn', 'ext-test-btn', 'ext-run-btn'].map(id => document.getElementById(id))
+};
+
+// Loopback, private ranges, single-label and local host names count as a trusted network
+const TRUSTED_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[(::1|f[cd]|fe80))|\.(local|lan|internal|home)$|^[^.]+$/i;
+
+// Plain http is fine on a trusted network, not across the internet
+function updateUrlWarning() {
+    let warn = false;
+    try {
+        const url = new URL(ext.url.value.trim());
+        warn = url.protocol === 'http:' && !TRUSTED_HOST.test(url.hostname);
+    } catch { /* not a URL yet */ }
+    ext.warning.classList.toggle('hidden', !warn);
+}
+
+function formatTime(iso) {
+    return iso ? new Date(iso).toLocaleString() : '—';
+}
+
+function formatSize(bytes) {
+    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function renderExternal({ settings, status }) {
+    ext.enabled.checked = settings.enabled;
+    ext.url.value = settings.url;
+    ext.token.value = '';
+    ext.token.placeholder = settings.token_set ? 'saved — leave empty to keep it' : '';
+    ext.debounce.value = settings.debounceSeconds;
+    ext.maxDelay.value = settings.maxDelaySeconds;
+    updateUrlWarning();
+
+    const rows = [
+        ['Last backup', status.last_success
+            ? `${formatTime(status.last_success)} — ${status.last_backup_name} (${formatSize(status.last_backup_size)})`
+            : '—'],
+        ['Waiting to be sent', status.pending ? 'Yes, there are changes that are not backed up yet' : 'No']
+    ];
+    if (status.last_error) {
+        rows.push(['Last error', `${status.last_error} (${formatTime(status.last_error_at)})`]);
+    }
+    ext.status.replaceChildren(...rows.flatMap(([label, value]) => {
+        const dt = document.createElement('dt');
+        dt.className = 'text-gray-500';
+        dt.textContent = label;
+        const dd = document.createElement('dd');
+        dd.textContent = value;
+        if (label === 'Last error') dd.className = 'text-red-700';
+        return [dt, dd];
+    }));
+}
+
+function formSettings() {
+    return {
+        enabled: ext.enabled.checked,
+        url: ext.url.value.trim(),
+        token: ext.token.value.trim(),
+        debounceSeconds: Number(ext.debounce.value),
+        maxDelaySeconds: Number(ext.maxDelay.value)
+    };
+}
+
+async function loadExternal() {
+    try {
+        const response = await fetch(`${API}/backup/external`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(await errorOf(response));
+        renderExternal(await response.json());
+    } catch (error) {
+        showMessage(`Could not load the external backup settings: ${error.message}`);
+    }
+}
+
+async function externalRequest(method, path, body, successText) {
+    ext.buttons.forEach(button => { button.disabled = true; });
+    try {
+        const response = await fetch(`${API}/backup/external${path}`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined
+        });
+        if (!response.ok) throw new Error(await errorOf(response));
+        const result = await response.json();
+        if (result.settings) renderExternal(result);
+        showMessage(successText, 'success');
+    } catch (error) {
+        showMessage(error.message);
+        if (path === '/run') await loadExternal();
+    } finally {
+        ext.buttons.forEach(button => { button.disabled = false; });
+    }
+}
+
+ext.form.addEventListener('submit', event => {
+    event.preventDefault();
+    externalRequest('PUT', '', formSettings(), 'External backup settings saved.');
+});
+document.getElementById('ext-test-btn').addEventListener('click', () =>
+    externalRequest('POST', '/test', formSettings(), 'The receiver accepted the connection.'));
+document.getElementById('ext-run-btn').addEventListener('click', () =>
+    externalRequest('POST', '/run', null, 'Backup sent.'));
+ext.url.addEventListener('input', updateUrlWarning);
+loadExternal();
+
 document.getElementById('download-btn').addEventListener('click', downloadBackup);
 document.getElementById('restore-form').addEventListener('submit', restoreBackup);

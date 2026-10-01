@@ -1,0 +1,40 @@
+# systemd unit for the MLAICC Manager backup receiver.
+#
+# Run it on a different machine (or at least a different disk) than the app, so
+# a backup survives the app's host. Not installed by deploy/setup.sh.
+#
+# Setup on the receiving machine:
+#   useradd --system --home /opt/mlaiccmanager-backup --create-home mlaicc-backup
+#   cp mlaiccmanager.jar /opt/mlaiccmanager-backup/
+#   cat > /opt/mlaiccmanager-backup/appsettings.json <<'JSON'
+#   { "backupReceiver": { "token": "<a long random string>" } }
+#   JSON
+#   chown mlaicc-backup: /opt/mlaiccmanager-backup/appsettings.json && chmod 600 /opt/mlaiccmanager-backup/appsettings.json
+#   cp deploy/mlaiccmanager-backup.service /etc/systemd/system/
+#   systemctl enable --now mlaiccmanager-backup
+#
+# Then enter http://<this-machine>:5100 and the same token on the app's Backup
+# page. The token travels in clear text over plain HTTP: keep the receiver on a
+# trusted network, or put an HTTPS reverse proxy in front of it.
+
+[Unit]
+Description=MLAICC Manager backup receiver
+After=network.target
+
+[Service]
+Type=simple
+User=mlaicc-backup
+Group=mlaicc-backup
+WorkingDirectory=/opt/mlaiccmanager-backup
+ExecStart=/usr/bin/java -jar /opt/mlaiccmanager-backup/mlaiccmanager.jar --backup-server --port 5100 --dir /opt/mlaiccmanager-backup/received-backups
+Restart=on-failure
+RestartSec=5
+
+# Basic hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mlaiccmanager-backup
+
+[Install]
+WantedBy=multi-user.target

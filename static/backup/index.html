@@ -54,6 +54,51 @@
                     </button>
                 </form>
             </div>
+
+            <!-- Automatic external backup -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold mb-2">Automatic External Backup</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Sends a backup to a backup receiver (<code>java -jar mlaiccmanager.jar --backup-server</code>)
+                    after every change, once the data has been quiet for the quiet time, and at the latest the
+                    maximum delay after the first change that has not been backed up.
+                </p>
+                <form id="external-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <label class="flex items-center gap-2 text-sm sm:col-span-2">
+                        <input type="checkbox" id="ext-enabled" class="h-4 w-4">
+                        <span>Back up automatically</span>
+                    </label>
+                    <label class="text-sm text-gray-700 sm:col-span-2">Receiver URL
+                        <input type="url" id="ext-url" placeholder="http://192.168.1.20:5100"
+                               class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </label>
+                    <p id="ext-url-warning" class="hidden text-sm text-amber-700 sm:col-span-2">
+                        This address is not on a private network and not HTTPS, so the token and the backup travel
+                        unencrypted. Put the receiver behind an HTTPS reverse proxy.
+                    </p>
+                    <label class="text-sm text-gray-700 sm:col-span-2">Token
+                        <input type="password" id="ext-token" autocomplete="off"
+                               class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                        <span class="text-xs text-gray-500">
+                            Must match <code>backupReceiver.token</code> in the appsettings.json of the receiver.
+                        </span>
+                    </label>
+                    <label class="text-sm text-gray-700">Quiet time (seconds)
+                        <input type="number" id="ext-debounce" min="10" max="3600"
+                               class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </label>
+                    <label class="text-sm text-gray-700">Maximum delay (seconds)
+                        <input type="number" id="ext-max-delay" min="10" max="3600"
+                               class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                    </label>
+                    <div class="flex flex-wrap gap-3 sm:col-span-2">
+                        <button type="submit" id="ext-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">Save</button>
+                        <button type="button" id="ext-test-btn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">Test connection</button>
+                        <button type="button" id="ext-run-btn" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">Back up now</button>
+                    </div>
+                </form>
+                <dl id="ext-status" class="text-sm text-gray-700 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1"></dl>
+            </div>
         </div>
     </main>
 

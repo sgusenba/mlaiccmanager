@@ -19,6 +19,10 @@ public class Main {
     private static final int RESULTS_PORT = 5001;
 
     public static void main(String[] args) throws Exception {
+        if (java.util.Arrays.asList(args).contains("--backup-server")) {
+            com.competition.backup.BackupReceiver.run(args);
+            return;
+        }
         logger.info("Starting Competition Management System...");
 
         Server server = new Server(PORT);
