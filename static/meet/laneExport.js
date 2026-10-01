@@ -21,6 +21,7 @@ const COLUMNS = [
     ['Club', row => row.club],
     ['Country', row => row.country],
     ['Discipline', row => row.discipline],
+    ['Discipline short name', row => row.disciplineShort],
     ['Event', row => row.event],
     ['Type', row => row.type],
     ['Category', row => row.category],
@@ -76,6 +77,8 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
             club: competitor.club ?? '',
             country: competitor.country ?? '',
             discipline: entry.discipline_name ?? '',
+            // the full name where no short name is configured, so labels are never blank
+            disciplineShort: discipline.short_name || entry.discipline_name || '',
             event: discipline.event ?? '',
             type: discipline.type ?? '',
             category: discipline.category ?? '',

@@ -115,6 +115,10 @@ public class DisciplineService {
         if (data.containsKey("level")) d.setLevel((String) data.get("level"));
         if (data.containsKey("type")) d.setType((String) data.get("type"));
         if (data.containsKey("event")) d.setEvent((String) data.get("event"));
+        if (data.containsKey("short_name")) {
+            String sn = (String) data.get("short_name");
+            d.setShortName(sn != null && !sn.isBlank() ? sn.trim() : null);
+        }
         if (data.containsKey("based_on")) d.setBasedOn((String) data.get("based_on"));
         if (data.containsKey("team_size")) {
             Object ts = data.get("team_size");

@@ -13,7 +13,7 @@ This is a Java/Jetty/Jersey implementation of the same competition-management co
 - **Results-only port** — port `5001` serves nothing but the Enter Results page (`/results/`) and the API calls it needs, so result entry stations can be given that port without reaching the rest of the app
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
-- **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance
+- **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance and an optional short name (used in the lane assignments CSV)
 - **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 0 (misses) and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
 - **Todos page** — separate page at `/todos` that lists the ranking entries still needing a tie-break value: same result and same number of 10s, 9s, … 1s as another entry of the discipline, with the tie-break missing or the same; laid out like the Ranking page without the rank, empty when there is nothing to do
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes

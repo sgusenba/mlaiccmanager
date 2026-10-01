@@ -19,6 +19,9 @@ public class Discipline {
     
     @JsonProperty("event")
     private String event;
+
+    @JsonProperty("short_name")
+    private String shortName;
     
     @JsonProperty("scoring_type")
     private String scoringType;
@@ -67,6 +70,9 @@ public class Discipline {
 
     public String getEvent() { return event; }
     public void setEvent(String event) { this.event = event; }
+
+    public String getShortName() { return shortName; }
+    public void setShortName(String shortName) { this.shortName = shortName; }
 
     public String getScoringType() { return scoringType; }
     public void setScoringType(String scoringType) { this.scoringType = scoringType; }

@@ -1255,6 +1255,7 @@ components:
         level: { type: string, description: "e.g. `individual` or `team`" }
         type: { type: string }
         event: { type: string }
+        short_name: { type: string, description: Short name used in the lane assignments export }
         scoring_type: { type: string }
         unit: { type: string }
         description: { type: string }
@@ -1270,6 +1271,7 @@ components:
         level: { type: string }
         type: { type: string }
         event: { type: string }
+        short_name: { type: string, description: "Short name used in the lane assignments export; empty or null clears it" }
         based_on: { type: string }
         team_size: { type: integer }
         shooting_distance: { type: string }
