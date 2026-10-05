@@ -107,11 +107,11 @@ export async function deleteCompetitor(id, version) {
 }
 
 // Add start to competitor
-export async function addStart(competitorId, disciplineId) {
+export async function addStart(competitorId, disciplineId, caliber) {
     return await apiCall(`/competitors/${competitorId}/starts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discipline_id: disciplineId })
+        body: JSON.stringify({ discipline_id: disciplineId, caliber: caliber || null })
     });
 }
 

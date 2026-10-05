@@ -2,6 +2,7 @@
 
 import { getState, setState } from '../config.js';
 import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
+import { escapeHtml } from '../teamRanking.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue } from '../utils.js';
 
 // Display competitor information
@@ -98,6 +99,9 @@ function displayStartsTable(competitor) {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${start.start_number}
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${start.caliber ? escapeHtml(start.caliber) : '<span class="text-gray-400">–</span>'}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
                         ${start.generated_id}
                     </td>
@@ -152,6 +156,7 @@ export function showAddStartForm() {
 export function hideAddStartForm() {
     hideElement('add-start-form');
     setElementValue('start-discipline', '');
+    setElementValue('start-caliber', '');
 }
 
 // Save start
@@ -170,7 +175,8 @@ export async function saveStart() {
     }
     
     try {
-        await addStart(selectedCompetitor.id, disciplineId);
+        const caliber = getElementValue('start-caliber').trim();
+        await addStart(selectedCompetitor.id, disciplineId, caliber);
         hideAddStartForm();
         await refreshSelectedCompetitor();
         showMessage('Start added successfully', 'success');

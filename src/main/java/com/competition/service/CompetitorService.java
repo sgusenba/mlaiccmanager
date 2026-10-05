@@ -186,6 +186,7 @@ public class CompetitorService {
         start.setStartNumber(((Number) data.get("start_number")).intValue());
         start.setDisciplineId(((Number) data.get("discipline_id")).intValue());
         start.setStatus((String) data.get("status"));
+        start.setCaliber((String) data.get("caliber"));
         return start;
     }
 
@@ -195,6 +196,9 @@ public class CompetitorService {
         data.put("start_number", start.getStartNumber());
         data.put("discipline_id", start.getDisciplineId());
         data.put("status", start.getStatus());
+        if (start.getCaliber() != null) {
+            data.put("caliber", start.getCaliber());
+        }
         return data;
     }
 }

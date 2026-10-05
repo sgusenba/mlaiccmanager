@@ -35,7 +35,9 @@ public class StartResource {
             }
             
             int disciplineId = ((Number) disciplineIdObj).intValue();
-            Start created = startService.createStart(competitorId, disciplineId);
+            Object caliberObj = requestData.get("caliber");
+            String caliber = caliberObj != null ? caliberObj.toString() : null;
+            Start created = startService.createStart(competitorId, disciplineId, caliber);
             return Response.ok(created).build();
         } catch (ConflictException e) {
             throw e; // mapped to 409

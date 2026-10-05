@@ -15,9 +15,14 @@ public class StartService {
     }
 
     public Start createStart(int competitorId, int disciplineId) throws Exception {
+        return createStart(competitorId, disciplineId, null);
+    }
+
+    public Start createStart(int competitorId, int disciplineId, String caliber) throws Exception {
         if (disciplineId == 0) {
             throw new IllegalArgumentException("discipline_id is required");
         }
+        String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 
         return dataService.update(data -> {
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
@@ -54,6 +59,9 @@ public class StartService {
             newStartData.put("start_number", startNumber);
             newStartData.put("discipline_id", disciplineId);
             newStartData.put("status", "registered");
+            if (trimmedCaliber != null) {
+                newStartData.put("caliber", trimmedCaliber);
+            }
 
             existingStarts.add(newStartData);
 
@@ -158,6 +166,7 @@ public class StartService {
         start.setStartNumber(((Number) data.get("start_number")).intValue());
         start.setDisciplineId(((Number) data.get("discipline_id")).intValue());
         start.setStatus((String) data.get("status"));
+        start.setCaliber((String) data.get("caliber"));
         return start;
     }
 }
