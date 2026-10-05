@@ -154,8 +154,10 @@ function handleResultAction(event) {
 // Search start by ID
 export function searchStartById() {
     const input = getElementValue('result-start-search').trim();
-    // A scanned target label barcode stands for its start ID
-    const startId = ean13ToStartId(input) || input;
+    // A scanned target label barcode stands for its start ID. A scanner set
+    // to a US keyboard on a German PC types the QR code's "-" as "ß"; start
+    // IDs hold only digits and dashes, so "ß" and "/" can only mean "-".
+    const startId = ean13ToStartId(input) || input.replace(/[ß/]/g, '-');
     
     if (!startId) {
         showMessage('Please enter a start ID', 'error');

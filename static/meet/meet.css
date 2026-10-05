@@ -261,3 +261,84 @@ body.print-preview .print-page {
     font-size: 13pt;
     overflow-wrap: anywhere;
 }
+
+
+/* --- target labels: tiled on A4, no page margins (labelExport.js) ------- */
+
+.label-sheet {
+    width: 210mm;
+    /* a little less than A4, so rounding never spills onto an empty page */
+    height: 296mm;
+    display: grid;
+    align-content: start;
+}
+
+.target-label {
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.target-label table {
+    table-layout: fixed;
+    border-collapse: collapse;
+    line-height: 1.1;
+}
+
+.target-label td {
+    border: 0.3mm solid #000;
+    padding: 0 1mm;
+    vertical-align: middle;
+    overflow: hidden;
+}
+
+.target-label .tl-distance {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.target-label .tl-number {
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.target-label .tl-qr {
+    text-align: center;
+    padding: 0;
+}
+
+/* exactly 10 x 10 mm; the white of the cell around it is the quiet zone */
+.target-label .tl-qr svg {
+    display: block;
+    width: 10mm;
+    height: 10mm;
+    margin: 0 auto;
+}
+
+.target-label .tl-id {
+    margin-top: 0.6mm;
+    font-family: ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+}
+
+.target-label .tl-text {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* long names wrap onto a second line */
+.target-label .tl-discipline {
+    text-align: center;
+    line-height: 1;
+    overflow-wrap: anywhere;
+}
+
+.target-label .tl-score {
+    text-align: center;
+    padding: 0;
+}
+
+.target-label .tl-score-head td {
+    border-top: 0.8mm double #000;
+}
