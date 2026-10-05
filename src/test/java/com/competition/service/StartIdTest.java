@@ -95,4 +95,17 @@ class StartIdTest {
 
         assertThrows(ConflictException.class, () -> startService.createStart(1, 5));
     }
+
+    @Test
+    void caliberIsStoredWithTheStart() throws Exception {
+        writeData("{\"id\":1,\"name\":\"One\",\"starts\":{}}", "");
+
+        assertEquals(".36", startService.createStart(1, 5, "  .36 ").getCaliber());
+        assertNull(startService.createStart(1, 5, "   ").getCaliber());
+        assertNull(startService.createStart(1, 5).getCaliber());
+
+        Competitor one = competitorService.getCompetitorById(1);
+        assertEquals(".36", one.getStarts().get("5").get(0).getCaliber());
+        assertNull(one.getStarts().get("5").get(1).getCaliber());
+    }
 }

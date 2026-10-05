@@ -219,13 +219,17 @@
 
                     <!-- Add Start Form -->
                     <div id="add-start-form" class="border border-gray-200 rounded-lg p-4 mb-4 hidden">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Discipline *</label>
                                 <select id="start-discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Select Discipline</option>
                                     <!-- Active disciplines will be populated here -->
                                 </select>
+                            </div>
+                            <div>
+                                <label for="start-caliber" class="block text-sm font-medium text-gray-700 mb-1">Caliber</label>
+                                <input type="text" id="start-caliber" placeholder="e.g. .36, .56" maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
@@ -248,6 +252,7 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discipline</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Caliber</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated ID</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>

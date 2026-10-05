@@ -1,5 +1,6 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Start {
@@ -14,6 +15,11 @@ public class Start {
     
     @JsonProperty("status")
     private String status;
+
+    // Free text entered by the user, e.g. ".36" or ".56"; null if none given
+    @JsonProperty("caliber")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String caliber;
 
     // Constructors
     public Start() {}
@@ -37,4 +43,7 @@ public class Start {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getCaliber() { return caliber; }
+    public void setCaliber(String caliber) { this.caliber = caliber; }
 }
