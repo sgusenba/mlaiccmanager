@@ -1,11 +1,12 @@
 // Meet page: the meet's name, venue, host and dates, and the printouts made
 // from them: a start card per starter (A4 portrait) and a race bib per
 // starter (A4 landscape), printed or exported as Word documents, plus the
-// lane assignments as a CSV file.
+// lane assignments as a CSV file and as target labels (printed or Word).
 
 import { escapeHtml, formatDateRange, loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { laneRows, toCsv } from './laneExport.js';
+import { LABEL_PAGE_SIZE, labelSize, labelsPerSheet, targetLabels, targetLabelsDocx, targetLabelsHtml } from './labelExport.js';
 import { raceBibsDocx, startCardsDocx } from './wordExport.js';
 
 const PAGE_SIZES = {
@@ -15,6 +16,7 @@ const PAGE_SIZES = {
 
 const SEPARATOR_KEY = 'meet.csvSeparator';
 const FORMAT_KEY = 'meet.exportFormat';
+const LABELS_KEY = 'meet.labels';
 const EXPORT_TITLES = { cards: 'Export Start Cards', bibs: 'Export Race Bibs' };
 const FILE_PREFIXES = { cards: 'start-cards', bibs: 'race-bibs' };
 
@@ -341,18 +343,20 @@ function store(key, value) {
     try { localStorage.setItem(key, value); } catch { /* private mode: not remembered */ }
 }
 
+/** The rows of the lane assignments, for the CSV and the target labels. */
+async function loadLaneRows(includeUnscheduled) {
+    const [overview, relays, competitors, disciplines] = await Promise.all([
+        api('/rmgmt/overview'), api('/rmgmt'), api('/competitors'), api('/available-disciplines'), refreshMeet()
+    ]);
+    return laneRows({ overview, relays, competitors, disciplines, meet, includeUnscheduled });
+}
+
 async function exportLanes(button) {
     const separator = document.getElementById('csv-separator').value;
     store(SEPARATOR_KEY, separator);
     button.disabled = true;
     try {
-        const [overview, relays, competitors, disciplines] = await Promise.all([
-            api('/rmgmt/overview'), api('/rmgmt'), api('/competitors'), api('/available-disciplines'), refreshMeet()
-        ]);
-        const rows = laneRows({
-            overview, relays, competitors, disciplines, meet,
-            includeUnscheduled: document.getElementById('csv-unscheduled').checked
-        });
+        const rows = await loadLaneRows(document.getElementById('csv-unscheduled').checked);
         if (rows.length === 0) throw new Error('There are no lane assignments yet.');
         downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName('lane-assignments', 'csv'));
         const lanes = rows.filter(row => row.scheduled).length;
@@ -366,9 +370,69 @@ async function exportLanes(button) {
     }
 }
 
-// Exposed for checking the layout on screen: meetPrintPreview('bibs'), meetPrintPreview(null)
+// --- target labels ---------------------------------------------------------
+
+/** Size and pairs as set on the page, the size kept within its limits. */
+function labelSettings() {
+    const size = labelSize(document.getElementById('label-width').value, document.getElementById('label-height').value);
+    return { size, pairs: document.getElementById('label-pairs').checked };
+}
+
+function showLabelsPerSheet() {
+    const { columns, lines } = labelsPerSheet(labelSettings().size);
+    document.getElementById('label-per-sheet').textContent = `${columns * lines} per A4 sheet (${columns} x ${lines})`;
+}
+
+function restoreLabelSettings() {
+    let saved = null;
+    try { saved = JSON.parse(readStored(LABELS_KEY) || 'null'); } catch { /* ignored: defaults */ }
+    const size = labelSize(saved?.width, saved?.height);
+    document.getElementById('label-width').value = size.width;
+    document.getElementById('label-height').value = size.height;
+    document.getElementById('label-pairs').checked = Boolean(saved?.pairs);
+    showLabelsPerSheet();
+}
+
+async function loadLabels() {
+    const { size, pairs } = labelSettings();
+    // shows the values actually used, e.g. when one was out of range
+    document.getElementById('label-width').value = size.width;
+    document.getElementById('label-height').value = size.height;
+    store(LABELS_KEY, JSON.stringify({ ...size, pairs }));
+    const labels = targetLabels(await loadLaneRows(false), { pairs });
+    if (labels.length === 0) throw new Error('There are no lane assignments yet.');
+    return { labels, size };
+}
+
+async function renderLabels() {
+    const { labels, size } = await loadLabels();
+    document.getElementById('page-size').textContent = LABEL_PAGE_SIZE;
+    document.getElementById('print-area').innerHTML = targetLabelsHtml(labels, size);
+    return labels.length;
+}
+
+async function exportLabels(format, button) {
+    button.disabled = true;
+    try {
+        if (format === 'word') {
+            const { labels, size } = await loadLabels();
+            downloadBlob(await targetLabelsDocx(labels, size), exportFileName('target-labels', 'docx'));
+            showMessage(`Exported ${labels.length} label${labels.length === 1 ? '' : 's'} as a Word document.`, 'success');
+        } else {
+            await renderLabels();
+            window.print();
+        }
+    } catch (error) {
+        showMessage(`Could not export the labels: ${error.message}`);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// Exposed for checking the layout on screen: meetPrintPreview('bibs'), meetPrintPreview('labels'), meetPrintPreview(null)
 window.meetPrintPreview = async (kind) => {
     document.body.classList.toggle('print-preview', Boolean(kind));
+    if (kind === 'labels') return renderLabels();
     if (kind) return renderPrintout(kind);
     document.getElementById('print-area').innerHTML = '';
     return 0;
@@ -383,6 +447,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (event.submitter?.value === 'export') exportFromDialog();
     });
     document.getElementById('export-lanes-btn').addEventListener('click', e => exportLanes(e.currentTarget));
+    document.getElementById('print-labels-btn').addEventListener('click', e => exportLabels('print', e.currentTarget));
+    document.getElementById('word-labels-btn').addEventListener('click', e => exportLabels('word', e.currentTarget));
+    ['label-width', 'label-height'].forEach(id => document.getElementById(id).addEventListener('input', showLabelsPerSheet));
+    restoreLabelSettings();
     document.querySelectorAll('.starter-search').forEach(search => {
         search.addEventListener('input', () => renderStarterSelect(search));
     });

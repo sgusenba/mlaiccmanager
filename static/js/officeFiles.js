@@ -221,17 +221,30 @@ export function table(rows, options = {}) {
 // its `logo` option and relates them as rId3
 const LOGO_REL_ID = 'rId3';
 
-/** A paragraph with the logo, sizeMm wide and high (the logo is square). */
-export function logoParagraph(sizeMm, style = {}) {
-    const emu = Math.round(sizeMm * 36000);
-    const drawing = `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="${WP_NS}">`
-        + `<wp:extent cx="${emu}" cy="${emu}"/><wp:docPr id="1" name="Logo" descr="MLAIC Competition Manager"/>`
+/**
+ * A run with a picture docx() embeds, widthMm by heightMm. relId: its
+ * relationship, e.g. imageRelId(0) for the first of docx()'s `images`;
+ * id: a number unique within the document.
+ */
+export function imageRun(relId, widthMm, heightMm, { id = 1, name = 'image.png', description = '' } = {}) {
+    const cx = Math.round(widthMm * 36000);
+    const cy = Math.round(heightMm * 36000);
+    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="${WP_NS}">`
+        + `<wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="${xml(name)}" descr="${xml(description)}"/>`
         + `<a:graphic xmlns:a="${A_NS}"><a:graphicData uri="${PIC_NS}"><pic:pic xmlns:pic="${PIC_NS}">`
-        + '<pic:nvPicPr><pic:cNvPr id="1" name="logo.png"/><pic:cNvPicPr/></pic:nvPicPr>'
-        + `<pic:blipFill><a:blip r:embed="${LOGO_REL_ID}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
-        + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm>`
+        + `<pic:nvPicPr><pic:cNvPr id="${id}" name="${xml(name)}"/><pic:cNvPicPr/></pic:nvPicPr>`
+        + `<pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+        + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>`
         + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>'
         + '</wp:inline></w:drawing></w:r>';
+}
+
+/** The relationship of the index-th of docx()'s `images`. */
+export const imageRelId = (index) => `rIdImage${index + 1}`;
+
+/** A paragraph with the logo, sizeMm wide and high (the logo is square). */
+export function logoParagraph(sizeMm, style = {}) {
+    const drawing = imageRun(LOGO_REL_ID, sizeMm, sizeMm, { name: 'logo.png', description: 'MLAIC Competition Manager' });
     return `<w:p><w:pPr><w:spacing w:after="${pt20(style.spaceAfter ?? 0)}"/></w:pPr>${drawing}</w:p>`;
 }
 
@@ -258,20 +271,22 @@ function watermarkHeader(text, pageWidthMm) {
 
 /**
  * A Word document on A4. body: paragraphs and tables in order.
- * options: landscape, margin (mm), pageBorder (pt): a border around every page,
+ * options: landscape, margin (mm, or { top, right, bottom, left }), pageBorder (pt): a border around every page,
  * watermark: text across every page of the body, frontMatter: paragraphs and
- * tables before the body, on their own pages without the watermark.
+ * tables before the body, on their own pages without the watermark, logo: the PNG bytes
+ * logoParagraph() shows, images: further PNG bytes, the index-th related as imageRelId(index).
  */
-export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null } = {}) {
+export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null, images = [] } = {}) {
     const [width, height] = landscape ? [16838, 11906] : [11906, 16838];
-    const m = twips(margin);
+    const margins = typeof margin === 'number' ? { top: margin, right: margin, bottom: margin, left: margin } : margin;
+    const [top, right, bottom, left] = ['top', 'right', 'bottom', 'left'].map(side => twips(margins[side] ?? 0));
     const pageBorders = pageBorder
         ? `<w:pgBorders w:offsetFrom="text">${['top', 'left', 'bottom', 'right']
             .map(side => border(side, pageBorder, '000000', 4)).join('')}</w:pgBorders>`
         : '';
     const sectionProperties = (header) => `<w:sectPr>${header ? '<w:headerReference w:type="default" r:id="rId2"/>' : ''}`
         + `<w:pgSz w:w="${width}" w:h="${height}"${landscape ? ' w:orient="landscape"' : ''}/>`
-        + `<w:pgMar w:top="${m}" w:right="${m}" w:bottom="${m}" w:left="${m}" w:header="0" w:footer="0" w:gutter="0"/>`
+        + `<w:pgMar w:top="${top}" w:right="${right}" w:bottom="${bottom}" w:left="${left}" w:header="0" w:footer="0" w:gutter="0"/>`
         + `${pageBorders}</w:sectPr>`;
     // The front matter ends in a section break, so the body starts on a new page
     const front = frontMatter.length ? `${frontMatter.join('')}<w:p><w:pPr>${sectionProperties(false)}</w:pPr></w:p>` : '';
@@ -293,7 +308,7 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
             + '<Default Extension="xml" ContentType="application/xml"/>'
             + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
             + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
-            + (logo ? '<Default Extension="png" ContentType="image/png"/>' : '')
+            + (logo || images.length ? '<Default Extension="png" ContentType="image/png"/>' : '')
             + (watermark ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : '')
             + '</Types>'],
         ['_rels/.rels', `${XML_HEAD}<Relationships xmlns="${REL_NS}">`
@@ -302,11 +317,13 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
             + `<Relationship Id="rId1" Type="${DOC_REL}/styles" Target="styles.xml"/>`
             + (watermark ? `<Relationship Id="rId2" Type="${DOC_REL}/header" Target="header1.xml"/>` : '')
             + (logo ? `<Relationship Id="${LOGO_REL_ID}" Type="${DOC_REL}/image" Target="media/logo.png"/>` : '')
+            + images.map((_, i) => `<Relationship Id="${imageRelId(i)}" Type="${DOC_REL}/image" Target="media/image${i + 1}.png"/>`).join('')
             + '</Relationships>'],
         ['word/document.xml', document],
         ['word/styles.xml', styles],
         ...(logo ? [['word/media/logo.png', logo]] : []),
-        ...(watermark ? [['word/header1.xml', watermarkHeader(watermark, (landscape ? 297 : 210) - 2 * margin)]] : [])
+        ...images.map((bytes, i) => [`word/media/image${i + 1}.png`, bytes]),
+        ...(watermark ? [['word/header1.xml', watermarkHeader(watermark, (landscape ? 297 : 210) - (margins.left ?? 0) - (margins.right ?? 0))]] : [])
     ], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }
 

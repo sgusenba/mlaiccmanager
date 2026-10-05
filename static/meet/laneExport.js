@@ -56,6 +56,9 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
     const disciplineById = new Map((disciplines || []).map(d => [d.id, d]));
     const rangeOrder = new Map((overview.ranges || []).map((range, i) => [range.id, i]));
     const duration = Number(relays?.config?.relay_duration_min);
+    // the caliber is stored with the competitor's start, not in the overview
+    const caliberByStart = new Map((competitors || []).flatMap(c => Object.values(c.starts || {}).flat()
+        .filter(start => start?.caliber).map(start => [start.generated_id, start.caliber])));
 
     const row = (entry, scheduled) => {
         const competitor = competitorById.get(entry.competitor?.id) || entry.competitor || {};
@@ -77,6 +80,7 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
             club: competitor.club ?? '',
             country: competitor.country ?? '',
             discipline: entry.discipline_name ?? '',
+            caliber: caliberByStart.get(entry.start_id) ?? '',
             // the full name where no short name is configured, so labels are never blank
             disciplineShort: discipline.short_name || entry.discipline_name || '',
             event: discipline.event ?? '',
