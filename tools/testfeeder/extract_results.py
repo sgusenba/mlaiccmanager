@@ -46,8 +46,8 @@ def team(category, type_, event, size=3):
 # feeder finds a discipline by category, level, type and event (without the
 # catalog's MLAIC number and type suffix, so "Kuchenreuter" finds
 # "6_Kuchenreuter_O") and creates the ones the catalog lacks (Meixner, junior
-# lists, and Halikko, Lucca and Magenta, which the catalog has as reproduction
-# teams but the PDF scores from O/R results).
+# lists). A "combined" O/R list goes into the catalog's original and
+# reproduction disciplines (each result carries its "type"), ranked combined.
 INDIVIDUAL = {
     "Kuchenreuter/O": ind("pistol", "original", "Kuchenreuter", "m25"),
     "Kuchenreuter/R": ind("pistol", "reproduction", "Kuchenreuter", "m25"),
@@ -85,12 +85,12 @@ TEAMS = {
     "El Alamo (D.Malson O/R)": team("pistol", "open", "El Alamo"),
     "Springfield(MEI-R/O)": team("pistol", "open", "Springfield"),
     "Nagashino (Tanegash. O/R)": team("rifle", "open", "Nagashino"),
-    "Halikko (Miqelet O/R)": team("rifle", "combined", "Halikko"),
+    "Halikko (Miqelet O/R)": team("rifle", "reproduction", "Halikko"),
     "Pforzheim (Vetterli-R/O)": team("rifle", "open", "Pforzheim"),
     "Enfield (Lamarmora O/R)": team("rifle", "open", "Enfield"),
     "Kossut (Pennsylvania O/R)": team("rifle", "open", "Kossuth"),
-    "Lucca (Maximilian-R/O)": team("rifle", "combined", "Lucca"),
-    "Magenta (Minie-R/O)": team("rifle", "combined", "Magenta"),
+    "Lucca (Maximilian-R/O)": team("rifle", "reproduction", "Lucca"),
+    "Magenta (Minie-R/O)": team("rifle", "reproduction", "Magenta"),
     "Rigby (Whitworth-R/O)": team("rifle", "open", "Rigby"),
 }
 
@@ -198,6 +198,9 @@ class Extractor:
             surname, first = split_name(m["name"])
             rest = m["rest"].split()
             result = {"discipline": title, "bib": bib, "marker": m["marker"]}
+            if "O/R" in title:
+                # O/R lists mark originals with "O" next to the bib; unmarked rows are reproductions
+                result["type"] = "original" if m["marker"] == "O" else "reproduction"
             if rest[-1] == "DNS":
                 club = " ".join(rest[:-1])
                 result.update({"dns": True})
