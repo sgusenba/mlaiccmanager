@@ -3,267 +3,287 @@
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Miquelet",
+  "event" : "1_Miquelet_O",
+  "short_name" : "MIQO",
   "shooting_distance" : "m50"
 }, {
   "id" : 2,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Maximilian",
+  "event" : "2_Maximilian_O",
+  "short_name" : "MAXO",
   "shooting_distance" : "m100"
 }, {
   "id" : 3,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Minie",
+  "event" : "3_Minie_O",
+  "short_name" : "MINO",
   "shooting_distance" : "m100"
 }, {
   "id" : 4,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Whitworth",
+  "event" : "4_Whitworth_O",
+  "short_name" : "WHITO",
   "shooting_distance" : "m100"
 }, {
   "id" : 5,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Walkyrie",
+  "event" : "8_Walkyrie_O",
+  "short_name" : "WALO",
   "shooting_distance" : "m100"
 }, {
   "id" : 6,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Tanegashima",
+  "event" : "14_Tanegashima_O",
+  "short_name" : "TANO",
   "shooting_distance" : "m50"
 }, {
   "id" : 7,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Vetterli",
+  "event" : "15_Vetterli_O",
+  "short_name" : "VETO",
   "shooting_distance" : "m50"
 }, {
   "id" : 8,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Hizadai",
+  "event" : "16_Hizadai_O",
+  "short_name" : "HIZO",
   "shooting_distance" : "m50"
 }, {
   "id" : 9,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Pennsylvania",
+  "event" : "36_Pennsylvania_O",
+  "short_name" : "PENO",
   "shooting_distance" : "m50"
 }, {
   "id" : 10,
   "category" : "rifle",
   "level" : "individual",
   "type" : "original",
-  "event" : "Lamarmora",
+  "event" : "37_Lamarmora_O",
+  "short_name" : "LAMO",
   "shooting_distance" : "m50"
 }, {
   "id" : 11,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Miquelet",
+  "event" : "1_Miquelet_R",
+  "short_name" : "MIQR",
   "shooting_distance" : "m50"
 }, {
   "id" : 12,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Maximilian",
+  "event" : "2_Maximilian_R",
+  "short_name" : "MAXR",
   "shooting_distance" : "m100"
 }, {
   "id" : 13,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Minie",
+  "event" : "3_Minie_R",
+  "short_name" : "MINR",
   "shooting_distance" : "m100"
 }, {
   "id" : 14,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Whitworth",
+  "event" : "4_Whitworth_R",
+  "short_name" : "WHITR",
   "shooting_distance" : "m100"
 }, {
   "id" : 15,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Walkyrie",
+  "event" : "8_Walkyrie_R",
+  "short_name" : "WALR",
   "shooting_distance" : "m100"
 }, {
   "id" : 16,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Tanegashima",
+  "event" : "14_Tanegashima_R",
+  "short_name" : "TANR",
   "shooting_distance" : "m50"
 }, {
   "id" : 17,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Vetterli",
+  "event" : "15_Vetterli_R",
+  "short_name" : "VETR",
   "shooting_distance" : "m50"
 }, {
   "id" : 18,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Hizadai",
+  "event" : "16_Hizadai_R",
+  "short_name" : "HIZR",
   "shooting_distance" : "m50"
 }, {
   "id" : 19,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Pennsylvania",
+  "event" : "36_Pennsylvania_R",
+  "short_name" : "PENR",
   "shooting_distance" : "m50"
 }, {
   "id" : 20,
   "category" : "rifle",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Lamarmora",
+  "event" : "37_Lamarmora_R",
+  "short_name" : "LAMR",
   "shooting_distance" : "m50"
 }, {
   "id" : 31,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Gustav Adolph",
-  "based_on" : "Miquelet",
+  "event" : "9_Gustav Adolph",
+  "based_on" : "1_Miquelet_O",
   "team_size" : 3
 }, {
   "id" : 32,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Pauly",
-  "based_on" : "Minie",
+  "event" : "10_Pauly",
+  "based_on" : "3_Minie_O",
   "team_size" : 3
 }, {
   "id" : 33,
   "category" : "rifle",
   "level" : "team",
-  "type" : "original",
-  "event" : "Amazons",
-  "based_on" : "Walkyrie",
+  "type" : "open",
+  "event" : "17_Amazons",
+  "based_on" : "8_Walkyrie_O/R",
   "team_size" : 3
 }, {
   "id" : 34,
   "category" : "rifle",
   "level" : "team",
-  "type" : "original",
-  "event" : "Nagashino",
-  "based_on" : "Tanegashima",
+  "type" : "open",
+  "event" : "19_Nagashino",
+  "based_on" : "14_Tanegashima_O/R",
   "team_size" : 3
 }, {
   "id" : 35,
   "category" : "rifle",
   "level" : "team",
-  "type" : "original",
-  "event" : "Rigby",
-  "based_on" : "Whitworth",
+  "type" : "open",
+  "event" : "20_Rigby",
+  "based_on" : "4_Whitworth_O/R",
   "team_size" : 3
 }, {
   "id" : 36,
   "category" : "rifle",
   "level" : "team",
-  "type" : "original",
-  "event" : "Pforzheim",
-  "based_on" : "Vetterli",
+  "type" : "open",
+  "event" : "24_Pforzheim",
+  "based_on" : "15_Vetterli_O/R",
   "team_size" : 3
 }, {
   "id" : 37,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Wedgnock",
-  "based_on" : "Maximilian",
+  "event" : "26_Wedgnock",
+  "based_on" : "2_Maximilian_O",
   "team_size" : 3
 }, {
   "id" : 38,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Nobunaga",
-  "based_on" : "Tanegashima",
+  "event" : "27_Nobunaga",
+  "based_on" : "14_Tanegashima_O",
   "team_size" : 3
 }, {
   "id" : 39,
   "category" : "rifle",
   "level" : "team",
-  "type" : "original",
-  "event" : "Halikko",
-  "based_on" : "Miquelet",
+  "type" : "reproduction",
+  "event" : "31_Halikko",
+  "based_on" : "1_Miquelet_R",
   "team_size" : 3
 }, {
   "id" : 40,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Hibuta",
-  "based_on" : "Hizadai",
+  "event" : "43_Hibuta",
+  "based_on" : "16_Hizadai_O",
   "team_size" : 3
 }, {
   "id" : 41,
   "category" : "rifle",
   "level" : "team",
   "type" : "original",
-  "event" : "Königgrätz",
-  "based_on" : "Lamarmora",
+  "event" : "XX_Königgrätz",
+  "based_on" : "37_Lamarmora_O",
   "team_size" : 3
 }, {
   "id" : 42,
   "category" : "rifle",
   "level" : "team",
   "type" : "reproduction",
-  "event" : "Lucca",
-  "based_on" : "Maximilian",
+  "event" : "29_Lucca",
+  "based_on" : "2_Maximilian_R",
   "team_size" : 3
 }, {
   "id" : 43,
   "category" : "rifle",
   "level" : "team",
   "type" : "reproduction",
-  "event" : "Magenta",
-  "based_on" : "Minie",
+  "event" : "32_Magenta",
+  "based_on" : "3_Minie_R",
   "team_size" : 3
 }, {
   "id" : 44,
   "category" : "rifle",
   "level" : "team",
-  "type" : "reproduction",
-  "event" : "Enfield",
-  "based_on" : "Lamarmora",
+  "type" : "open",
+  "event" : "40_Enfield",
+  "based_on" : "37_Lamarmora_O/R",
   "team_size" : 3
 }, {
   "id" : 45,
   "category" : "rifle",
   "level" : "team",
   "type" : "reproduction",
-  "event" : "Hinowa",
-  "based_on" : "Hizadai",
+  "event" : "44_Hinawa",
+  "based_on" : "16_Hizadai_R",
   "team_size" : 3
 }, {
   "id" : 46,
   "category" : "rifle",
   "level" : "team",
   "type" : "open",
-  "event" : "Versailles",
+  "event" : "11_GP of Versailles",
   "based_on" : "Gustav Adolph + Pauly (aggregate)",
   "team_size" : 6
 }, {
@@ -287,155 +307,167 @@
   "category" : "rifle",
   "level" : "team",
   "type" : "open",
-  "event" : "Kossuth",
-  "based_on" : "Pennsylvania",
+  "event" : "42_Kossuth",
+  "based_on" : "36_Pennsylvania_O/R",
   "team_size" : 3
 }, {
   "id" : 50,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Cominazzo",
+  "event" : "5_Cominazzo_O",
+  "short_name" : "COMO",
   "shooting_distance" : "m25"
 }, {
   "id" : 51,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Kuchenreuter",
+  "event" : "6_Kuchenreuter_O",
+  "short_name" : "KUCO",
   "shooting_distance" : "m25"
 }, {
   "id" : 52,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Colt",
+  "event" : "7_Colt",
+  "short_name" : "COLT",
   "shooting_distance" : "m25"
 }, {
   "id" : 53,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Donald Malson",
+  "event" : "23_Donald Malson O",
+  "short_name" : "MALO",
   "shooting_distance" : "m50"
 }, {
   "id" : 54,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Tanzutsu",
+  "event" : "28_Tanzutsu_O",
+  "short_name" : "TANO",
   "shooting_distance" : "m25"
 }, {
   "id" : 55,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Cominazzo",
+  "event" : "5_Cominazzo_R",
+  "short_name" : "COMR",
   "shooting_distance" : "m25"
 }, {
   "id" : 56,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Kuchenreuter",
+  "event" : "6_Kuchenreuter_R",
+  "short_name" : "KUCR",
   "shooting_distance" : "m25"
 }, {
   "id" : 57,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Mariette",
+  "event" : "12_Mariette",
+  "short_name" : "MAR",
   "shooting_distance" : "m25"
 }, {
   "id" : 58,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Donald Malson",
+  "event" : "23_Donald Malson R",
+  "short_name" : "MALR",
   "shooting_distance" : "m50"
 }, {
   "id" : 59,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Tanzutsu",
+  "event" : "28_Tanzutsu_R",
+  "short_name" : "TANR",
   "shooting_distance" : "m25"
 }, {
   "id" : 74,
   "category" : "pistol",
   "level" : "individual",
   "type" : "original",
-  "event" : "Remington",
+  "event" : "38_Remington_O",
+  "short_name" : "REMO",
   "aggregate_of" : [ "Colt", "Donald Malson" ]
 }, {
   "id" : 75,
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Remington",
+  "event" : "38_Remington_R",
+  "short_name" : "REMR",
   "aggregate_of" : [ "Mariette", "Donald Malson" ]
 }, {
   "id" : 66,
   "category" : "pistol",
   "level" : "team",
   "type" : "original",
-  "event" : "Boutet",
-  "based_on" : "Kuchenreuter",
+  "event" : "18_Boutet",
+  "based_on" : "6_Kuchenreuter_O",
   "team_size" : 3
 }, {
   "id" : 67,
   "category" : "pistol",
   "level" : "team",
-  "type" : "original",
-  "event" : "Wogdon",
-  "based_on" : "Cominazzo",
+  "type" : "open",
+  "event" : "25_Wogdon",
+  "based_on" : "5_Cominazzo_O/R",
   "team_size" : 3
 }, {
   "id" : 68,
   "category" : "pistol",
   "level" : "team",
   "type" : "original",
-  "event" : "Adams",
-  "based_on" : "Colt",
+  "event" : "30_Adams",
+  "based_on" : "7_Colt",
   "team_size" : 3
 }, {
   "id" : 69,
   "category" : "pistol",
   "level" : "team",
   "type" : "original",
-  "event" : "Egg",
-  "based_on" : "Cominazzo",
+  "event" : "41_Egg",
+  "based_on" : "5_Cominazzo_O",
   "team_size" : 3
 }, {
   "id" : 70,
   "category" : "pistol",
   "level" : "team",
   "type" : "reproduction",
-  "event" : "Peterlongo",
-  "based_on" : "Mariette",
+  "event" : "13_Peterlongo",
+  "based_on" : "12_Mariette",
   "team_size" : 3
 }, {
   "id" : 71,
   "category" : "pistol",
   "level" : "team",
   "type" : "reproduction",
-  "event" : "Forsyth",
-  "based_on" : "Kuchenreuter",
+  "event" : "33_Forsyth",
+  "based_on" : "6_Kuchenreuter_R",
   "team_size" : 3
 }, {
   "id" : 72,
   "category" : "pistol",
   "level" : "team",
   "type" : "open",
-  "event" : "Kunitomo",
-  "based_on" : "Tanzutsu",
+  "event" : "39_Kunitomo",
+  "based_on" : "28_Tanzutsu_O/R",
   "team_size" : 3
 }, {
   "id" : 73,
   "category" : "pistol",
   "level" : "team",
   "type" : "open",
-  "event" : "El Alamo",
-  "based_on" : "Not specified",
+  "event" : "45_El Alamo",
+  "based_on" : "23_Donald Malson O/R",
   "team_size" : 3
 } ]

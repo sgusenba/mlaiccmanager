@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class DisciplineService {
     static final int FIRST_CUSTOM_ID = 1000;
@@ -137,13 +138,35 @@ public class DisciplineService {
         return category + "|" + event;
     }
 
+    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|O|R)$");
+    private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:\\d+|XX)_");
+
+    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R". */
+    public static String baseEvent(String event) {
+        return event == null ? null : TYPE_SUFFIX.matcher(event.trim()).replaceFirst("").trim();
+    }
+
+    /**
+     * What event names are matched on (original/reproduction pairs, aggregates,
+     * team based_on, lane families): also without the MLAIC number, so
+     * "1_Miquelet_O", "1_Miquelet_R" and "Miquelet" are the same event.
+     */
+    public static String matchKey(String event) {
+        return event == null ? null : NUMBER_PREFIX.matcher(baseEvent(event)).replaceFirst("").trim();
+    }
+
+    /** Whether two event names name the same event, see {@link #matchKey}. */
+    public static boolean sameEvent(String a, String b) {
+        return a != null && b != null && matchKey(a).equalsIgnoreCase(matchKey(b));
+    }
+
     /** Every event with exactly one original and one reproduction individual discipline, in catalog order. */
     static List<EventPair> eventPairsOf(List<Discipline> disciplines) {
         Map<String, List<Discipline>> byEvent = new LinkedHashMap<>();
         for (Discipline d : disciplines) {
             if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && d.getEvent() != null
                     && ("original".equals(d.getType()) || "reproduction".equals(d.getType()))) {
-                byEvent.computeIfAbsent(eventKey(d.getCategory(), d.getEvent()), k -> new ArrayList<>()).add(d);
+                byEvent.computeIfAbsent(eventKey(d.getCategory(), matchKey(d.getEvent())), k -> new ArrayList<>()).add(d);
             }
         }
         List<EventPair> pairs = new ArrayList<>();
@@ -155,7 +178,7 @@ public class DisciplineService {
             }
             if (originals.size() == 1 && reproductions.size() == 1) {
                 Discipline original = originals.get(0);
-                pairs.add(new EventPair(entry.getKey(), original.getCategory(), original.getEvent(),
+                pairs.add(new EventPair(entry.getKey(), original.getCategory(), baseEvent(original.getEvent()),
                     original.getId(), reproductions.get(0).getId()));
             }
         }
@@ -177,7 +200,7 @@ public class DisciplineService {
         for (String event : aggregate.getAggregateOf()) {
             for (Discipline d : disciplines) {
                 if (!TeamService.isTeamDiscipline(d) && !isAggregate(d)
-                        && event.equalsIgnoreCase(d.getEvent())
+                        && sameEvent(event, d.getEvent())
                         && Objects.equals(aggregate.getCategory(), d.getCategory())
                         && Objects.equals(aggregate.getType(), d.getType())) {
                     components.add(d);

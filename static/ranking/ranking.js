@@ -99,7 +99,7 @@ async function loadDisciplines() {
         const id = pair ? pair.original_id : d.id;
         if (shown.has(id)) continue;
         shown.add(id);
-        options.push(`<option value="${id}">${escapeHtml(disciplineDisplayName(d.event, pair ? 'combined' : d.type))}</option>`);
+        options.push(`<option value="${id}">${escapeHtml(disciplineDisplayName(pair ? pair.event : d.event, pair ? 'combined' : d.type))}</option>`);
     }
     const select = document.getElementById('discipline-select');
     select.innerHTML = '<option value="">All disciplines</option>' + options.join('');

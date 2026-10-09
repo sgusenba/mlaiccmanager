@@ -112,7 +112,7 @@ public class TeamService {
                 continue;
             }
             sameCategory.add(d);
-            if (d.getEvent() != null && d.getEvent().equalsIgnoreCase(team.getBasedOn())) {
+            if (DisciplineService.sameEvent(d.getEvent(), team.getBasedOn())) {
                 basedOn.add(d);
             }
         }

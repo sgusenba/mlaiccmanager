@@ -442,6 +442,7 @@ public class RankingService {
         scope.ids = List.of(pair.originalId(), pair.reproductionId());
         scope.typeById = Map.of(pair.originalId(), "original", pair.reproductionId(), "reproduction");
         scope.info.put("id", pair.originalId());
+        scope.info.put("name", pair.event());
         scope.info.put("type", "combined");
         scope.info.put("combined_ids", scope.ids);
         return scope;
