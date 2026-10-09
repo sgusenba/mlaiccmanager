@@ -88,6 +88,11 @@ public class DisciplineService {
                 .filter(d -> d.getId() == id).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Discipline not found: " + id));
             applyCatalogFields(target, data);
+            // A catalog discipline's short name goes into the catalog for every competition;
+            // the competition file then no longer differs from it there
+            if (data.containsKey("short_name")) {
+                dataService.setCatalogShortName(id, target.getShortName());
+            }
             return target;
         });
     }

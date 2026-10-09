@@ -154,6 +154,8 @@ function showForm(discipline) {
         document.getElementById('form-id').value = discipline.id;
         document.getElementById('form-event').value = discipline.event || '';
         document.getElementById('form-short-name').value = discipline.short_name || '';
+        // Disciplines added by this competition (ids from 1000) keep their short name to themselves
+        document.getElementById('short-name-hint').classList.toggle('hidden', discipline.id >= 1000);
         document.getElementById('form-category').value = discipline.category || 'rifle';
         document.getElementById('form-level').value = discipline.level || 'individual';
         document.getElementById('form-type').value = discipline.type || 'original';
@@ -164,6 +166,7 @@ function showForm(discipline) {
         title.textContent = 'Add Discipline';
         document.getElementById('form-id').value = '';
         document.getElementById('discipline-form').reset();
+        document.getElementById('short-name-hint').classList.add('hidden');
     }
     toggleTeamFields();
     document.getElementById('form-event').focus();

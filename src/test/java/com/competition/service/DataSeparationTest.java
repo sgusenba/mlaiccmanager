@@ -81,7 +81,9 @@ class DataSeparationTest {
         disciplineService.updateCatalogDiscipline(1, Map.of("short_name", "  A sh  "));
         Discipline added = disciplineService.createCatalogDiscipline(Map.of("event", "Custom", "short_name", "Cu"));
 
-        assertEquals("{\"short_name\":\"A sh\"}", competitionJson().get("discipline_overrides").get("1").toString());
+        assertEquals("{\"short_name\":\"A sh\"}",
+            mapper.readTree(tempDir.resolve("disciplines.local.json").toFile()).path("overrides").get("1").toString());
+        assertNull(competitionJson().path("discipline_overrides").get("1"));
         List<Discipline> reloaded = newDataService().loadDisciplines();
         assertEquals("A sh", byId(reloaded, 1).getShortName());
         assertEquals("Cu", byId(reloaded, added.getId()).getShortName());
@@ -172,5 +174,35 @@ class DataSeparationTest {
 
         StartService startService = new StartService(dataService);
         assertEquals("1-2-2", startService.createStart(1, 2).getGeneratedId());
+    }
+
+    @Test
+    void shortNamesGoIntoTheLocalCatalogAndSurviveResetAndDeploy() throws Exception {
+        java.util.HashMap<String, Object> clear = new java.util.HashMap<>();
+        clear.put("short_name", null);
+
+        disciplineService.updateCatalogDiscipline(1, Map.of("short_name", " MIQ "));
+        assertEquals("MIQ", byId(disciplineService.getAvailableDisciplines(), 1).getShortName());
+        assertEquals("MIQ", mapper.readTree(tempDir.resolve("disciplines.local.json").toFile())
+            .path("overrides").path("1").path("short_name").asText());
+        assertFalse(competitionJson().path("discipline_overrides").has("1"));
+        assertEquals(CATALOG, Files.readString(tempDir.resolve("disciplines.json")));
+
+        // Reset to the catalog keeps it, and so does a deploy replacing the shipped file
+        dataService.resetDisciplines();
+        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG);
+        assertEquals("MIQ", byId(newDataService().loadDisciplines(), 1).getShortName());
+
+        // An added discipline's short name stays with the competition
+        Discipline added = disciplineService.createCatalogDiscipline(Map.of("category", "rifle", "event", "Custom"));
+        disciplineService.updateCatalogDiscipline(added.getId(), Map.of("short_name", "CUS"));
+        assertFalse(mapper.readTree(tempDir.resolve("disciplines.local.json").toFile())
+            .path("overrides").has(String.valueOf(added.getId())));
+        assertEquals("CUS", competitionJson().path("custom_disciplines").get(0).path("short_name").asText());
+
+        // Clearing it removes the edit
+        disciplineService.updateCatalogDiscipline(1, clear);
+        assertNull(byId(disciplineService.getAvailableDisciplines(), 1).getShortName());
+        assertFalse(mapper.readTree(tempDir.resolve("disciplines.local.json").toFile()).path("overrides").has("1"));
     }
 }

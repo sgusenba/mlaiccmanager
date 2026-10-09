@@ -27,7 +27,7 @@ tags:
   - name: Meet
     description: Backs the `/meet` page; the meet's name, venue, host and dates live in `meet.json`.
   - name: Backup
-    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json`, `relays.json` and `meet.json`.
+    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json`, `disciplines.local.json`).
   - name: Danger zone
     description: Backs the `/danger` page; clears one kind of data at a time, saving a safety copy first.
   - name: Build info
