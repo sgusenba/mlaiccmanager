@@ -107,9 +107,10 @@ async function refreshTeams() {
         document.getElementById('new-team-btn').disabled = true;
         return;
     }
-    const from = discipline.eligible_disciplines.map(d => d.name).join(', ') || 'none';
-    info.innerHTML = `Based on <strong>${escapeHtml(discipline.based_on || '-')}</strong> · `
-        + `${discipline.team_size} shooters per team · members come from starts in: ${escapeHtml(from)}`
+    const from = discipline.eligible_disciplines.map(d => d.name).join(', ');
+    info.innerHTML = `${discipline.team_size} shooters per team · members come from starts in: `
+        + (from ? `<strong>${escapeHtml(from)}</strong>`
+            : '<span class="text-red-700">nothing yet, tick the results that count on the Disciplines page</span>')
         + (discipline.active ? '' : ' · <span class="text-yellow-700">discipline is not active</span>');
 
     [state.teams, state.candidates] = await Promise.all([

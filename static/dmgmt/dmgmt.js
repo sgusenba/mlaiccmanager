@@ -55,10 +55,9 @@ async function loadData() {
 // Individual disciplines a team can count: not team, not aggregate (Remington adds up others)
 const countable = (d) => d.level !== 'team' && !d.aggregate_of?.length;
 
-/** A team's composition as short names (or names), e.g. "TANO + TANR"; falls back to its Based On text. */
+/** A team's composition as short names (or names), e.g. "TANO + TANR". */
 function compositionText(team) {
-    if (!team.team_of) return escapeHtml(team.based_on || '');
-    const names = team.team_of
+    const names = (team.team_of || [])
         .map(id => state.disciplines.find(d => d.id === id))
         .filter(Boolean)
         .map(d => escapeHtml(d.short_name || d.event));
@@ -133,7 +132,6 @@ function renderTable() {
 function toggleTeamFields() {
     const level = document.getElementById('form-level').value;
     const isTeam = level === 'team';
-    document.getElementById('based-on-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-of-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-size-group').classList.toggle('hidden', !isTeam);
     const sdSelect = document.getElementById('form-shooting-distance');
@@ -164,8 +162,14 @@ function showForm(discipline) {
         document.getElementById('short-name-hint').classList.toggle('hidden', discipline.id >= 1000);
         document.getElementById('form-category').value = discipline.category || 'rifle';
         document.getElementById('form-level').value = discipline.level || 'individual';
-        document.getElementById('form-type').value = discipline.type || 'original';
-        document.getElementById('form-based-on').value = discipline.based_on || '';
+        // A type from older data (e.g. "combined") is kept as an option, so the form can still be saved
+        const typeSelect = document.getElementById('form-type');
+        typeSelect.querySelectorAll('option[data-legacy]').forEach(option => option.remove());
+        if (discipline.type && ![...typeSelect.options].some(option => option.value === discipline.type)) {
+            typeSelect.insertAdjacentHTML('beforeend',
+                `<option value="${escapeHtml(discipline.type)}" data-legacy>${escapeHtml(discipline.type)}</option>`);
+        }
+        typeSelect.value = discipline.type || 'original';
         document.getElementById('form-team-size').value = discipline.team_size || 3;
         document.getElementById('form-shooting-distance').value = discipline.shooting_distance || '';
         renderTeamOfOptions(discipline.team_of);
@@ -196,12 +200,9 @@ function formData() {
         type: document.getElementById('form-type').value
     };
     if (level === 'team') {
-        data.based_on = document.getElementById('form-based-on').value.trim() || null;
         data.team_size = parseInt(document.getElementById('form-team-size').value, 10) || 3;
-        const teamOf = [...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value));
-        data.team_of = teamOf.length ? teamOf : null;
+        data.team_of = [...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value));
     } else {
-        data.based_on = null;
         data.team_size = null;
         data.team_of = null;
     }

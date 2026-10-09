@@ -213,7 +213,7 @@ function disciplineSection(data, pageBreakBefore) {
             { text: `   ${discipline.category || ''}${team ? ' team' : ''}`, bold: false, size: 9, color: GREY }
         ], { size: 12, bold: true, keepNext: true, spaceAfter: team ? 1 : 4, pageBreakBefore }),
         ...(team
-            ? [paragraph(`Based on ${discipline.based_on || '-'} · ${discipline.team_size} shooters per team`,
+            ? [paragraph(`From ${(discipline.composition || []).join(' + ') || '-'} · ${discipline.team_size} shooters per team`,
                 { size: 9, color: GREY, keepNext: true, spaceAfter: 4 })]
             : []),
         team ? teamTable(data) : individualTable(data),

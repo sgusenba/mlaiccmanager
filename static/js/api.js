@@ -122,6 +122,13 @@ export async function deleteStart(competitorId, generatedId) {
     });
 }
 
+// File a start under the other type of its event (original <-> reproduction), keeping its id
+export async function switchStartType(competitorId, generatedId) {
+    return await apiCall(`/competitors/${competitorId}/starts/${encodeURIComponent(generatedId)}/switch-type`, {
+        method: 'POST'
+    });
+}
+
 // Save result
 export async function saveResult(data) {
     return await apiCall('/results', {

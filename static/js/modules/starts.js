@@ -1,9 +1,26 @@
 // Starts management module
 
 import { getState, setState } from '../config.js';
-import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
+import { addStart, deleteStart as apiDeleteStart, loadCompetitors, switchStartType } from '../api.js';
 import { escapeHtml } from '../teamRanking.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue } from '../utils.js';
+
+// The same event without MLAIC number and type, e.g. "1_Miquelet_O" and "No 1 Miquelet" -> "miquelet"
+// (as DisciplineService.matchKey on the server)
+const eventKey = (event) => String(event ?? '').trim()
+    .replace(/[_ ](?:O\/R|O|R)$/, '').trim()
+    .replace(/^(?:No\.?\s*)?(?:\d+|XX)[_ ]\s*/, '').trim().toLowerCase();
+
+const TYPE_TAGS = { original: 'O', reproduction: 'R' };
+
+/** The other type's discipline of the start's event (original <-> reproduction), or undefined. */
+function partnerOf(discipline, disciplines) {
+    if (!discipline || !TYPE_TAGS[discipline.type] || discipline.level === 'team' || discipline.aggregate_of?.length) return undefined;
+    const others = disciplines.filter(d => d.id !== discipline.id && d.category === discipline.category
+        && d.level !== 'team' && !d.aggregate_of?.length && TYPE_TAGS[d.type] && d.type !== discipline.type
+        && eventKey(d.event) === eventKey(discipline.event));
+    return others.length === 1 ? others[0] : undefined;
+}
 
 // Display competitor information
 export function displayCompetitorInfo(competitor) {
@@ -115,6 +132,15 @@ function displayStartsTable(competitor) {
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        ${(() => {
+                            const partner = partnerOf(discipline, availableDisciplines);
+                            return partner ? `
+                        <button data-action="switch-type" data-generated-id="${escapeHtml(start.generated_id)}"
+                                class="mr-3 px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                                title="File this start under ${escapeHtml(partner.event)} (${escapeHtml(partner.type)}), keeping its start ID">
+                            ${TYPE_TAGS[discipline.type]} → ${TYPE_TAGS[partner.type]}
+                        </button>` : '';
+                        })()}
                         <button data-action="delete-start" data-discipline-id="${start.discipline_id}" data-generated-id="${start.generated_id}" 
                                 class="text-red-600 hover:text-red-900">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +153,7 @@ function displayStartsTable(competitor) {
         }).join('');
         
         // Add event listeners to delete buttons
-        tbody.querySelectorAll('button[data-action="delete-start"]').forEach(button => {
+        tbody.querySelectorAll('button[data-action="delete-start"], button[data-action="switch-type"]').forEach(button => {
             button.addEventListener('click', handleStartAction);
         });
     }
@@ -143,6 +169,9 @@ function handleStartAction(event) {
     switch (action) {
         case 'delete-start':
             deleteStart(disciplineId, generatedId);
+            break;
+        case 'switch-type':
+            switchType(generatedId);
             break;
     }
 }
@@ -225,6 +254,21 @@ export async function deleteStart(disciplineId, generatedId) {
         console.error('Error deleting start:', error);
         if (!await refreshSelectedCompetitor()) return;
         showMessage(error.body?.error ? `Error deleting start: ${error.body.error}` : 'Error deleting start', 'error');
+    }
+}
+
+// File a start under the other type of its event (e.g. a combined start that was shot as a reproduction)
+async function switchType(generatedId) {
+    const selectedCompetitor = getState('selectedCompetitor');
+    if (!selectedCompetitor) return;
+    try {
+        await switchStartType(selectedCompetitor.id, generatedId);
+        await refreshSelectedCompetitor();
+        showMessage('Start switched', 'success');
+    } catch (error) {
+        console.error('Error switching start:', error);
+        if (!await refreshSelectedCompetitor()) return;
+        showMessage(error.body?.error ? `Error switching start: ${error.body.error}` : 'Error switching start', 'error');
     }
 }
 

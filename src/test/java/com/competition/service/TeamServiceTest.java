@@ -102,6 +102,8 @@ class TeamServiceTest {
         dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
             tempDir.resolve("competition.json").toString());
         teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
+        // The catalog above still has based_on only, as before "results that count" existed
+        assertEquals(List.of(31, 39, 42, 47), teamService.migrateCompositions());
     }
 
     private Map<String, Object> create(int disciplineId, String name, String... members) throws Exception {
@@ -121,14 +123,16 @@ class TeamServiceTest {
     }
 
     @Test
-    void teamDisciplinesAreScoredFromTheirBasedOnDiscipline() throws Exception {
+    void oldTeamDisciplinesGetTheirResultsThatCountFromBasedOnOnce() throws Exception {
         List<Map<String, Object>> disciplines = teamService.getTeamDisciplines();
         assertEquals(5, disciplines.size());
-        assertEquals(List.of(1), eligibleIds(disciplines, 31));
-        assertEquals(List.of(11), eligibleIds(disciplines, 42));
-        assertEquals(List.of(1, 11, 21), eligibleIds(disciplines, 47));
-        // based_on names no event: any rifle individual discipline
-        assertEquals(List.of(1, 11, 21, 3), eligibleIds(disciplines, 46));
+        assertEquals(List.of(1), eligibleIds(disciplines, 31), "original team: the original");
+        assertEquals(List.of(11), eligibleIds(disciplines, 42), "reproduction team: the reproduction");
+        assertEquals(List.of(1, 11, 21), eligibleIds(disciplines, 47), "open team: all of them");
+        // based_on names no event: nothing counts until results that count are ticked
+        assertEquals(List.of(), eligibleIds(disciplines, 46));
+        // Done once: a second start changes nothing
+        assertEquals(List.of(), teamService.migrateCompositions());
     }
 
     @Test
@@ -264,13 +268,22 @@ class TeamServiceTest {
     }
 
     @Test
+    void storedTeamMembersKeepCountingAfterTheMigration() throws Exception {
+        // Versailles' based_on names no event, but a stored team has a Minie start: that discipline counts from now on
+        Files.writeString(tempDir.resolve("teams.json"),
+            "{\"teams\":[{\"id\":1,\"discipline_id\":46,\"name\":\"Old\",\"members\":[\"1-3-1\"]}]}");
+        assertEquals(List.of(46), teamService.migrateCompositions());
+        assertEquals(List.of(3), eligibleIds(teamService.getTeamDisciplines(), 46));
+    }
+
+    @Test
     void teamOfDecidesWhichStartsCount() throws Exception {
         DisciplineService disciplineService = new DisciplineService(dataService);
         // Halikko (original, based on Miquelet) set to count original and reproduction starts
         disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11)));
         assertEquals(List.of(1, 11), eligibleIds(teamService.getTeamDisciplines(), 39));
         assertNotNull(create(39, "Mixed", "1-1-1", "5-11-1"), "Eve's reproduction start now counts");
-        // Gustav Adolph without team_of still follows based_on and type: original only
+        // Gustav Adolph still counts original starts only
         assertThrows(IllegalArgumentException.class, () -> create(31, "No", "5-11-1"));
 
         // Only individual disciplines of the team's category

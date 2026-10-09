@@ -37,6 +37,9 @@ public class ApplicationBinder extends AbstractBinder {
         StartService startService = new StartService(dataService, disciplineService);
         ResultService resultService = new ResultService(dataService, disciplineService);
         TeamService teamService = new TeamService(basePath + "/teams.json", dataService);
+        // Starts of the removed combined disciplines first, so the team migration sees where they are now
+        migrateLegacyCombinedStarts(dataService);
+        migrateTeamCompositions(teamService);
         RankingService rankingService = new RankingService(dataService, disciplineService, teamService);
         RelayService relayService = new RelayService(basePath + "/relays.json", dataService);
         MeetService meetService = new MeetService(basePath + "/meet.json");
@@ -123,6 +126,30 @@ public class ApplicationBinder extends AbstractBinder {
     }
 
     @SuppressWarnings("unchecked")
+    /** Starts still filed under the removed combined disciplines (21-30, 60-65) count again. */
+    private static void migrateLegacyCombinedStarts(DataService dataService) {
+        try {
+            Map<Integer, Integer> moved = LegacyCombinedStarts.migrate(dataService);
+            if (!moved.isEmpty()) {
+                logger.info("Moved starts of removed combined disciplines (discipline -> starts): {}", moved);
+            }
+        } catch (Exception e) {
+            logger.warn("Could not move the starts of the removed combined disciplines", e);
+        }
+    }
+
+    /** Team disciplines saved before "results that count" existed get them from their based_on text. */
+    private static void migrateTeamCompositions(TeamService teamService) {
+        try {
+            List<Integer> migrated = teamService.migrateCompositions();
+            if (!migrated.isEmpty()) {
+                logger.info("Set the results that count of team disciplines {} from their based_on", migrated);
+            }
+        } catch (Exception e) {
+            logger.warn("Could not set the results that count of the team disciplines", e);
+        }
+    }
+
     private static void migrateDisciplineRanges(String basePath, DataService dataService) {
         try {
             File relaysFile = new File(basePath + "/relays.json");

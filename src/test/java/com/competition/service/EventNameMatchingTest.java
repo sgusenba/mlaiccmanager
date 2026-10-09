@@ -25,6 +25,8 @@ class EventNameMatchingTest {
         assertEquals("Donald Malson", DisciplineService.matchKey("23_Donald Malson R"));
         assertEquals("Walkyrie", DisciplineService.matchKey("8_Walkyrie_O/R"));
         assertEquals("Königgrätz", DisciplineService.matchKey("XX_Königgrätz"));
+        assertEquals("Tanegashima", DisciplineService.matchKey("No 14 Tanegashima"));
+        assertEquals("Miquelet", DisciplineService.matchKey("No. 1 Miquelet"));
         assertEquals("Colt", DisciplineService.matchKey("Colt"));
         assertEquals("1_Miquelet", DisciplineService.baseEvent("1_Miquelet_O"));
         assertTrue(DisciplineService.sameEvent("7_Colt", "Colt"));
@@ -55,7 +57,6 @@ class EventNameMatchingTest {
         assertEquals(List.of(52, 53), disciplineService.getComponents(remington).stream().map(Discipline::getId).toList());
 
         List<Discipline> catalog = dataService.loadDisciplines();
-        assertEquals(List.of(1), TeamService.eligibleDisciplines(disciplineService.getAvailableDisciplineById(33), catalog)
-            .stream().map(Discipline::getId).toList());
+        assertEquals(List.of(1), TeamService.teamOfFromBasedOn(disciplineService.getAvailableDisciplineById(33), catalog));
     }
 }
