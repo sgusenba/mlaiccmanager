@@ -8,7 +8,9 @@ running competition manager through its REST API (see static/openapi.yaml).
 Steps, each safe to repeat (a second run updates instead of duplicating):
   1. disciplines  find each by category/level/type/event (event without the
                   MLAIC number and type suffix), create the missing
-                  ones and activate all of them; a team discipline's
+                  ones and activate all of them; an O/R list goes into
+                  the event's original and reproduction disciplines,
+                  ranked combined; a team discipline's
                   results that count (team_of) get the disciplines its
                   members start in
   2. competitors  matched by name and club, created if missing
@@ -105,7 +107,9 @@ class Feeder:
     def __init__(self, api, data):
         self.api = api
         self.data = data
-        self.discipline_ids = {}   # JSON key -> discipline id
+        self.discipline_ids = {}   # JSON key -> discipline id (of an O/R list: the original's, which has the combined ranking)
+        self.split = {}            # JSON key of an O/R list -> {"original": id, "reproduction": id}
+        self.result_types = {(r["discipline"], r["bib"]): r.get("type") for r in data["results"]}
         self.competitor_ids = {}   # bib -> competitor id
         self.start_ids = {}        # (JSON discipline key, bib) -> start id
         self.stats = {}
@@ -123,6 +127,8 @@ class Feeder:
         # Individual disciplines first: a team discipline's team_of needs their ids
         specs = sorted(self.data["disciplines"], key=lambda s: s.get("level") == "team")
         for spec in specs:
+            if self.split_list(spec, catalog):
+                continue
             existing = catalog.get(discipline_key(spec))
             team_of = self.team_of(spec) if spec.get("level") == "team" else None
             if existing:
@@ -146,16 +152,47 @@ class Feeder:
             self.count("disciplines created")
             print(f"  created {spec['category']} {spec['level']} {spec['type']} '{spec['event']}' -> id {created['id']}")
 
+        ids = set(self.discipline_ids.values()) | {i for pair in self.split.values() for i in pair.values()}
         active = self.api.get("/active-disciplines")
-        wanted = sorted(set(active) | set(self.discipline_ids.values()))
+        wanted = sorted(set(active) | ids)
         if set(wanted) != set(active):
             self.api.post("/active-disciplines", {"discipline_ids": wanted, "base_ids": active})
             print(f"  activated {len(set(wanted) - set(active))} disciplines")
 
+    def split_list(self, spec, catalog):
+        """An O/R list whose results carry their type goes into the catalog's original and
+        reproduction disciplines of the event, which are then ranked combined."""
+        if spec.get("type") != "combined" or spec.get("level") != "individual":
+            return False
+        rows = [r for r in self.data["results"] if r["discipline"] == spec["key"]]
+        pair = {t: catalog.get(discipline_key({**spec, "type": t})) for t in ("original", "reproduction")}
+        if not rows or not all(r.get("type") for r in rows) or not all(pair.values()):
+            return False
+        self.split[spec["key"]] = {t: d["id"] for t, d in pair.items()}
+        self.discipline_ids[spec["key"]] = pair["original"]["id"]
+        self.count("O/R lists split")
+        if self.api.verbose:
+            print(f"  {spec['key']} -> {pair['original']['id']} + {pair['reproduction']['id']}")
+        event = next((e for e in self.api.get("/combined-events")
+                      if e["original_id"] == pair["original"]["id"] and e["reproduction_id"] == pair["reproduction"]["id"]), None)
+        if event is None:
+            raise ApiError("GET", "/combined-events", 200, f"no combinable event for {spec['key']}")
+        if not event["combined"]:
+            self.api.put("/combined-events", {"key": event["key"], "combined": True})
+            self.count("events combined")
+            print(f"  ranking {event['event']} combined (original + reproduction)")
+        return True
+
+    def discipline_of(self, key, bib):
+        """The discipline id a competitor's result in a JSON list goes into."""
+        if key in self.split:
+            return self.split[key][self.result_types[(key, bib)]]
+        return self.discipline_ids[key]
+
     def team_of(self, spec):
         """Ids of the individual disciplines the team discipline's members start in."""
-        keys = {m["discipline"] for t in self.data["teams"] if t["discipline"] == spec["key"] for m in t["members"]}
-        return sorted(self.discipline_ids[k] for k in keys)
+        return sorted({self.discipline_of(m["discipline"], m["bib"])
+                       for t in self.data["teams"] if t["discipline"] == spec["key"] for m in t["members"]})
 
     def competitors(self):
         print("Competitors")
@@ -180,7 +217,7 @@ class Feeder:
         print("Starts")
         for r in self.data["results"]:
             bib = r["bib"]
-            discipline_id = self.discipline_ids[r["discipline"]]
+            discipline_id = self.discipline_of(r["discipline"], bib)
             competitor = self.competitor_rows[bib]
             registered = (competitor.get("starts") or {}).get(str(discipline_id)) or []
             if registered:
@@ -206,7 +243,7 @@ class Feeder:
                 notes.append({"O": "Original", "R": "Replika"}.get(r["marker"], r["marker"]))
             body = {
                 "competitor_id": self.competitor_ids[r["bib"]],
-                "discipline_id": self.discipline_ids[r["discipline"]],
+                "discipline_id": self.discipline_of(r["discipline"], r["bib"]),
                 "start_id": start_id,
                 "value": r["total"],
                 "entries": shots(r["counts"]),
