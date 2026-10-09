@@ -202,10 +202,22 @@ function unscheduledRow(start) {
         </tr>`;
 }
 
+// A start that takes no lane (e.g. Remington, whose results come from other disciplines)
+function noLaneRow(start) {
+    return `
+        <tr class="unscheduled">
+            <td colspan="5">no lane needed</td>
+            <td>${escapeHtml(start.discipline_name ?? '')}</td>
+            <td class="mono">${escapeHtml(start.start_id)}</td>
+        </tr>`;
+}
+
 function startCard(competitor, row, printedAt) {
     const scheduled = row?.scheduled || [];
     const unscheduled = row?.unscheduled || [];
-    const starts = scheduled.length + unscheduled.length
+    const noLane = row?.no_lane || [];
+    const count = scheduled.length + unscheduled.length + noLane.length;
+    const starts = count
         ? `
             <table>
                 <thead>
@@ -214,6 +226,7 @@ function startCard(competitor, row, printedAt) {
                 <tbody>
                     ${scheduled.map(scheduledRow).join('')}
                     ${unscheduled.map(unscheduledRow).join('')}
+                    ${noLane.map(noLaneRow).join('')}
                 </tbody>
             </table>`
         : '<p class="card-empty">No starts registered.</p>';
@@ -238,7 +251,7 @@ function startCard(competitor, row, printedAt) {
                     </dl>
                 </div>
             </div>
-            <h4>Starts (${scheduled.length + unscheduled.length})</h4>
+            <h4>Starts (${count})</h4>
             ${starts}
             <footer class="card-foot">
                 <span>${escapeHtml(competitor.name)} · ${escapeHtml(competitor.id)}</span>

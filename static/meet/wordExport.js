@@ -16,6 +16,7 @@ const idSize = (id) => (String(id).length >= 5 ? 32 : String(id).length === 4 ? 
 function startCard(meet, competitor, row, printedAt, formatDay, first) {
     const scheduled = row?.scheduled || [];
     const unscheduled = row?.unscheduled || [];
+    const noLane = row?.no_lane || [];
     const header = [
         paragraph(meet.name || 'Start Card', { size: 20, bold: true, pageBreakBefore: !first, keepNext: true }),
         ...[meetLine(meet), meet.host ? `Host: ${meet.host}` : ''].filter(Boolean)
@@ -45,7 +46,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first) {
         }
     ]], { widths: [46, CARD_WIDTH - 46], borders: 'none', padding: 1.5 });
 
-    const count = scheduled.length + unscheduled.length;
+    const count = scheduled.length + unscheduled.length + noLane.length;
     const starts = count
         ? table([
             { cells: ['Day', 'Relay', 'Time', 'Range', 'Lane', 'Discipline', 'Start ID'], size: 8.5, caps: true },
@@ -58,15 +59,16 @@ function startCard(meet, competitor, row, printedAt, formatDay, first) {
                 entry.discipline_name ?? '',
                 { text: entry.start_id, mono: true }
             ]),
-            ...unscheduled.map(start => ({
-                italic: true,
-                color: '555555',
-                cells: [
-                    { text: 'not yet scheduled', span: 5 },
-                    start.discipline_name ?? '',
-                    { text: start.start_id, mono: true, italic: false }
-                ]
-            }))
+            ...[...unscheduled.map(start => ['not yet scheduled', start]), ...noLane.map(start => ['no lane needed', start])]
+                .map(([note, start]) => ({
+                    italic: true,
+                    color: '555555',
+                    cells: [
+                        { text: note, span: 5 },
+                        start.discipline_name ?? '',
+                        { text: start.start_id, mono: true, italic: false }
+                    ]
+                }))
         ], { widths: START_COLUMNS, header: true, size: 10, borderPt: 0.75, padding: 1.2 })
         : paragraph('No starts registered.', { italic: true, color: '555555' });
 
