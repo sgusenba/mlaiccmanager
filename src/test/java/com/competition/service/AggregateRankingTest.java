@@ -106,7 +106,13 @@ class AggregateRankingTest {
 
         Map<String, Object> anna = rows.get(0);
         assertEquals(39.0, anna.get("score"), "best Colt (19) + Donald Malson (20)");
-        assertEquals(Arrays.asList(19.0, 20.0), anna.get("component_scores"));
+        // Below her: each discipline's best result with its own ring counts
+        List<Map<String, Object>> annaComponents = (List<Map<String, Object>>) anna.get("components");
+        assertEquals(List.of("Colt/O", "Donald Malson/O"), annaComponents.stream().map(c -> c.get("label")).toList());
+        assertEquals(Arrays.asList(19.0, 20.0), annaComponents.stream().map(c -> c.get("score")).toList());
+        assertEquals("1-52-2", annaComponents.get(0).get("start_id"), "her better Colt start");
+        assertEquals(1, ((Map<String, Integer>) annaComponents.get(0).get("freq_counts")).get("10"));
+        assertEquals(30.0, annaComponents.get(0).get("override_value"));
         assertEquals("1-74-1", anna.get("start_id"), "the Remington start");
         assertEquals(3, ((Map<String, Integer>) anna.get("freq_counts")).get("10"));
     }
@@ -123,12 +129,15 @@ class AggregateRankingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void oneResultAlreadyCountsAsTheTotal() throws Exception {
         Map<String, Object> cara = rowsOf(74).get(2);
         assertEquals(20.0, cara.get("score"));
         assertEquals(3, cara.get("rank"));
         assertEquals(true, cara.get("has_result"));
-        assertEquals(Arrays.asList(20.0, null), cara.get("component_scores"));
+        List<Map<String, Object>> caraComponents = (List<Map<String, Object>>) cara.get("components");
+        assertEquals(Arrays.asList(20.0, null), caraComponents.stream().map(c -> c.get("score")).toList());
+        assertNull(caraComponents.get(1).get("freq_counts"), "no Donald Malson result yet");
         assertNull(cara.get("override_value"), "her Colt result has no tie-break");
 
         Map<String, Object> eva = rowsOf(74).get(3);

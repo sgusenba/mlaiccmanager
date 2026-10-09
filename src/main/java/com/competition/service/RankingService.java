@@ -252,11 +252,20 @@ public class RankingService {
             }
             int competitorId = ((Number) competitorData.get("id")).intValue();
             Map<Integer, BestResult> bestByComponent = bestByCompetitor.getOrDefault(competitorId, Map.of());
-            List<Double> componentScores = new ArrayList<>();
+            // Shown below the competitor: each component's best result with its own ring counts
+            List<Map<String, Object>> componentRows = new ArrayList<>();
             List<BestResult> counted = new ArrayList<>();
-            for (int componentId : componentIds) {
-                BestResult best = bestByComponent.get(componentId);
-                componentScores.add(best != null ? best.score : null);
+            for (Discipline component : components) {
+                BestResult best = bestByComponent.get(component.getId());
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("discipline_id", component.getId());
+                c.put("label", componentLabel(component));
+                c.put("short_name", component.getShortName());
+                c.put("start_id", best != null ? best.result.get("start_id") : null);
+                c.put("score", best != null ? best.score : null);
+                c.put("freq_counts", best != null ? best.freqCounts : null);
+                c.put("override_value", best != null ? best.overrideValue : null);
+                componentRows.add(c);
                 if (best != null) {
                     counted.add(best);
                 }
@@ -273,7 +282,7 @@ public class RankingService {
             row.put("competitor", competitor);
             row.put("start_id", startId);
             row.put("result_id", null);
-            row.put("component_scores", componentScores);
+            row.put("components", componentRows);
             row.put("notes", null);
 
             if (counted.isEmpty()) {
@@ -336,6 +345,8 @@ public class RankingService {
             Map<String, Object> c = new LinkedHashMap<>();
             c.put("id", component.getId());
             c.put("name", component.getEvent());
+            c.put("label", componentLabel(component));
+            c.put("short_name", component.getShortName());
             componentInfo.add(c);
         }
         info.put("components", componentInfo);
@@ -345,6 +356,13 @@ public class RankingService {
         entry.put("discipline", info);
         entry.put("rankings", rows);
         return entry;
+    }
+
+    /** A component as listed below a competitor, e.g. "12_Mariette/R" or "23_Donald Malson/O". */
+    private static String componentLabel(Discipline component) {
+        String tag = "original".equals(component.getType()) ? "O" : "reproduction".equals(component.getType()) ? "R" : null;
+        String name = DisciplineService.baseEvent(component.getEvent());
+        return tag != null ? name + "/" + tag : name;
     }
 
     /** The id of the competitor's first start in the discipline, or null if there is none. */

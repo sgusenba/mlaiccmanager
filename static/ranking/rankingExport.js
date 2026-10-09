@@ -2,7 +2,7 @@
 // optional cover and statistics pages) or as an Excel workbook (one sheet
 // per discipline, optionally a statistics sheet).
 
-import { componentsOf, disciplineDisplayName, formatScore, isCombined, typeTag } from '../js/teamRanking.js';
+import { disciplineDisplayName, formatScore, isCombined, typeTag } from '../js/teamRanking.js';
 import { docx, logoParagraph, paragraph, table, xlsx } from '../js/officeFiles.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
@@ -115,19 +115,28 @@ function individualTable(data) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(data.discipline);
-    const components = componentsOf(data.discipline);
-    const aggregate = components.length > 0;
     const ringWidths = RINGS.map(() => 6);
-    // A combined ranking has an O/R column, taken from the name column. An aggregate
-    // ranking has a column per component, taken from the club and name columns.
-    const nameWidth = (hasNotes ? 34 : 40) - (combined ? 7 : 0) - (aggregate ? 4 * components.length : 0);
-    const clubWidth = (hasNotes ? 24 : 31) - (aggregate ? 8 * components.length : 0);
-    const widths = [9, nameWidth, ...(combined ? [7] : []), clubWidth,
-        ...(hasNotes ? [15] : [20]), ...components.map(() => 12), 12, ...ringWidths, 12,
-        ...(hasNotes ? [18] : [])];
+    // A combined ranking has an O/R column, taken from the name column
+    const nameWidth = (hasNotes ? 34 : 40) - (combined ? 7 : 0);
+    const widths = [9, nameWidth, ...(combined ? [7] : []),
+        ...(hasNotes ? [24, 15, 12, ...ringWidths, 12, 18] : [31, 20, 12, ...ringWidths, 12])];
     const center = (text) => ({ text, align: 'center' });
-    const componentCells = (row, style) => components.map((c, i) =>
-        ({ text: formatScore(row.component_scores?.[i]), align: 'center', ...style }));
+    // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
+    const componentRows = (row) => (row.components || []).map(c => ({
+        size: 7,
+        color: GREY,
+        cells: [
+            '',
+            `\u00a0\u00a0\u00a0\u00a0${c.label}`, // indented; non-breaking spaces are kept by Word
+            ...(combined ? [''] : []),
+            { text: c.short_name || '', mono: true },
+            '',
+            center(c.score === null ? '-' : formatScore(c.score)),
+            ...RINGS.map(ring => center(c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
+            center(c.override_value ?? ''),
+            ...(hasNotes ? [''] : [])
+        ]
+    }));
     const typeCells = (row, style) => (combined ? [{ text: typeTag(row), align: 'center', ...style }] : []);
     // The name with the start id below it, much smaller
     const nameCell = (row, style) => ({
@@ -139,10 +148,10 @@ function individualTable(data) {
     return table([
         {
             cells: ['Rank', 'Name', ...(combined ? [center('O/R')] : []), 'Club', 'Country',
-                ...components.map(c => center(c.name)), center(aggregate ? 'Total' : 'Result'), ...RINGS.map(ring => center(`${ring}s`)),
+                center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
                 center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
-        ...rows.map(row => (hasResult(row) ? {
+        ...rows.flatMap(row => [hasResult(row) ? {
             bold: row.rank <= 3,
             cells: [
                 center(row.rank),
@@ -150,7 +159,6 @@ function individualTable(data) {
                 ...typeCells(row, { bold: false }),
                 { text: row.competitor.club || '', bold: false },
                 { text: row.competitor.country || '', bold: false },
-                ...componentCells(row, { bold: false }),
                 center(formatScore(row.score)),
                 ...RINGS.map(ring => ({ text: row.freq_counts?.[ring] ?? 0, align: 'center', bold: false })),
                 { text: row.override_value ?? '-', align: 'center', bold: false },
@@ -163,13 +171,12 @@ function individualTable(data) {
                 ...typeCells(row, { color: GREY }),
                 { text: row.competitor.club || '', color: GREY },
                 { text: row.competitor.country || '', color: GREY },
-                ...componentCells(row, { color: GREY }),
                 { text: 'no result', align: 'center', italic: true, color: GREY },
                 ...RINGS.map(() => ''),
                 '',
                 ...(hasNotes ? [''] : [])
             ]
-        }))
+        }, ...componentRows(row)])
     ], { widths, header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
 }
 
@@ -253,31 +260,33 @@ function individualSheet(data) {
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(data.discipline);
     const type = (row) => (combined ? [typeTag(row)] : []);
-    const components = componentsOf(data.discipline);
-    const aggregate = components.length > 0;
-    const componentValues = (row) => components.map((c, i) => number(row.component_scores?.[i]));
+    // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
+    const componentRows = (row) => (row.components || []).map(c => [
+        '', c.start_id || '', `  ${c.label}`, ...(combined ? [''] : []), c.short_name || '', '',
+        c.score === null ? '' : number(c.score), ...RINGS.map(ring => (c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
+        number(c.override_value), ...(hasNotes ? [''] : [])
+    ]);
     return {
         name: disciplineTitle(data.discipline),
         columns: [
             { header: 'Rank', width: 6 }, { header: 'Start', width: 12 }, { header: 'Name', width: 28 },
             ...(combined ? [{ header: 'O/R', width: 5 }] : []),
-            { header: 'Club', width: 24 }, { header: 'Country', width: 16 },
-            ...components.map(c => ({ header: c.name, width: 14 })), { header: aggregate ? 'Total' : 'Result', width: 9 },
+            { header: 'Club', width: 24 }, { header: 'Country', width: 16 }, { header: 'Result', width: 9 },
             ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             ...(hasNotes ? [{ header: 'Notes', width: 30 }] : [])
         ],
-        rows: rows.map(row => (hasResult(row)
+        rows: rows.flatMap(row => [hasResult(row)
             ? [
                 row.rank, row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', row.competitor.country || '',
-                ...componentValues(row), number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0),
+                number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0),
                 number(row.override_value),
                 ...(hasNotes ? [row.notes || ''] : [])
             ]
             : [
                 '', row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', row.competitor.country || '',
-                ...componentValues(row), 'no result', ...RINGS.map(() => ''), '',
+                'no result', ...RINGS.map(() => ''), '',
                 ...(hasNotes ? [''] : [])
-            ]))
+            ], ...componentRows(row)])
     };
 }
 
