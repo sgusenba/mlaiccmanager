@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -75,7 +76,7 @@ public class TeamService {
             if (!isTeamDiscipline(discipline)) {
                 continue;
             }
-            Map<String, Object> info = disciplineInfo(discipline);
+            Map<String, Object> info = disciplineInfo(discipline, catalog);
             List<Map<String, Object>> eligible = new ArrayList<>();
             for (Discipline individual : eligibleDisciplines(discipline, catalog)) {
                 Map<String, Object> e = new LinkedHashMap<>();
@@ -98,46 +99,100 @@ public class TeamService {
     }
 
     /**
-     * Individual disciplines a team discipline is scored from: those listed in
-     * its team_of. Without that list, the based_on event of the same category,
-     * original teams from original starts, reproduction teams from
-     * reproduction starts, open teams from any. If based_on names no event
-     * (e.g. an aggregate), every individual discipline of the category qualifies.
+     * Individual disciplines a team discipline is scored from: those ticked as
+     * its "results that count" (team_of). None set: no start counts.
      */
     static List<Discipline> eligibleDisciplines(Discipline team, List<Discipline> catalog) {
+        List<Discipline> listed = new ArrayList<>();
         if (team.getTeamOf() != null) {
-            List<Discipline> listed = new ArrayList<>();
             for (Discipline d : catalog) {
                 if (team.getTeamOf().contains(d.getId()) && !isTeamDiscipline(d)) {
                     listed.add(d);
                 }
             }
-            return listed;
         }
-        List<Discipline> sameCategory = new ArrayList<>();
+        return listed;
+    }
+
+    /**
+     * The team_of an older team discipline had implicitly through its based_on
+     * text: the disciplines of that event (e.g. "No 14 Tanegashima" or
+     * "14_Tanegashima_O/R") and the team's category, original teams the
+     * original, reproduction teams the reproduction, other teams all of them.
+     * Null if based_on names no single event (e.g. "Gustav Adolph + Pauly").
+     */
+    static List<Integer> teamOfFromBasedOn(Discipline team, List<Discipline> catalog) {
         List<Discipline> basedOn = new ArrayList<>();
         for (Discipline d : catalog) {
-            if (isTeamDiscipline(d) || !Objects.equals(d.getCategory(), team.getCategory())) {
-                continue;
-            }
-            sameCategory.add(d);
-            if (DisciplineService.sameEvent(d.getEvent(), team.getBasedOn())) {
+            if (!isTeamDiscipline(d) && !DisciplineService.isAggregate(d)
+                    && Objects.equals(d.getCategory(), team.getCategory())
+                    && DisciplineService.sameEvent(d.getEvent(), team.getBasedOn())) {
                 basedOn.add(d);
             }
         }
         if (basedOn.isEmpty()) {
-            return sameCategory;
+            return null;
         }
-        if ("open".equalsIgnoreCase(team.getType()) || team.getType() == null) {
-            return basedOn;
-        }
-        List<Discipline> sameType = new ArrayList<>();
-        for (Discipline d : basedOn) {
-            if (team.getType().equalsIgnoreCase(d.getType())) {
-                sameType.add(d);
+        List<Discipline> sameType = basedOn.stream()
+            .filter(d -> team.getType() != null && team.getType().equalsIgnoreCase(d.getType())).toList();
+        return (sameType.isEmpty() ? basedOn : sameType).stream().map(Discipline::getId).toList();
+    }
+
+    /**
+     * One-time step at startup: team disciplines without "results that count"
+     * get them from their old based_on text where it names an event, plus the
+     * disciplines their entered team members start in, so no stored member
+     * stops counting. Writes the competition file only if something was set.
+     *
+     * @return the ids of the team disciplines that got a composition
+     */
+    public List<Integer> migrateCompositions() throws Exception {
+        return read(teams -> {
+            Registry registry = registry();
+            // team discipline -> disciplines its stored members start in
+            Map<Integer, Set<Integer>> memberDisciplines = new HashMap<>();
+            for (Map<String, Object> team : listOf(teams)) {
+                for (String startId : membersOf(team)) {
+                    Map<String, Object> start = registry.starts().get(startId);
+                    if (start != null) {
+                        memberDisciplines.computeIfAbsent(RelayRules.intOf(team.get("discipline_id")), k -> new HashSet<>())
+                            .add(RelayRules.intOf(start.get("discipline_id")));
+                    }
+                }
             }
+            List<Discipline> current = new ArrayList<>(registry.disciplines().values());
+            if (current.stream().noneMatch(d -> isTeamDiscipline(d) && d.getTeamOf() == null
+                    && derivedComposition(d, current, memberDisciplines) != null)) {
+                return List.<Integer>of();
+            }
+            return dataService.updateDisciplines(disciplines -> {
+                List<Integer> migrated = new ArrayList<>();
+                for (Discipline d : disciplines) {
+                    if (isTeamDiscipline(d) && d.getTeamOf() == null) {
+                        List<Integer> teamOf = derivedComposition(d, disciplines, memberDisciplines);
+                        if (teamOf != null) {
+                            d.setTeamOf(teamOf);
+                            migrated.add(d.getId());
+                        }
+                    }
+                }
+                return migrated;
+            });
+        });
+    }
+
+    /** based_on's disciplines plus the members' existing individual disciplines, in catalog order; null if none. */
+    private static List<Integer> derivedComposition(Discipline team, List<Discipline> catalog,
+            Map<Integer, Set<Integer>> memberDisciplines) {
+        Set<Integer> ids = new HashSet<>(memberDisciplines.getOrDefault(team.getId(), Set.of()));
+        List<Integer> fromBasedOn = teamOfFromBasedOn(team, catalog);
+        if (fromBasedOn != null) {
+            ids.addAll(fromBasedOn);
         }
-        return sameType.isEmpty() ? basedOn : sameType;
+        List<Integer> ordered = catalog.stream()
+            .filter(d -> ids.contains(d.getId()) && !isTeamDiscipline(d) && !DisciplineService.isAggregate(d))
+            .map(Discipline::getId).toList();
+        return ordered.isEmpty() ? null : ordered;
     }
 
     // --- teams -------------------------------------------------------------
@@ -348,7 +403,7 @@ public class TeamService {
             }
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("kind", "team");
-            response.put("discipline", disciplineInfo(discipline));
+            response.put("discipline", disciplineInfo(discipline, new ArrayList<>(registry.disciplines().values())));
             response.put("rankings", rank(teams, discipline, registry));
             return response;
         });
@@ -496,14 +551,19 @@ public class TeamService {
         return info;
     }
 
-    private static Map<String, Object> disciplineInfo(Discipline discipline) {
+    private static Map<String, Object> disciplineInfo(Discipline discipline, List<Discipline> catalog) {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("id", discipline.getId());
         info.put("name", discipline.getEvent());
         info.put("category", discipline.getCategory());
         info.put("type", discipline.getType());
         info.put("level", discipline.getLevel());
-        info.put("based_on", discipline.getBasedOn());
+        // The results that count, by short name where there is one, e.g. ["TANO", "TANR"]
+        List<String> composition = new ArrayList<>();
+        for (Discipline d : eligibleDisciplines(discipline, catalog)) {
+            composition.add(d.getShortName() != null ? d.getShortName() : d.getEvent());
+        }
+        info.put("composition", composition);
         info.put("team_size", teamSize(discipline));
         info.put("active", discipline.isActive());
         info.put("unit", "points");
@@ -569,6 +629,30 @@ public class TeamService {
                 }
             }
             return save.call();
+        });
+    }
+
+    /**
+     * Runs change (which files the start under another discipline) while no team
+     * can change, unless the start is a member of a team whose results that
+     * count do not include that discipline: then a ConflictException names them.
+     */
+    public <T> T changeStartDiscipline(String startId, int toDisciplineId, Callable<T> change) throws Exception {
+        return read(teams -> {
+            Registry registry = registry();
+            List<String> blocking = new ArrayList<>();
+            for (Map<String, Object> team : listOf(teams)) {
+                Discipline discipline = registry.disciplines().get(RelayRules.intOf(team.get("discipline_id")));
+                if (discipline != null && membersOf(team).contains(startId)
+                        && (discipline.getTeamOf() == null || !discipline.getTeamOf().contains(toDisciplineId))) {
+                    blocking.add(team.get("name") + " (" + discipline.getEvent() + ")");
+                }
+            }
+            if (!blocking.isEmpty()) {
+                throw new ConflictException("Start " + startId + " is in team " + String.join(", ", blocking)
+                    + ", which would no longer count it: remove it from the team first", blocking);
+            }
+            return change.call();
         });
     }
 

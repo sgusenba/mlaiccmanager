@@ -173,6 +173,9 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 ### Starts (`/api/competitors/{competitorId}/starts`)
 - `POST /api/competitors/{competitorId}/starts` — create a start for a competitor. The start ID is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`); starts created before this format keep their old unseparated IDs. Returns `409` if the ID is already used by any start or result.
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
+- `POST /api/competitors/{competitorId}/starts/{generatedId}/switch-type` — file a start under the other type of its event (original ↔ reproduction, the "O → R" button on the Starts page), keeping its id and results; refused if a team it is in would no longer count it, or while the competitor has more starts of that type in an event ranked combined
+
+Starts still filed under the old combined disciplines (ids 21–30 and 60–65, removed from the catalog when combining became a ranking setting) are moved once at startup to their event's original discipline, keeping their ids, and the event is ranked combined; one shot as a reproduction is then switched with the button above.
 
 ### Disciplines
 - `GET /api/active-disciplines` — get currently active disciplines (stored in `competition.json`)
@@ -204,8 +207,8 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 
 Backs the standalone page at `/tmgmt` and stores everything in `teams.json`.
 
-- A team belongs to a team discipline (`level: "team"`) and has up to `team_size` members (3 unless the catalog says otherwise). A member is one registered start in the individual discipline the team discipline is `based_on`, of the same category; original teams take original starts, reproduction teams reproduction starts, open teams any. If `based_on` names no event (e.g. an aggregate), every individual discipline of the category is accepted.
-- A competitor is in at most one team per team discipline, and at most once per team. The same start may count for different team disciplines based on the same event (e.g. *Gustav Adolph* and *Halikko*).
+- A team belongs to a team discipline (`level: "team"`) and has up to `team_size` members (3 unless the catalog says otherwise). A member is one registered start in one of the individual disciplines ticked as the team discipline's "results that count" (`team_of`, set on the Disciplines page), e.g. Nagashino takes Tanegashima original and reproduction starts, Nobunaga only original ones. A team discipline with none ticked accepts no starts. Team disciplines saved before this existed get theirs once at startup from their old `based_on` text where it names an event.
+- A competitor is in at most one team per team discipline, and at most once per team. The same start may count for different team disciplines that count the same discipline (e.g. *Gustav Adolph* and *Halikko*).
 - A blank name becomes the club all members share, else the country they share, else `Team <id>`.
 - Team ranking: the sum of the members' individual scores (max 300 for 3 × 100), then the number of 10s over all members' shots, then 9s, … 1s, then the team's `tie_break` (lower wins). Teams with identical values share the rank. A member without a result counts 0 and the team is flagged `complete: false`.
 

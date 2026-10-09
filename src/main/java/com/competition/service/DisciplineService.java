@@ -90,7 +90,9 @@ public class DisciplineService {
                 .filter(d -> d.getId() == id).findFirst()
                 .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
             applyCatalogFields(target, data);
-            checkTeamOf(target, disciplines);
+            if (data.containsKey("team_of") || data.containsKey("level")) {
+                checkTeamOf(target, disciplines);
+            }
             // A catalog discipline's short name goes into the catalog for every competition;
             // the competition file then no longer differs from it there
             if (data.containsKey("short_name")) {
@@ -141,7 +143,8 @@ public class DisciplineService {
     }
 
     private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|O|R)$");
-    private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:\\d+|XX)_");
+    // "1_", "XX_" and the older "No 1 " / "No. 1 "
+    private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:No\\.?\\s*)?(?:\\d+|XX)[_ ]\\s*");
 
     /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R". */
     public static String baseEvent(String event) {
@@ -150,8 +153,9 @@ public class DisciplineService {
 
     /**
      * What event names are matched on (original/reproduction pairs, aggregates,
-     * team based_on, lane families): also without the MLAIC number, so
-     * "1_Miquelet_O", "1_Miquelet_R" and "Miquelet" are the same event.
+     * the old team based_on, lane families): also without the MLAIC number,
+     * so "1_Miquelet_O", "1_Miquelet_R", "No 1 Miquelet" and "Miquelet" are
+     * the same event.
      */
     public static String matchKey(String event) {
         return event == null ? null : NUMBER_PREFIX.matcher(baseEvent(event)).replaceFirst("").trim();
@@ -294,6 +298,34 @@ public class DisciplineService {
         return names;
     }
 
+    /** The other type's discipline of the event a competitor's start is filed under (original <-> reproduction). */
+    public int partnerDisciplineOfStart(int competitorId, String startId) throws Exception {
+        Integer fromId = dataService.read(data -> {
+            if (data.get("competitors") instanceof List<?> competitors) {
+                for (Object c : competitors) {
+                    if (c instanceof Map<?, ?> competitor && competitor.get("id") instanceof Number id
+                            && id.intValue() == competitorId && competitor.get("starts") instanceof Map<?, ?> starts) {
+                        for (Map.Entry<?, ?> entry : starts.entrySet()) {
+                            if (entry.getValue() instanceof List<?> list && list.stream().anyMatch(
+                                    s -> s instanceof Map<?, ?> start && startId.equals(start.get("generated_id")))) {
+                                return Integer.valueOf(String.valueOf(entry.getKey()));
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        });
+        if (fromId == null) {
+            throw new IllegalArgumentException("Start not found");
+        }
+        return eventPairsOf(dataService.loadDisciplines()).stream()
+            .filter(p -> p.originalId() == fromId || p.reproductionId() == fromId).findFirst()
+            .map(p -> p.partnerOf(fromId))
+            .orElseThrow(() -> new IllegalArgumentException(
+                "This start's discipline has no original and reproduction to switch between"));
+    }
+
     /** Whether the competitor (a data.json record) has a start in the discipline. */
     static boolean startsIn(Map<String, Object> competitor, int disciplineId) {
         return competitor.get("starts") instanceof Map<?, ?> starts
@@ -301,14 +333,17 @@ public class DisciplineService {
             && !list.isEmpty();
     }
 
-    /** A team's team_of may only list individual (not aggregate) disciplines of its category. */
+    /**
+     * A team discipline needs at least one result that counts (team_of), and
+     * only individual (not aggregate) disciplines of its category.
+     */
     private static void checkTeamOf(Discipline team, List<Discipline> disciplines) {
-        if (team.getTeamOf() == null) {
-            return;
-        }
         if (!TeamService.isTeamDiscipline(team)) {
             team.setTeamOf(null); // only team disciplines have a composition
             return;
+        }
+        if (team.getTeamOf() == null || team.getTeamOf().isEmpty()) {
+            throw new IllegalArgumentException("Tick at least one result that counts for " + team.getEvent());
         }
         for (int id : team.getTeamOf()) {
             Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
@@ -329,7 +364,6 @@ public class DisciplineService {
             String sn = (String) data.get("short_name");
             d.setShortName(sn != null && !sn.isBlank() ? sn.trim() : null);
         }
-        if (data.containsKey("based_on")) d.setBasedOn((String) data.get("based_on"));
         if (data.containsKey("team_of")) {
             d.setTeamOf(data.get("team_of") instanceof List<?> ids
                 ? ids.stream().map(id -> ((Number) id).intValue()).distinct().toList()

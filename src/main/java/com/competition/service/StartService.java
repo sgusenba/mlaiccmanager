@@ -98,6 +98,72 @@ public class StartService {
         }
     }
 
+    /**
+     * Files a start under the other type of its event, original to
+     * reproduction or back, keeping its id (lanes, teams and labels refer to
+     * it) and its results. While the event is ranked combined, a competitor's
+     * starts must all be of one type, so the competitor's other starts of the
+     * event have to be switched first.
+     */
+    @SuppressWarnings("unchecked")
+    public Start switchType(int competitorId, String generatedId) throws Exception {
+        if (disciplineService == null) {
+            throw new IllegalStateException("Switching needs the discipline catalog");
+        }
+        List<com.competition.model.Discipline> disciplines = disciplineService.getAvailableDisciplines();
+        Map<Integer, DisciplineService.EventPair> combinedPairs = disciplineService.getCombinedPairsByDiscipline();
+        return dataService.update(data -> {
+            Map<String, Object> competitorData = findCompetitor(data, competitorId);
+            if (competitorData == null) {
+                throw new IllegalArgumentException("Competitor not found");
+            }
+            Map<String, List<Map<String, Object>>> startsData =
+                (Map<String, List<Map<String, Object>>>) competitorData.get("starts");
+            String fromKey = null;
+            Map<String, Object> start = null;
+            if (startsData != null) {
+                for (Map.Entry<String, List<Map<String, Object>>> entry : startsData.entrySet()) {
+                    for (Map<String, Object> candidate : entry.getValue()) {
+                        if (generatedId.equals(candidate.get("generated_id"))) {
+                            fromKey = entry.getKey();
+                            start = candidate;
+                        }
+                    }
+                }
+            }
+            if (start == null) {
+                throw new IllegalArgumentException("Start not found");
+            }
+            int fromId = Integer.parseInt(fromKey);
+            DisciplineService.EventPair pair = DisciplineService.eventPairsOf(disciplines).stream()
+                .filter(p -> p.originalId() == fromId || p.reproductionId() == fromId).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "This start's discipline has no original and reproduction to switch between"));
+            int toId = pair.partnerOf(fromId);
+            if (combinedPairs.containsKey(fromId) && startsData.get(fromKey).size() > 1) {
+                // Switching one would leave the competitor in both types of a combined event
+                throw new ConflictException(competitorData.get("name") + " has " + startsData.get(fromKey).size()
+                    + " starts in " + pair.event() + " (" + pair.typeOf(fromId) + "), which is ranked combined: "
+                    + "delete the others before switching this one", null);
+            }
+
+            startsData.get(fromKey).remove(start);
+            if (startsData.get(fromKey).isEmpty()) {
+                startsData.remove(fromKey);
+            }
+            start.put("discipline_id", toId);
+            startsData.computeIfAbsent(String.valueOf(toId), k -> new ArrayList<>()).add(start);
+            if (data.get("results") instanceof List<?> results) {
+                for (Object r : results) {
+                    if (r instanceof Map<?, ?> result && generatedId.equals(result.get("start_id"))) {
+                        ((Map<String, Object>) result).put("discipline_id", toId);
+                    }
+                }
+            }
+            return mapToStart(start);
+        });
+    }
+
     public void deleteStart(int competitorId, String generatedId) throws Exception {
         dataService.update(data -> {
             @SuppressWarnings("unchecked")

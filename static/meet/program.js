@@ -74,7 +74,7 @@ function render() {
             <span class="min-w-0">
                 <span class="font-medium">${escapeHtml(team.name)}</span>
                 <span class="text-xs text-gray-400">${escapeHtml(CATEGORY_LABELS[team.category] || team.category)}</span>
-                <span class="block text-xs text-gray-500">${escapeHtml(team.composition.join(' + ') || 'any discipline')}${team.teams
+                <span class="block text-xs text-gray-500">${team.composition.length ? escapeHtml(team.composition.join(' + ')) : '<span class="text-red-700">no results that count set</span>'}${team.teams
                     ? ` · ${plural(team.teams, 'team')}` : ''}</span>
             </span>
         </label>`).join('') || '<p class="text-sm text-gray-500">No team disciplines.</p>';

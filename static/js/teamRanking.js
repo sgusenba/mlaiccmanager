@@ -56,7 +56,7 @@ export function teamRankingCard(data, { extraClass = '', showRank = true, rowCla
                 ${escapeHtml(disciplineDisplayName(discipline.name, discipline.type))}
                 <span class="text-sm text-gray-500 ml-2">${escapeHtml(discipline.category)} team</span>
             </h3>
-            <p class="text-sm text-gray-500">Based on ${escapeHtml(discipline.based_on || '-')} · ${discipline.team_size} shooters per team</p>
+            <p class="text-sm text-gray-500">From ${escapeHtml((discipline.composition || []).join(' + ') || '-')} · ${discipline.team_size} shooters per team</p>
         </div>`;
 
     if (!data.rankings || data.rankings.length === 0) {
