@@ -55,7 +55,8 @@ function populateActiveDisciplinesDropdown() {
     const activeDisciplines = getState('activeDisciplines');
     
     const activeDisciplinesList = availableDisciplines.filter(discipline => 
-        activeDisciplines.includes(discipline.id)
+        // An aggregate discipline (Remington) adds up other disciplines' results and has no starts
+        activeDisciplines.includes(discipline.id) && !discipline.aggregate_of?.length
     );
     
     dropdown.innerHTML = '<option value="">Select Discipline</option>' +

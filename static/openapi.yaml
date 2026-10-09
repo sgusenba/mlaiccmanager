@@ -1493,6 +1493,10 @@ components:
         based_on: { type: string, description: Event a team discipline's members come from }
         team_size: { type: integer }
         shooting_distance: { type: string, description: Range id the discipline fires on }
+        aggregate_of:
+          type: array
+          items: { type: string }
+          description: Aggregate discipline (e.g. Remington) only. Events of the same category and type whose best results are added up; it has no starts of its own
         active: { type: boolean }
     DisciplineInput:
       type: object

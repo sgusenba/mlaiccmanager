@@ -104,7 +104,7 @@ async function loadData() {
     state.data = await api('');
 }
 
-// Active disciplines without the team ones: only individual starts take a lane
+// Active disciplines without the team and aggregate ones: only individual starts take a lane
 async function loadDisciplines() {
     const get = async (path) => {
         const response = await fetch(`/api${path}`);
@@ -114,7 +114,7 @@ async function loadDisciplines() {
     const [active, available] = await Promise.all([get('/active-disciplines'), get('/available-disciplines')]);
     state.disciplines = (active || [])
         .map(id => available.find(d => d.id === id))
-        .filter(d => d && d.level !== 'team')
+        .filter(d => d && d.level !== 'team' && !d.aggregate_of?.length)
         .map(d => ({
             id: String(d.id),
             name: d.type ? `${d.event} (${d.type})` : d.event,

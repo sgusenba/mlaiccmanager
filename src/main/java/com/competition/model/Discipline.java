@@ -3,6 +3,8 @@ package com.competition.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Discipline {
     @JsonProperty("id")
@@ -43,6 +45,11 @@ public class Discipline {
 
     @JsonProperty("shooting_distance")
     private String shootingDistance;
+
+    // Set on an aggregate discipline (e.g. Remington): the events, of the same
+    // category and type, whose results are added up. It has no starts of its own.
+    @JsonProperty("aggregate_of")
+    private List<String> aggregateOf;
 
     @JsonProperty("active")
     private boolean active = true;
@@ -94,6 +101,9 @@ public class Discipline {
 
     public String getShootingDistance() { return shootingDistance; }
     public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }
+
+    public List<String> getAggregateOf() { return aggregateOf; }
+    public void setAggregateOf(List<String> aggregateOf) { this.aggregateOf = aggregateOf; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

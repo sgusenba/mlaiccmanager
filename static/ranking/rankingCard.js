@@ -1,7 +1,7 @@
 // Card with the ranking table of one individual discipline (response of
 // /api/ranking/best/{id}), used by the Ranking page and the Todos page.
 
-import { escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeTag } from '../js/teamRanking.js';
+import { componentsOf, escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeTag } from '../js/teamRanking.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -23,6 +23,10 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
     const discipline = data.discipline;
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(discipline);
+    const components = componentsOf(discipline);
+    const aggregate = components.length > 0;
+    const componentCells = (row) => components.map((c, i) =>
+        `<td class="px-4 py-3 whitespace-nowrap text-center text-sm font-normal">${formatScore(row.component_scores?.[i])}</td>`).join('');
     const typeCell = (row) => combined
         ? `<td class="px-2 py-3 text-center text-sm" title="${row.discipline_type || ''}">${typeTag(row)}</td>` : '';
     const th = (label, align = 'left', title = '', padding = 'px-4') =>
@@ -47,9 +51,10 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                 ${combined ? th('O/R', 'center', 'Original or reproduction', 'px-2') : ''}
                                 ${th('Club')}
                                 ${th('Country')}
-                                ${th('Result', 'center')}
+                                ${components.map(c => th(escapeHtml(c.name), 'center')).join('')}
+                                ${th(aggregate ? 'Total' : 'Result', 'center')}
                                 ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
-                                ${th('Tie-break', 'center', 'Distance of the furthest shot; the lower value wins')}
+                                ${aggregate ? '' : th('Tie-break', 'center', 'Distance of the furthest shot; the lower value wins')}
                                 ${hasNotes ? th('Notes') : ''}
                             </tr>
                         </thead>
@@ -61,9 +66,10 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
+                                    ${componentCells(row)}
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
-                                    <td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>
+                                    ${aggregate ? '' : `<td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>`}
                                     ${hasNotes ? `<td class="px-4 py-3 text-sm font-normal text-gray-500">${escapeHtml(row.notes || '')}</td>` : ''}
                                 </tr>
                             ` : `
@@ -73,9 +79,10 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
+                                    ${componentCells(row)}
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>
                                     ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
-                                    <td class="px-4 py-3"></td>
+                                    ${aggregate ? '' : '<td class="px-4 py-3"></td>'}
                                     ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}
                                 </tr>
                             `).join('')}

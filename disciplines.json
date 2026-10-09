@@ -361,6 +361,20 @@
   "event" : "Tanzutsu",
   "shooting_distance" : "m25"
 }, {
+  "id" : 74,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "Remington",
+  "aggregate_of" : [ "Colt", "Donald Malson" ]
+}, {
+  "id" : 75,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "Remington",
+  "aggregate_of" : [ "Mariette", "Donald Malson" ]
+}, {
   "id" : 66,
   "category" : "pistol",
   "level" : "team",

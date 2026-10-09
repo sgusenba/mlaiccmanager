@@ -41,6 +41,7 @@ function needsTieBreak(data, group) {
 
 /** The groups of tied entries of one discipline that still need a tie-break, in ranking order. */
 function tieBreakTodos(data) {
+    if (data.discipline?.components?.length) return []; // aggregate: no results of its own to enter a tie-break in
     const groups = new Map();
     for (const row of data.rankings || []) {
         if (!isTeam(data) && !hasResult(row)) continue;

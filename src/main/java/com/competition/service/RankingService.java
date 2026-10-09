@@ -33,6 +33,9 @@ public class RankingService {
         if (TeamService.isTeamDiscipline(discipline)) {
             return teamService.getRanking(disciplineId);
         }
+        if (DisciplineService.isAggregate(discipline)) {
+            return aggregateEntry(discipline);
+        }
         return detailedEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
     }
 
@@ -68,6 +71,13 @@ public class RankingService {
                 }
                 continue;
             }
+            if (DisciplineService.isAggregate(discipline)) {
+                Map<String, Object> entry = aggregateEntry(discipline);
+                if (!((List<?>) entry.get("rankings")).isEmpty()) {
+                    allRankings.put(disciplineId, entry);
+                }
+                continue;
+            }
 
             Scope scope = scopeOf(discipline, combinedPairs);
             if (!done.add(scope.id)) {
@@ -98,6 +108,9 @@ public class RankingService {
         if (TeamService.isTeamDiscipline(discipline)) {
             return teamService.getRanking(disciplineId);
         }
+        if (DisciplineService.isAggregate(discipline)) {
+            return aggregateEntry(discipline);
+        }
         return bestResultEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
     }
 
@@ -114,6 +127,13 @@ public class RankingService {
             if (TeamService.isTeamDiscipline(discipline)) {
                 if (teamService.hasTeams(disciplineId)) {
                     allRankings.put(disciplineId, teamService.getRanking(disciplineId));
+                }
+                continue;
+            }
+            if (DisciplineService.isAggregate(discipline)) {
+                Map<String, Object> entry = aggregateEntry(discipline);
+                if (!((List<?>) entry.get("rankings")).isEmpty()) {
+                    allRankings.put(disciplineId, entry);
                 }
                 continue;
             }
@@ -192,6 +212,138 @@ public class RankingService {
         entry.put("discipline", scope.info);
         entry.put("rankings", rows);
         return entry;
+    }
+
+    /**
+     * Ranking of an aggregate discipline (e.g. Remington): per competitor the
+     * best result of each component discipline, added up. Ranked by that sum,
+     * then the 10s, 9s, ... 1s of those results together. Competitors with a
+     * start or result in every component but a result still missing follow
+     * without a rank; those in just some of the components are not listed.
+     */
+    private Map<String, Object> aggregateEntry(Discipline aggregate) throws Exception {
+        List<Discipline> components = disciplineService.getComponents(aggregate);
+        List<Integer> componentIds = components.stream().map(Discipline::getId).collect(Collectors.toList());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitorsData = dataService.read(
+            data -> (List<Map<String, Object>>) data.get("competitors"));
+
+        // Each competitor's best result per component
+        Map<Integer, Map<Integer, BestResult>> bestByCompetitor = new HashMap<>();
+        for (Map<String, Object> result : getResultsForDisciplines(componentIds)) {
+            int competitorId = ((Number) result.get("competitor_id")).intValue();
+            Map<Integer, BestResult> bestByComponent = bestByCompetitor.computeIfAbsent(competitorId, k -> new HashMap<>());
+            BestResult candidate = new BestResult(result);
+            BestResult best = bestByComponent.get(disciplineIdOf(result));
+            if (best == null || compareKeys(candidate.key, best.key) > 0) {
+                bestByComponent.put(disciplineIdOf(result), candidate);
+            }
+        }
+
+        List<Map<String, Object>> ranked = new ArrayList<>();
+        Map<Map<String, Object>, double[]> keys = new IdentityHashMap<>();
+        List<Map<String, Object>> unranked = new ArrayList<>();
+        for (Map<String, Object> competitorData : competitorsData) {
+            int competitorId = ((Number) competitorData.get("id")).intValue();
+            Map<Integer, BestResult> bestByComponent = bestByCompetitor.getOrDefault(competitorId, Map.of());
+            List<String> startIds = new ArrayList<>();
+            List<Double> componentScores = new ArrayList<>();
+            for (int componentId : componentIds) {
+                BestResult best = bestByComponent.get(componentId);
+                String startId = best != null ? Objects.toString(best.result.get("start_id"), "")
+                    : firstStartId(competitorData, componentId);
+                if (startId != null) {
+                    startIds.add(startId);
+                }
+                componentScores.add(best != null ? best.score : null);
+            }
+            if (componentIds.isEmpty() || startIds.size() < componentIds.size()) {
+                continue;
+            }
+
+            Map<String, Object> competitor = new LinkedHashMap<>();
+            competitor.put("id", competitorId);
+            competitor.put("name", competitorData.get("name"));
+            competitor.put("club", competitorData.get("club"));
+            competitor.put("country", competitorData.get("country"));
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("rank", null);
+            row.put("competitor", competitor);
+            row.put("start_id", String.join(" + ", startIds));
+            row.put("result_id", null);
+            row.put("component_scores", componentScores);
+
+            if (bestByComponent.size() < componentIds.size()) {
+                row.put("score", null);
+                row.put("freq_counts", null);
+                row.put("override_value", null);
+                row.put("notes", null);
+                row.put("has_result", false);
+                unranked.add(row);
+                continue;
+            }
+            double score = 0;
+            int[] rings = Scoring.newRingCounts();
+            for (BestResult best : bestByComponent.values()) {
+                score += best.score;
+                Scoring.addRingCounts(best.result, rings);
+            }
+            Map<String, Integer> freqCounts = new LinkedHashMap<>();
+            for (int ring = 0; ring <= Scoring.MAX_RING; ring++) {
+                freqCounts.put(String.valueOf(ring), rings[ring]);
+            }
+            double[] key = new double[1 + Scoring.MAX_RING];
+            key[0] = score;
+            for (int ring = Scoring.MAX_RING; ring >= 1; ring--) {
+                key[1 + Scoring.MAX_RING - ring] = rings[ring];
+            }
+            row.put("score", score);
+            row.put("freq_counts", freqCounts);
+            row.put("override_value", null);
+            row.put("notes", null);
+            row.put("has_result", true);
+            ranked.add(row);
+            keys.put(row, key);
+        }
+
+        // Highest first; competitors with an identical key share the same rank
+        ranked.sort((a, b) -> compareKeys(keys.get(b), keys.get(a)));
+        for (int i = 0; i < ranked.size(); i++) {
+            boolean tiedWithPrevious = i > 0 && compareKeys(keys.get(ranked.get(i)), keys.get(ranked.get(i - 1))) == 0;
+            ranked.get(i).put("rank", tiedWithPrevious ? ranked.get(i - 1).get("rank") : i + 1);
+        }
+        unranked.sort(Comparator.comparing(
+            row -> Objects.toString(((Map<?, ?>) row.get("competitor")).get("name"), ""),
+            String.CASE_INSENSITIVE_ORDER));
+        List<Map<String, Object>> rows = new ArrayList<>(ranked);
+        rows.addAll(unranked);
+
+        Map<String, Object> info = buildDisciplineInfo(aggregate);
+        List<Map<String, Object>> componentInfo = new ArrayList<>();
+        for (Discipline component : components) {
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("id", component.getId());
+            c.put("name", component.getEvent());
+            componentInfo.add(c);
+        }
+        info.put("components", componentInfo);
+
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("kind", "individual");
+        entry.put("discipline", info);
+        entry.put("rankings", rows);
+        return entry;
+    }
+
+    /** The id of the competitor's first start in the discipline, or null if there is none. */
+    private static String firstStartId(Map<String, Object> competitorData, int disciplineId) {
+        if (competitorData.get("starts") instanceof Map<?, ?> startsByDiscipline
+                && startsByDiscipline.get(String.valueOf(disciplineId)) instanceof List<?> starts
+                && !starts.isEmpty() && starts.get(0) instanceof Map<?, ?> start) {
+            return Objects.toString(start.get("generated_id"), "");
+        }
+        return null;
     }
 
     /** Rows for the competitors with a start in the discipline(s) but no result yet, by name. */
