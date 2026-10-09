@@ -118,12 +118,12 @@ function individualTable(data) {
     const components = componentsOf(data.discipline);
     const aggregate = components.length > 0;
     const ringWidths = RINGS.map(() => 6);
-    // A combined ranking has an O/R column, taken from the name column. An aggregate ranking
-    // has a column per component: one in place of the tie-break, the others taken from the club.
-    const nameWidth = (hasNotes ? 34 : 40) - (combined ? 7 : 0);
-    const clubWidth = (hasNotes ? 24 : 31) - (aggregate ? 12 * (components.length - 1) : 0);
+    // A combined ranking has an O/R column, taken from the name column. An aggregate
+    // ranking has a column per component, taken from the club and name columns.
+    const nameWidth = (hasNotes ? 34 : 40) - (combined ? 7 : 0) - (aggregate ? 4 * components.length : 0);
+    const clubWidth = (hasNotes ? 24 : 31) - (aggregate ? 8 * components.length : 0);
     const widths = [9, nameWidth, ...(combined ? [7] : []), clubWidth,
-        ...(hasNotes ? [15] : [20]), ...components.map(() => 12), 12, ...ringWidths, ...(aggregate ? [] : [12]),
+        ...(hasNotes ? [15] : [20]), ...components.map(() => 12), 12, ...ringWidths, 12,
         ...(hasNotes ? [18] : [])];
     const center = (text) => ({ text, align: 'center' });
     const componentCells = (row, style) => components.map((c, i) =>
@@ -140,7 +140,7 @@ function individualTable(data) {
         {
             cells: ['Rank', 'Name', ...(combined ? [center('O/R')] : []), 'Club', 'Country',
                 ...components.map(c => center(c.name)), center(aggregate ? 'Total' : 'Result'), ...RINGS.map(ring => center(`${ring}s`)),
-                ...(aggregate ? [] : [center('Tie-break')]), ...(hasNotes ? ['Notes'] : [])]
+                center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
         ...rows.map(row => (hasResult(row) ? {
             bold: row.rank <= 3,
@@ -153,7 +153,7 @@ function individualTable(data) {
                 ...componentCells(row, { bold: false }),
                 center(formatScore(row.score)),
                 ...RINGS.map(ring => ({ text: row.freq_counts?.[ring] ?? 0, align: 'center', bold: false })),
-                ...(aggregate ? [] : [{ text: row.override_value ?? '-', align: 'center', bold: false }]),
+                { text: row.override_value ?? '-', align: 'center', bold: false },
                 ...(hasNotes ? [{ text: row.notes || '', bold: false, color: GREY }] : [])
             ]
         } : {
@@ -166,7 +166,7 @@ function individualTable(data) {
                 ...componentCells(row, { color: GREY }),
                 { text: 'no result', align: 'center', italic: true, color: GREY },
                 ...RINGS.map(() => ''),
-                ...(aggregate ? [] : ['']),
+                '',
                 ...(hasNotes ? [''] : [])
             ]
         }))
@@ -263,19 +263,19 @@ function individualSheet(data) {
             ...(combined ? [{ header: 'O/R', width: 5 }] : []),
             { header: 'Club', width: 24 }, { header: 'Country', width: 16 },
             ...components.map(c => ({ header: c.name, width: 14 })), { header: aggregate ? 'Total' : 'Result', width: 9 },
-            ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), ...(aggregate ? [] : [{ header: 'Tie-break', width: 9 }]),
+            ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             ...(hasNotes ? [{ header: 'Notes', width: 30 }] : [])
         ],
         rows: rows.map(row => (hasResult(row)
             ? [
                 row.rank, row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', row.competitor.country || '',
                 ...componentValues(row), number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0),
-                ...(aggregate ? [] : [number(row.override_value)]),
+                number(row.override_value),
                 ...(hasNotes ? [row.notes || ''] : [])
             ]
             : [
                 '', row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', row.competitor.country || '',
-                ...componentValues(row), 'no result', ...RINGS.map(() => ''), ...(aggregate ? [] : ['']),
+                ...componentValues(row), 'no result', ...RINGS.map(() => ''), '',
                 ...(hasNotes ? [''] : [])
             ]))
     };

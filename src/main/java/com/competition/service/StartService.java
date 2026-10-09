@@ -1,6 +1,5 @@
 package com.competition.service;
 
-import com.competition.model.Discipline;
 import com.competition.model.Start;
 
 import java.util.ArrayList;
@@ -28,11 +27,6 @@ public class StartService {
     public Start createStart(int competitorId, int disciplineId, String caliber) throws Exception {
         if (disciplineId == 0) {
             throw new IllegalArgumentException("discipline_id is required");
-        }
-        Discipline discipline = disciplineService != null ? disciplineService.getAvailableDisciplineById(disciplineId) : null;
-        if (DisciplineService.isAggregate(discipline)) {
-            throw new IllegalArgumentException("No starts in " + discipline.getEvent()
-                + ": its ranking adds up the results of " + String.join(" and ", discipline.getAggregateOf()));
         }
         String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 

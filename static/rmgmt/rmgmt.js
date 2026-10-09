@@ -722,7 +722,8 @@ function renderOverview() {
         if (!filter) return true;
         const haystack = [`${row.competitor.name} ${row.competitor.club ?? ''} #${row.competitor.id}`,
             ...row.scheduled.map(e => `${e.discipline_name} ${e.start_id}`),
-            ...row.unscheduled.map(e => `${e.discipline_name} ${e.start_id}`)].join(' ').toLowerCase();
+            ...row.unscheduled.map(e => `${e.discipline_name} ${e.start_id}`),
+            ...(row.no_lane || []).map(e => `${e.discipline_name} ${e.start_id}`)].join(' ').toLowerCase();
         return haystack.includes(filter);
     });
 
@@ -736,11 +737,20 @@ function renderOverview() {
         </div>`;
     };
 
+    // Starts that take no lane (e.g. Remington, whose results come from other disciplines)
+    const noLaneLine = (start) => `<div>
+            <span class="text-gray-900">${escapeHtml(start.discipline_name ?? '?')}</span>
+            <span class="text-gray-400">${escapeHtml(start.start_id)}</span>
+            <span class="text-gray-500">· no lane needed</span>
+        </div>`;
+
     document.getElementById('overview-body').innerHTML = visible.map(row => `
         <tr class="${row.issues.length ? 'bg-red-50' : ''}">
             <td class="px-4 py-2 text-sm font-medium whitespace-nowrap">${escapeHtml(row.competitor.name)} <span class="text-gray-400">#${row.competitor.id}</span></td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(row.competitor.club ?? '')}</td>
-            <td class="px-4 py-2 text-sm">${row.scheduled.length ? row.scheduled.map(scheduledLine).join('') : '<span class="text-gray-300">–</span>'}</td>
+            <td class="px-4 py-2 text-sm">${row.scheduled.length || row.no_lane?.length
+                ? row.scheduled.map(scheduledLine).join('') + (row.no_lane || []).map(noLaneLine).join('')
+                : '<span class="text-gray-300">–</span>'}</td>
             <td class="px-4 py-2 text-sm text-amber-700">${row.unscheduled.length
                 ? row.unscheduled.map(s => `<div>${escapeHtml(s.discipline_name ?? '?')} <span class="text-gray-400">${escapeHtml(s.start_id)}</span></div>`).join('')
                 : '<span class="text-gray-300">–</span>'}</td>

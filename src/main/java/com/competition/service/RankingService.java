@@ -215,11 +215,13 @@ public class RankingService {
     }
 
     /**
-     * Ranking of an aggregate discipline (e.g. Remington): per competitor the
-     * best result of each component discipline, added up. Ranked by that sum,
-     * then the 10s, 9s, ... 1s of those results together. Competitors with a
-     * start or result in every component but a result still missing follow
-     * without a rank; those in just some of the components are not listed.
+     * Ranking of an aggregate discipline (e.g. Remington): everyone with a start
+     * in it, ranked on the best result of each component discipline added up -
+     * as soon as there is one, a missing one counts as nothing. Ties go to the
+     * 10s, 9s, ... 1s of those results together, then the tie-break: the
+     * furthest shot of those results (the highest of their tie-breaks, unknown
+     * while one is missing), lower wins. Starters without any result follow
+     * without a rank.
      */
     private Map<String, Object> aggregateEntry(Discipline aggregate) throws Exception {
         List<Discipline> components = disciplineService.getComponents(aggregate);
@@ -244,21 +246,20 @@ public class RankingService {
         Map<Map<String, Object>, double[]> keys = new IdentityHashMap<>();
         List<Map<String, Object>> unranked = new ArrayList<>();
         for (Map<String, Object> competitorData : competitorsData) {
+            String startId = firstStartId(competitorData, aggregate.getId());
+            if (startId == null) {
+                continue; // not entered in the aggregate
+            }
             int competitorId = ((Number) competitorData.get("id")).intValue();
             Map<Integer, BestResult> bestByComponent = bestByCompetitor.getOrDefault(competitorId, Map.of());
-            List<String> startIds = new ArrayList<>();
             List<Double> componentScores = new ArrayList<>();
+            List<BestResult> counted = new ArrayList<>();
             for (int componentId : componentIds) {
                 BestResult best = bestByComponent.get(componentId);
-                String startId = best != null ? Objects.toString(best.result.get("start_id"), "")
-                    : firstStartId(competitorData, componentId);
-                if (startId != null) {
-                    startIds.add(startId);
-                }
                 componentScores.add(best != null ? best.score : null);
-            }
-            if (componentIds.isEmpty() || startIds.size() < componentIds.size()) {
-                continue;
+                if (best != null) {
+                    counted.add(best);
+                }
             }
 
             Map<String, Object> competitor = new LinkedHashMap<>();
@@ -270,38 +271,48 @@ public class RankingService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("rank", null);
             row.put("competitor", competitor);
-            row.put("start_id", String.join(" + ", startIds));
+            row.put("start_id", startId);
             row.put("result_id", null);
             row.put("component_scores", componentScores);
+            row.put("notes", null);
 
-            if (bestByComponent.size() < componentIds.size()) {
+            if (counted.isEmpty()) {
                 row.put("score", null);
                 row.put("freq_counts", null);
                 row.put("override_value", null);
-                row.put("notes", null);
                 row.put("has_result", false);
                 unranked.add(row);
                 continue;
             }
             double score = 0;
             int[] rings = Scoring.newRingCounts();
-            for (BestResult best : bestByComponent.values()) {
+            Double tieBreak = null;
+            boolean tieBreakKnown = true;
+            for (BestResult best : counted) {
                 score += best.score;
                 Scoring.addRingCounts(best.result, rings);
+                if (best.overrideValue == null) {
+                    tieBreakKnown = false;
+                } else if (tieBreak == null || best.overrideValue > tieBreak) {
+                    tieBreak = best.overrideValue;
+                }
+            }
+            if (!tieBreakKnown) {
+                tieBreak = null;
             }
             Map<String, Integer> freqCounts = new LinkedHashMap<>();
             for (int ring = 0; ring <= Scoring.MAX_RING; ring++) {
                 freqCounts.put(String.valueOf(ring), rings[ring]);
             }
-            double[] key = new double[1 + Scoring.MAX_RING];
+            double[] key = new double[2 + Scoring.MAX_RING];
             key[0] = score;
             for (int ring = Scoring.MAX_RING; ring >= 1; ring--) {
                 key[1 + Scoring.MAX_RING - ring] = rings[ring];
             }
+            key[key.length - 1] = Scoring.tieBreakKey(tieBreak);
             row.put("score", score);
             row.put("freq_counts", freqCounts);
-            row.put("override_value", null);
-            row.put("notes", null);
+            row.put("override_value", tieBreak);
             row.put("has_result", true);
             ranked.add(row);
             keys.put(row, key);

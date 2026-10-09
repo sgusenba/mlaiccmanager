@@ -66,7 +66,13 @@ public class RelayService {
                             Map<Integer, String> disciplineLevels,
                             Map<Integer, String> disciplineShootingDistances,
                             List<Integer> activeDisciplines,
-                            Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder) {
+                            Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder,
+                            Set<Integer> aggregateDisciplines) {
+
+        /** Team starts and aggregate starts (e.g. Remington, whose results come from other disciplines) take no lane. */
+        boolean takesNoLane(int disciplineId) {
+            return "team".equals(disciplineLevels.get(disciplineId)) || aggregateDisciplines.contains(disciplineId);
+        }
 
         Map<String, Integer> competitorOfStart() {
             Map<String, Integer> byStart = new HashMap<>();
@@ -195,7 +201,7 @@ public class RelayService {
             for (Map<String, Object> start : registry.starts().values()) {
                 int disciplineId = RelayRules.intOf(start.get("discipline_id"));
                 String startId = (String) start.get("start_id");
-                if (assignedStarts.contains(startId) || "team".equals(registry.disciplineLevels().get(disciplineId))
+                if (assignedStarts.contains(startId) || registry.takesNoLane(disciplineId)
                     || !registry.activeDisciplines().contains(disciplineId)) {
                     continue;
                 }
@@ -450,7 +456,7 @@ public class RelayService {
             List<Map<String, Object>> available = new ArrayList<>();
             for (Map<String, Object> start : registry.starts().values()) {
                 int disciplineId = RelayRules.intOf(start.get("discipline_id"));
-                if ("team".equals(registry.disciplineLevels().get(disciplineId))) {
+                if (registry.takesNoLane(disciplineId)) {
                     continue;
                 }
                 String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
@@ -498,9 +504,11 @@ public class RelayService {
                 throw new IllegalArgumentException("Start " + startId + " not found");
             }
             int disciplineId = RelayRules.intOf(start.get("discipline_id"));
-            if ("team".equals(registry.disciplineLevels().get(disciplineId))) {
+            if (registry.takesNoLane(disciplineId)) {
                 throw new IllegalArgumentException(disciplineName(registry, disciplineId)
-                    + " is a team discipline and cannot be assigned to a lane");
+                    + (registry.aggregateDisciplines().contains(disciplineId)
+                        ? " adds up the results of other disciplines and takes no lane"
+                        : " is a team discipline and cannot be assigned to a lane"));
             }
             String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
             if (mapped != null && !mapped.equals(rangeId)) {
@@ -616,11 +624,16 @@ public class RelayService {
                 Map<String, Object> competitor = registry.competitors().get(competitorId);
                 List<Map<String, Object>> scheduled = new ArrayList<>();
                 List<Map<String, Object>> unscheduled = new ArrayList<>();
+                List<Map<String, Object>> noLane = new ArrayList<>();
                 List<String> issues = new ArrayList<>();
 
                 for (Map<String, Object> start : entry.getValue()) {
                     String startId = (String) start.get("start_id");
                     List<Map<String, Object>> entries = byStart.getOrDefault(startId, List.of());
+                    if (entries.isEmpty() && registry.aggregateDisciplines().contains(RelayRules.intOf(start.get("discipline_id")))) {
+                        noLane.add(startSummary(start, registry));
+                        continue;
+                    }
                     if (entries.isEmpty()) {
                         unscheduled.add(startSummary(start, registry));
                         continue;
@@ -653,6 +666,8 @@ public class RelayService {
                     : Map.of("id", competitorId, "name", "Unknown competitor"));
                 row.put("scheduled", scheduled);
                 row.put("unscheduled", unscheduled);
+                // Starts that need no lane (aggregates such as Remington); they still go on the start card
+                row.put("no_lane", noLane);
                 row.put("issues", issues);
                 rows.add(row);
             }
@@ -895,7 +910,11 @@ public class RelayService {
         List<Integer> activeDisciplineIds = new ArrayList<>();
         Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder = new HashMap<>();
         Map<String, Integer> familyRanks = new HashMap<>();
+        Set<Integer> aggregateDisciplines = new HashSet<>();
         for (Discipline discipline : dataService.loadDisciplines()) {
+            if (DisciplineService.isAggregate(discipline)) {
+                aggregateDisciplines.add(discipline.getId());
+            }
             // original, reproduction and combined of one event form a family
             String family = Objects.toString(discipline.getCategory(), "") + "|" + discipline.getEvent();
             if (!familyRanks.containsKey(family)) {
@@ -953,7 +972,8 @@ public class RelayService {
                 }
             }
 
-            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances, activeDisciplineIds, disciplineOrder);
+            return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances,
+                activeDisciplineIds, disciplineOrder, aggregateDisciplines);
         });
     }
 

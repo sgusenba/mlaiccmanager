@@ -54,7 +54,9 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                 ${components.map(c => th(escapeHtml(c.name), 'center')).join('')}
                                 ${th(aggregate ? 'Total' : 'Result', 'center')}
                                 ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
-                                ${aggregate ? '' : th('Tie-break', 'center', 'Distance of the furthest shot; the lower value wins')}
+                                ${th('Tie-break', 'center', aggregate
+                                    ? 'Furthest shot of the results added up; the lower value wins'
+                                    : 'Distance of the furthest shot; the lower value wins')}
                                 ${hasNotes ? th('Notes') : ''}
                             </tr>
                         </thead>
@@ -69,7 +71,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${componentCells(row)}
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
-                                    ${aggregate ? '' : `<td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>`}
+                                    <td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>
                                     ${hasNotes ? `<td class="px-4 py-3 text-sm font-normal text-gray-500">${escapeHtml(row.notes || '')}</td>` : ''}
                                 </tr>
                             ` : `
@@ -82,7 +84,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${componentCells(row)}
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>
                                     ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
-                                    ${aggregate ? '' : '<td class="px-4 py-3"></td>'}
+                                    <td class="px-4 py-3"></td>
                                     ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}
                                 </tr>
                             `).join('')}

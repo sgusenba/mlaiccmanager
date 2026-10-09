@@ -112,7 +112,7 @@ function renderTable() {
                 <input type="checkbox" class="active-toggle h-4 w-4 text-green-600 border-gray-300 rounded" data-discipline-id="${d.id}" ${d.active !== false ? 'checked' : ''}>
             </td>
             <td class="px-4 py-2 text-sm">
-                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines have no starts of their own"' : ''}>
+                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines take no lane: their results come from other disciplines"' : ''}>
                     <option value="">any distance</option>
                     ${distanceOptions}
                 </select>

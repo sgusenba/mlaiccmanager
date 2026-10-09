@@ -74,6 +74,13 @@ public class ResultService {
     }
 
     public Result createResult(Result result) throws Exception {
+        // An aggregate's start (e.g. Remington) is ranked on its components' results, it gets none itself
+        Discipline discipline = disciplineService != null
+            ? disciplineService.getAvailableDisciplineById(result.getDisciplineId()) : null;
+        if (DisciplineService.isAggregate(discipline)) {
+            throw new IllegalArgumentException(discipline.getEvent() + " takes no result of its own: enter the "
+                + String.join(" and ", discipline.getAggregateOf()) + " results instead");
+        }
         return dataService.update(data -> {
             List<Map<String, Object>> resultsData = resultsOf(data);
 
