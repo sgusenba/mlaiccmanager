@@ -34,7 +34,7 @@ public class ApplicationBinder extends AbstractBinder {
 
         CompetitorService competitorService = new CompetitorService(dataService);
         DisciplineService disciplineService = new DisciplineService(dataService);
-        StartService startService = new StartService(dataService);
+        StartService startService = new StartService(dataService, disciplineService);
         ResultService resultService = new ResultService(dataService, disciplineService);
         TeamService teamService = new TeamService(basePath + "/teams.json", dataService);
         RankingService rankingService = new RankingService(dataService, disciplineService, teamService);

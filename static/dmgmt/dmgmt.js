@@ -2,7 +2,8 @@ const API = '/api';
 
 const state = {
     disciplines: [],
-    ranges: []
+    ranges: [],
+    combinedEvents: []
 };
 
 class ApiError extends Error {
@@ -44,12 +45,29 @@ function showMessage(text, type = 'error') {
 }
 
 async function loadData() {
-    const [disciplines, relayData] = await Promise.all([
+    const [disciplines, relayData, combinedEvents] = await Promise.all([
         api('/available-disciplines'),
-        api('/rmgmt')
+        api('/rmgmt'),
+        api('/combined-events')
     ]);
     state.disciplines = disciplines;
     state.ranges = relayData.ranges;
+    state.combinedEvents = combinedEvents;
+}
+
+function renderCombinedEvents() {
+    const container = document.getElementById('combined-events');
+    if (!state.combinedEvents.length) {
+        container.innerHTML = '<p class="text-sm text-gray-500">No event has both an original and a reproduction discipline.</p>';
+        return;
+    }
+    container.innerHTML = state.combinedEvents.map(e => `
+        <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-md text-sm cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" class="combined-toggle h-4 w-4 text-blue-600 border-gray-300 rounded" data-key="${escapeHtml(e.key)}" ${e.combined ? 'checked' : ''}>
+            ${categoryBadge(e.category)}
+            <span class="font-medium">${escapeHtml(e.event)}</span>
+            <span class="text-gray-400 text-xs">#${e.original_id} + #${e.reproduction_id}</span>
+        </label>`).join('');
 }
 
 function levelBadge(level) {
@@ -178,6 +196,20 @@ function formData() {
 }
 
 function setupListeners() {
+    document.getElementById('combined-events').addEventListener('change', async (event) => {
+        const checkbox = event.target.closest('.combined-toggle');
+        if (!checkbox) return;
+        const combined = checkbox.checked;
+        try {
+            state.combinedEvents = await api('/combined-events', 'PUT', { key: checkbox.dataset.key, combined });
+            renderCombinedEvents();
+            showMessage(combined ? 'Original and reproduction are now ranked together' : 'Original and reproduction are now ranked separately', 'success');
+        } catch (error) {
+            checkbox.checked = !combined;
+            showMessage(error.message);
+        }
+    });
+
     document.getElementById('add-btn').addEventListener('click', () => showForm(null));
     document.getElementById('cancel-btn').addEventListener('click', hideForm);
     document.getElementById('form-level').addEventListener('change', toggleTeamFields);
@@ -196,6 +228,7 @@ function setupListeners() {
             }
             hideForm();
             await loadData();
+            renderCombinedEvents();
             renderTable();
         } catch (error) {
             showMessage(error.message);
@@ -218,6 +251,7 @@ function setupListeners() {
                 await api(`/available-disciplines/${id}`, 'DELETE');
                 showMessage('Discipline deleted', 'success');
                 await loadData();
+                renderCombinedEvents();
                 renderTable();
             } catch (error) {
                 showMessage(error.message);
@@ -234,6 +268,7 @@ function setupListeners() {
             await api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping });
             showMessage('Shooting distances saved', 'success');
             await loadData();
+            renderCombinedEvents();
             renderTable();
         } catch (error) {
             showMessage(error.message);
@@ -265,6 +300,7 @@ function setupListeners() {
 async function init() {
     try {
         await loadData();
+        renderCombinedEvents();
         renderTable();
         setupListeners();
     } catch (error) {

@@ -9,9 +9,15 @@ import java.util.Map;
 
 public class StartService {
     private DataService dataService;
+    private DisciplineService disciplineService;
 
     public StartService(DataService dataService) {
+        this(dataService, null);
+    }
+
+    public StartService(DataService dataService, DisciplineService disciplineService) {
         this.dataService = dataService;
+        this.disciplineService = disciplineService;
     }
 
     public Start createStart(int competitorId, int disciplineId) throws Exception {
@@ -29,6 +35,7 @@ public class StartService {
             if (competitorData == null) {
                 throw new IllegalArgumentException("Competitor not found");
             }
+            checkNotStartingInCombinedPartner(competitorData, disciplineId);
 
             // Initialize starts object if it doesn't exist
             @SuppressWarnings("unchecked")
@@ -72,6 +79,23 @@ public class StartService {
 
             return mapToStart(newStartData);
         });
+    }
+
+    /**
+     * A combined ranking holds each competitor once, so while an event is ranked
+     * combined a competitor may start in its original or its reproduction
+     * discipline, not both.
+     */
+    private void checkNotStartingInCombinedPartner(Map<String, Object> competitorData, int disciplineId) throws Exception {
+        if (disciplineService == null) {
+            return;
+        }
+        DisciplineService.EventPair pair = disciplineService.getCombinedPairsByDiscipline().get(disciplineId);
+        if (pair != null && DisciplineService.startsIn(competitorData, pair.partnerOf(disciplineId))) {
+            throw new ConflictException(competitorData.get("name") + " already starts in " + pair.event()
+                + " (" + pair.typeOf(pair.partnerOf(disciplineId)) + "), which is ranked combined with "
+                + pair.typeOf(disciplineId), null);
+        }
     }
 
     public void deleteStart(int competitorId, String generatedId) throws Exception {
