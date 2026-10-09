@@ -155,35 +155,6 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/ServerError" }
 
-  /competitors/{competitorId}/starts/{generatedId}/switch-type:
-    parameters:
-      - name: competitorId
-        in: path
-        required: true
-        schema: { type: integer }
-      - name: generatedId
-        in: path
-        required: true
-        schema: { type: string, example: "35-26-1" }
-    post:
-      tags: [Starts]
-      summary: File a start under the other type of its event (original <-> reproduction)
-      description: |
-        The start keeps its id, so lanes, teams and printed labels stay valid; its results
-        move with it. `400` if its discipline has no original/reproduction counterpart;
-        `409` if it is in a team whose results that count do not include the other type,
-        or if the competitor has more starts of this type in an event ranked combined.
-      operationId: switchStartType
-      responses:
-        "200":
-          description: The start, now in the other discipline
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Start" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
-
   # ---------------------------------------------------------------- Disciplines
   /active-disciplines:
     get:

@@ -173,9 +173,8 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 ### Starts (`/api/competitors/{competitorId}/starts`)
 - `POST /api/competitors/{competitorId}/starts` — create a start for a competitor. The start ID is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`); starts created before this format keep their old unseparated IDs. Returns `409` if the ID is already used by any start or result.
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
-- `POST /api/competitors/{competitorId}/starts/{generatedId}/switch-type` — file a start under the other type of its event (original ↔ reproduction, the "O → R" button on the Starts page), keeping its id and results; refused if a team it is in would no longer count it, or while the competitor has more starts of that type in an event ranked combined
 
-Starts still filed under the old combined disciplines (ids 21–30 and 60–65, removed from the catalog when combining became a ranking setting) are moved once at startup to their event's original discipline, keeping their ids, and the event is ranked combined; one shot as a reproduction is then switched with the button above.
+Starts still filed under the old combined disciplines (ids 21–30 and 60–65, removed from the catalog when combining became a ranking setting) are moved once at startup to their event's original discipline, keeping their ids, and the event is ranked combined (whether a start was shot as an original or a reproduction does not matter for a combined ranking).
 
 ### Disciplines
 - `GET /api/active-disciplines` — get currently active disciplines (stored in `competition.json`)
