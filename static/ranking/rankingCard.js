@@ -1,7 +1,7 @@
 // Card with the ranking table of one individual discipline (response of
 // /api/ranking/best/{id}), used by the Ranking page and the Todos page.
 
-import { escapeHtml, disciplineDisplayName, formatScore, missingTieBreakCell, rankBadge } from '../js/teamRanking.js';
+import { escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeTag } from '../js/teamRanking.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -22,6 +22,9 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
     const rows = data.rankings || [];
     const discipline = data.discipline;
     const hasNotes = rows.some(row => row.notes);
+    const combined = isCombined(discipline);
+    const typeCell = (row) => combined
+        ? `<td class="px-2 py-3 text-center text-sm" title="${row.discipline_type || ''}">${typeTag(row)}</td>` : '';
     const th = (label, align = 'left', title = '', padding = 'px-4') =>
         `<th class="${padding} py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
     const tieBreak = (row) => row.override_value ?? (markMissingTieBreak ? missingTieBreakCell : '-');
@@ -41,6 +44,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                             <tr>
                                 ${showRank ? th('Rank') : ''}
                                 ${th('Name')}
+                                ${combined ? th('O/R', 'center', 'Original or reproduction', 'px-2') : ''}
                                 ${th('Club')}
                                 ${th('Country')}
                                 ${th('Result', 'center')}
@@ -54,6 +58,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                 <tr class="hover:bg-gray-50 ${showRank && row.rank <= 3 ? 'font-bold' : ''} ${rowClass(row, i)}">
                                     ${showRank ? `<td class="px-4 py-3 whitespace-nowrap">${rankBadge(row.rank)}</td>` : ''}
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${nameCell(row)}</td>
+                                    ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
@@ -65,6 +70,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                 <tr class="hover:bg-gray-50 text-gray-500 ${rowClass(row, i)}">
                                     ${showRank ? '<td class="px-4 py-3 text-center text-sm">-</td>' : ''}
                                     <td class="px-4 py-3 whitespace-nowrap text-sm">${nameCell(row)}</td>
+                                    ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>

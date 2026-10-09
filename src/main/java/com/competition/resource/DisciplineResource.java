@@ -84,6 +84,39 @@ public class DisciplineResource {
     }
 
     @GET
+    @Path("/combined-events")
+    public Response getCombinedEvents() {
+        try {
+            return Response.ok(disciplineService.getCombinableEvents()).build();
+        } catch (Exception e) {
+            logger.error("Error getting combined events", e);
+            return Response.serverError().entity("{\"error\": \"Failed to get combined events\"}").build();
+        }
+    }
+
+    @PUT
+    @Path("/combined-events")
+    public Response setCombinedEvent(Map<String, Object> requestData) {
+        Object key = requestData != null ? requestData.get("key") : null;
+        if (!(key instanceof String)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"key is required\"}").build();
+        }
+        try {
+            boolean combined = Boolean.TRUE.equals(requestData.get("combined"));
+            return Response.ok(disciplineService.setCombined((String) key, combined)).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(Map.of("error", e.getMessage())).build();
+        } catch (Exception e) {
+            logger.error("Error setting combined event", e);
+            return Response.serverError().entity("{\"error\": \"Failed to set combined event\"}").build();
+        }
+    }
+
+    @GET
     @Path("/available-disciplines")
     public Response getAvailableDisciplines() {
         try {

@@ -33,13 +33,17 @@ public class RankingService {
         if (TeamService.isTeamDiscipline(discipline)) {
             return teamService.getRanking(disciplineId);
         }
+        return detailedEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
+    }
 
-        List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
+    private Map<String, Object> detailedEntry(Scope scope) throws Exception {
+        List<Map<String, Object>> disciplineResults = getResultsForDisciplines(scope.ids);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("kind", "individual");
-        response.put("discipline", buildDisciplineInfo(discipline));
-        response.put("rankings", disciplineResults.isEmpty() ? new ArrayList<>() : buildRankings(disciplineResults));
+        response.put("discipline", scope.info);
+        response.put("rankings", disciplineResults.isEmpty()
+            ? new ArrayList<>() : buildRankings(disciplineResults, scope.typeById));
         return response;
     }
 
@@ -49,7 +53,9 @@ public class RankingService {
      */
     public Map<Integer, Object> getAllRankings() throws Exception {
         List<Integer> activeDisciplines = disciplineService.getActiveDisciplines();
+        Map<Integer, DisciplineService.EventPair> combinedPairs = disciplineService.getCombinedPairsByDiscipline();
         Map<Integer, Object> allRankings = new LinkedHashMap<>();
+        Set<Integer> done = new HashSet<>();
 
         for (int disciplineId : activeDisciplines) {
             Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
@@ -63,17 +69,15 @@ public class RankingService {
                 continue;
             }
 
-            List<Map<String, Object>> disciplineResults = getResultsForDiscipline(disciplineId);
-            if (disciplineResults.isEmpty()) {
+            Scope scope = scopeOf(discipline, combinedPairs);
+            if (!done.add(scope.id)) {
+                continue; // the other half of a combined pair, already ranked
+            }
+            Map<String, Object> entry = detailedEntry(scope);
+            if (((List<?>) entry.get("rankings")).isEmpty()) {
                 continue;
             }
-
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("kind", "individual");
-            entry.put("discipline", buildDisciplineInfo(discipline));
-            entry.put("rankings", buildRankings(disciplineResults));
-
-            allRankings.put(disciplineId, entry);
+            allRankings.put(scope.id, entry);
         }
 
         return allRankings;
@@ -94,12 +98,14 @@ public class RankingService {
         if (TeamService.isTeamDiscipline(discipline)) {
             return teamService.getRanking(disciplineId);
         }
-        return bestResultEntry(discipline, getResultsForDiscipline(disciplineId));
+        return bestResultEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
     }
 
     /** {@link #getBestResultRanking} for every active discipline that has results or starts (team disciplines: teams). */
     public Map<Integer, Object> getAllBestResultRankings() throws Exception {
+        Map<Integer, DisciplineService.EventPair> combinedPairs = disciplineService.getCombinedPairsByDiscipline();
         Map<Integer, Object> allRankings = new LinkedHashMap<>();
+        Set<Integer> done = new HashSet<>();
         for (int disciplineId : disciplineService.getActiveDisciplines()) {
             Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
             if (discipline == null) {
@@ -111,16 +117,20 @@ public class RankingService {
                 }
                 continue;
             }
-            Map<String, Object> entry = bestResultEntry(discipline, getResultsForDiscipline(disciplineId));
+            Scope scope = scopeOf(discipline, combinedPairs);
+            if (!done.add(scope.id)) {
+                continue; // the other half of a combined pair, already ranked
+            }
+            Map<String, Object> entry = bestResultEntry(scope);
             if (!((List<?>) entry.get("rankings")).isEmpty()) {
-                allRankings.put(disciplineId, entry);
+                allRankings.put(scope.id, entry);
             }
         }
         return allRankings;
     }
 
-    private Map<String, Object> bestResultEntry(Discipline discipline, List<Map<String, Object>> disciplineResults)
-            throws Exception {
+    private Map<String, Object> bestResultEntry(Scope scope) throws Exception {
+        List<Map<String, Object>> disciplineResults = getResultsForDisciplines(scope.ids);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> competitorsData = dataService.read(
             data -> (List<Map<String, Object>>) data.get("competitors"));
@@ -161,6 +171,9 @@ public class RankingService {
                 row.put("override_value", best.overrideValue);
                 row.put("notes", best.result.get("notes"));
                 row.put("has_result", true);
+                if (scope.typeById != null) {
+                    row.put("discipline_type", scope.typeById.get(disciplineIdOf(best.result)));
+                }
                 rows.add(row);
                 keys.add(best.key);
             });
@@ -172,26 +185,36 @@ public class RankingService {
         }
 
         // Everyone else who started in this discipline follows without a rank
-        rows.addAll(startersWithoutResult(competitorsData, discipline.getId(), bestByCompetitor.keySet()));
+        rows.addAll(startersWithoutResult(competitorsData, scope, bestByCompetitor.keySet()));
 
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("kind", "individual");
-        entry.put("discipline", buildDisciplineInfo(discipline));
+        entry.put("discipline", scope.info);
         entry.put("rankings", rows);
         return entry;
     }
 
-    /** Rows for the competitors with a start in the discipline but no result yet, by name. */
+    /** Rows for the competitors with a start in the discipline(s) but no result yet, by name. */
     private List<Map<String, Object>> startersWithoutResult(List<Map<String, Object>> competitorsData,
-            int disciplineId, Set<Integer> withResult) {
+            Scope scope, Set<Integer> withResult) {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Map<String, Object> competitorData : competitorsData) {
             int competitorId = ((Number) competitorData.get("id")).intValue();
             if (withResult.contains(competitorId)
-                    || !(competitorData.get("starts") instanceof Map<?, ?> startsByDiscipline)
-                    || !(startsByDiscipline.get(String.valueOf(disciplineId)) instanceof List<?> starts)
-                    || starts.isEmpty()
-                    || !(starts.get(0) instanceof Map<?, ?> firstStart)) {
+                    || !(competitorData.get("starts") instanceof Map<?, ?> startsByDiscipline)) {
+                continue;
+            }
+            Map<?, ?> firstStart = null;
+            int startDisciplineId = 0;
+            for (int disciplineId : scope.ids) {
+                if (startsByDiscipline.get(String.valueOf(disciplineId)) instanceof List<?> starts
+                        && !starts.isEmpty() && starts.get(0) instanceof Map<?, ?> start) {
+                    firstStart = start;
+                    startDisciplineId = disciplineId;
+                    break;
+                }
+            }
+            if (firstStart == null) {
                 continue;
             }
             Map<String, Object> competitor = new LinkedHashMap<>();
@@ -210,6 +233,9 @@ public class RankingService {
             row.put("override_value", null);
             row.put("notes", null);
             row.put("has_result", false);
+            if (scope.typeById != null) {
+                row.put("discipline_type", scope.typeById.get(startDisciplineId));
+            }
             rows.add(row);
         }
         rows.sort(Comparator.comparing(
@@ -228,18 +254,53 @@ public class RankingService {
         return info;
     }
 
-    private List<Map<String, Object>> getResultsForDiscipline(int disciplineId) throws Exception {
+    /**
+     * What one ranking covers: a single discipline, or the original and
+     * reproduction discipline of an event ranked combined. A combined ranking is
+     * listed under the original's id and tags each row with the type shot.
+     */
+    private static class Scope {
+        int id;
+        List<Integer> ids;
+        Map<String, Object> info;
+        Map<Integer, String> typeById; // null unless combined
+    }
+
+    private Scope scopeOf(Discipline discipline, Map<Integer, DisciplineService.EventPair> combinedPairs) {
+        Scope scope = new Scope();
+        scope.info = buildDisciplineInfo(discipline);
+        DisciplineService.EventPair pair = combinedPairs.get(discipline.getId());
+        if (pair == null) {
+            scope.id = discipline.getId();
+            scope.ids = List.of(discipline.getId());
+            return scope;
+        }
+        scope.id = pair.originalId();
+        scope.ids = List.of(pair.originalId(), pair.reproductionId());
+        scope.typeById = Map.of(pair.originalId(), "original", pair.reproductionId(), "reproduction");
+        scope.info.put("id", pair.originalId());
+        scope.info.put("type", "combined");
+        scope.info.put("combined_ids", scope.ids);
+        return scope;
+    }
+
+    private static int disciplineIdOf(Map<String, Object> result) {
+        return ((Number) result.get("discipline_id")).intValue();
+    }
+
+    private List<Map<String, Object>> getResultsForDisciplines(List<Integer> disciplineIds) throws Exception {
         return dataService.read(data -> {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
 
             return resultsData.stream()
-                .filter(r -> ((Number) r.get("discipline_id")).intValue() == disciplineId)
+                .filter(r -> disciplineIds.contains(disciplineIdOf(r)))
                 .collect(Collectors.toList());
         });
     }
 
-    private List<Ranking> buildRankings(List<Map<String, Object>> disciplineResults) throws Exception {
+    private List<Ranking> buildRankings(List<Map<String, Object>> disciplineResults, Map<Integer, String> typeById)
+            throws Exception {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> competitorsData = dataService.read(
             data -> (List<Map<String, Object>>) data.get("competitors"));
@@ -257,7 +318,12 @@ public class RankingService {
             if (competitorData == null) {
                 continue;
             }
-            aggregates.add(aggregate(competitorData, entry.getValue()));
+            CompetitorAggregate aggregate = aggregate(competitorData, entry.getValue());
+            if (typeById != null) {
+                // A competitor starts in only one half of a combined pair
+                aggregate.disciplineType = typeById.get(disciplineIdOf(entry.getValue().get(0)));
+            }
+            aggregates.add(aggregate);
         }
 
         // Sort by composite ranking key, highest first
@@ -376,6 +442,7 @@ public class RankingService {
         ranking.setFreqCounts(aggregate.freqCounts);
         ranking.setOverrideValue(aggregate.overrideValue);
         ranking.setNotes(aggregate.notes);
+        ranking.setDisciplineType(aggregate.disciplineType);
 
         return ranking;
     }
@@ -414,6 +481,7 @@ public class RankingService {
         Map<String, Integer> freqCounts;
         Double overrideValue;
         String notes;
+        String disciplineType;
         double[] key;
     }
 }

@@ -139,76 +139,6 @@
   "event" : "Lamarmora",
   "shooting_distance" : "m50"
 }, {
-  "id" : 21,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Miquelet",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 22,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Maximilian",
-  "shooting_distance" : "m100"
-}, {
-  "id" : 23,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Minie",
-  "shooting_distance" : "m100"
-}, {
-  "id" : 24,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Whitworth",
-  "shooting_distance" : "m100"
-}, {
-  "id" : 25,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Walkyrie",
-  "shooting_distance" : "m100"
-}, {
-  "id" : 26,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Tanegashima",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 27,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Vetterli",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 28,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Hizadai",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 29,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Pennsylvania",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 30,
-  "category" : "rifle",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Lamarmora",
-  "shooting_distance" : "m50"
-}, {
   "id" : 31,
   "category" : "rifle",
   "level" : "team",
@@ -428,48 +358,6 @@
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "Tanzutsu",
-  "shooting_distance" : "m25"
-}, {
-  "id" : 60,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Cominazzo",
-  "shooting_distance" : "m25"
-}, {
-  "id" : 61,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Kuchenreuter",
-  "shooting_distance" : "m25"
-}, {
-  "id" : 62,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Colt",
-  "shooting_distance" : "m25"
-}, {
-  "id" : 63,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Mariette",
-  "shooting_distance" : "m25"
-}, {
-  "id" : 64,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
-  "event" : "Donald Malson",
-  "shooting_distance" : "m50"
-}, {
-  "id" : 65,
-  "category" : "pistol",
-  "level" : "individual",
-  "type" : "combined",
   "event" : "Tanzutsu",
   "shooting_distance" : "m25"
 }, {

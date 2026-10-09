@@ -1,5 +1,6 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,11 @@ public class Ranking {
 
     @JsonProperty("notes")
     private String notes;
+
+    // Only set in a combined ranking: "original" or "reproduction"
+    @JsonProperty("discipline_type")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String disciplineType;
 
     // Nested class for competitor info
     public static class CompetitorInfo {
@@ -72,4 +78,7 @@ public class Ranking {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public String getDisciplineType() { return disciplineType; }
+    public void setDisciplineType(String disciplineType) { this.disciplineType = disciplineType; }
 }

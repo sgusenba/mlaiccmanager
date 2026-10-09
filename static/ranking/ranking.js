@@ -84,13 +84,25 @@ function render(rankings, emptyText) {
 // --- loading ---------------------------------------------------------------
 
 async function loadDisciplines() {
-    const [active, available] = await Promise.all([api('/active-disciplines'), api('/available-disciplines')]);
+    const [active, available, combinedEvents] = await Promise.all([
+        api('/active-disciplines'), api('/available-disciplines'), api('/combined-events')]);
+    // An event ranked combined has one ranking, listed under its original's id
+    const combinedPairs = new Map();
+    for (const e of combinedEvents.filter(e => e.combined)) {
+        combinedPairs.set(e.original_id, e);
+        combinedPairs.set(e.reproduction_id, e);
+    }
+    const shown = new Set();
+    const options = [];
+    for (const d of (active || []).map(id => available.find(a => a.id === id)).filter(Boolean)) {
+        const pair = combinedPairs.get(d.id);
+        const id = pair ? pair.original_id : d.id;
+        if (shown.has(id)) continue;
+        shown.add(id);
+        options.push(`<option value="${id}">${escapeHtml(disciplineDisplayName(d.event, pair ? 'combined' : d.type))}</option>`);
+    }
     const select = document.getElementById('discipline-select');
-    select.innerHTML = '<option value="">All disciplines</option>' + (active || [])
-        .map(id => available.find(d => d.id === id))
-        .filter(Boolean)
-        .map(d => `<option value="${d.id}">${escapeHtml(disciplineDisplayName(d.event, d.type))}</option>`)
-        .join('');
+    select.innerHTML = '<option value="">All disciplines</option>' + options.join('');
 
     const stored = readStored(DISCIPLINE_KEY);
     select.value = [...select.options].some(o => o.value === stored) ? stored : '';

@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -366,7 +367,7 @@ public class DataService {
         disciplinesLock.lock();
         try {
             List<Discipline> catalog = toDisciplines(loadCatalog());
-            saveDisciplinesInternal(catalog);
+            saveDisciplinesInternal(catalog, new LinkedHashSet<>());
             Set<Integer> ids = new HashSet<>();
             catalog.forEach(d -> ids.add(d.getId()));
             return ids;
@@ -380,7 +381,46 @@ public class DataService {
         return new File(competitionFilePath).exists();
     }
 
+    /**
+     * The events ("category|event") whose original and reproduction disciplines
+     * are ranked together in this competition.
+     */
+    public Set<String> loadCombinedEvents() throws IOException {
+        disciplinesLock.lock();
+        try {
+            return loadCombinedEventsInternal();
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    /** Loads, modifies and saves the combined events atomically. */
+    public <T> T updateCombinedEvents(CombinedEventsFunction<T> fn) throws Exception {
+        disciplinesLock.lock();
+        try {
+            Set<String> combinedEvents = loadCombinedEventsInternal();
+            T result = fn.apply(combinedEvents);
+            saveDisciplinesInternal(loadDisciplinesInternal(), combinedEvents);
+            return result;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    private Set<String> loadCombinedEventsInternal() throws IOException {
+        Set<String> combinedEvents = new LinkedHashSet<>();
+        JsonNode settings = loadCompetitionSettings();
+        if (settings != null) {
+            settings.path("combined_events").forEach(key -> combinedEvents.add(key.asText()));
+        }
+        return combinedEvents;
+    }
+
     private void saveDisciplinesInternal(List<Discipline> disciplines) throws IOException {
+        saveDisciplinesInternal(disciplines, loadCombinedEventsInternal());
+    }
+
+    private void saveDisciplinesInternal(List<Discipline> disciplines, Set<String> combinedEvents) throws IOException {
         Map<Integer, ObjectNode> catalogById = new LinkedHashMap<>();
         for (ObjectNode entry : loadCatalog()) {
             catalogById.put(entry.path("id").asInt(), entry);
@@ -431,6 +471,7 @@ public class DataService {
         settings.put("discipline_overrides", overrides);
         settings.put("custom_disciplines", custom);
         settings.put("removed_disciplines", removed);
+        settings.put("combined_events", combinedEvents);
 
         File tempFile = new File(competitionFilePath + ".tmp");
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, settings);
@@ -442,6 +483,11 @@ public class DataService {
     @FunctionalInterface
     public interface DisciplineFunction<T> {
         T apply(List<Discipline> disciplines) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface CombinedEventsFunction<T> {
+        T apply(Set<String> combinedEvents) throws Exception;
     }
 
     private Map<String, Object> createDefaultData() {
