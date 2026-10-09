@@ -1113,6 +1113,64 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /meet/program:
+    get:
+      tags: [Meet]
+      summary: Which events the meet shoots and how, and which team rankings there are
+      description: |
+        `events`: the individual disciplines grouped by category and event (key e.g.
+        `rifle|Vetterli`), each with its disciplines (`active`, number of `starts`),
+        whether it can be combined and whether it is. `teams`: the team disciplines with
+        `active`, their composition and number of teams. `base`: send it back when saving.
+      operationId: getProgram
+      responses:
+        "200":
+          description: The program
+          content:
+            application/json:
+              schema: { type: object }
+        "500": { $ref: "#/components/responses/ServerError" }
+    put:
+      tags: [Meet]
+      summary: Set the program
+      description: |
+        `events` maps event keys to the ids of their disciplines that are shot and whether
+        original and reproduction are ranked combined (only with both shot); events left
+        out stay as they are. `teams` lists the team
+        disciplines to rank (left out: unchanged). Saved as the active disciplines and the
+        combined events. `409` if the program changed since `base`, or when combining while
+        a competitor starts in both original and reproduction.
+      operationId: setProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                events:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      active: { type: array, items: { type: integer } }
+                      combined: { type: boolean }
+                teams: { type: array, items: { type: integer } }
+                base:
+                  type: object
+                  properties:
+                    active_ids: { type: array, items: { type: integer } }
+                    combined_keys: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: The saved program
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   # --------------------------------------------------------------------- Backup
   /backup:
     get:
@@ -1492,6 +1550,10 @@ components:
         created_at: { type: string }
         based_on: { type: string, description: Event a team discipline's members come from }
         team_size: { type: integer }
+        team_of:
+          type: array
+          items: { type: integer }
+          description: Team discipline only. The individual disciplines whose starts count for its teams; without it, taken from based_on and type
         shooting_distance: { type: string, description: Range id the discipline fires on }
         aggregate_of:
           type: array
@@ -1508,6 +1570,10 @@ components:
         short_name: { type: string, description: "Short name used in the lane assignments export; empty or null clears it" }
         based_on: { type: string }
         team_size: { type: integer }
+        team_of:
+          type: array
+          items: { type: integer }
+          description: "Team discipline only: individual disciplines of its category whose starts count; null clears it. 409 if a stored team member's start would no longer count"
         shooting_distance: { type: string }
         active: { type: boolean }
 

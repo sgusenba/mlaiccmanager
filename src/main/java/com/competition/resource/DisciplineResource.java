@@ -3,6 +3,8 @@ package com.competition.resource;
 import com.competition.model.Discipline;
 import com.competition.service.ConflictException;
 import com.competition.service.DisciplineService;
+import com.competition.service.RecordNotFoundException;
+import com.competition.service.TeamService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -22,6 +24,9 @@ public class DisciplineResource {
     
     @Inject
     private DisciplineService disciplineService;
+
+    @Inject
+    private TeamService teamService;
 
     public DisciplineResource() {
         // Default constructor for Jersey
@@ -144,11 +149,22 @@ public class DisciplineResource {
     @Path("/available-disciplines/{id}")
     public Response updateCatalogDiscipline(@PathParam("id") int id, Map<String, Object> requestData) {
         try {
-            Discipline updated = disciplineService.updateCatalogDiscipline(id, requestData);
+            Discipline updated;
+            if (requestData.get("team_of") instanceof List<?> ids) {
+                // A new team composition must not leave a stored team member's start out
+                List<Integer> teamOf = ids.stream().map(i -> ((Number) i).intValue()).toList();
+                updated = teamService.changeComposition(id, teamOf,
+                    () -> disciplineService.updateCatalogDiscipline(id, requestData));
+            } else {
+                updated = disciplineService.updateCatalogDiscipline(id, requestData);
+            }
             return Response.ok(updated).build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
-            return Response.status(Response.Status.NOT_FOUND)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+            return Response.status(Response.Status.BAD_REQUEST)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating catalog discipline", e);
             return Response.serverError().entity("{\"error\": \"Failed to update discipline\"}").build();

@@ -263,6 +263,32 @@ class TeamServiceTest {
         return ranking.stream().map(r -> r.get("name")).toList();
     }
 
+    @Test
+    void teamOfDecidesWhichStartsCount() throws Exception {
+        DisciplineService disciplineService = new DisciplineService(dataService);
+        // Halikko (original, based on Miquelet) set to count original and reproduction starts
+        disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11)));
+        assertEquals(List.of(1, 11), eligibleIds(teamService.getTeamDisciplines(), 39));
+        assertNotNull(create(39, "Mixed", "1-1-1", "5-11-1"), "Eve's reproduction start now counts");
+        // Gustav Adolph without team_of still follows based_on and type: original only
+        assertThrows(IllegalArgumentException.class, () -> create(31, "No", "5-11-1"));
+
+        // Only individual disciplines of the team's category
+        assertThrows(IllegalArgumentException.class,
+            () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(31))));
+        assertThrows(IllegalArgumentException.class,
+            () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(50))));
+
+        // Dropping the reproduction would leave Eve's start out of her team: refused, nothing saved
+        assertThrows(ConflictException.class, () -> teamService.changeComposition(39, List.of(1),
+            () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1)))));
+        assertEquals(List.of(1, 11), eligibleIds(teamService.getTeamDisciplines(), 39));
+        // Adding one is fine
+        teamService.changeComposition(39, List.of(1, 11, 3),
+            () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11, 3))));
+        assertEquals(List.of(1, 11, 3), eligibleIds(teamService.getTeamDisciplines(), 39));
+    }
+
     private static List<Object> ranks(List<Map<String, Object>> ranking) {
         return ranking.stream().map(r -> r.get("rank")).toList();
     }

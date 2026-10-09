@@ -98,13 +98,22 @@ public class TeamService {
     }
 
     /**
-     * Individual disciplines a team discipline is scored from: the based_on
-     * event of the same category, original teams from original starts,
-     * reproduction teams from reproduction starts, open teams from any. If
-     * based_on names no event (e.g. an aggregate), every individual
-     * discipline of the category qualifies.
+     * Individual disciplines a team discipline is scored from: those listed in
+     * its team_of. Without that list, the based_on event of the same category,
+     * original teams from original starts, reproduction teams from
+     * reproduction starts, open teams from any. If based_on names no event
+     * (e.g. an aggregate), every individual discipline of the category qualifies.
      */
     static List<Discipline> eligibleDisciplines(Discipline team, List<Discipline> catalog) {
+        if (team.getTeamOf() != null) {
+            List<Discipline> listed = new ArrayList<>();
+            for (Discipline d : catalog) {
+                if (team.getTeamOf().contains(d.getId()) && !isTeamDiscipline(d)) {
+                    listed.add(d);
+                }
+            }
+            return listed;
+        }
         List<Discipline> sameCategory = new ArrayList<>();
         List<Discipline> basedOn = new ArrayList<>();
         for (Discipline d : catalog) {
@@ -265,7 +274,7 @@ public class TeamService {
             }
             if (!eligible.contains(RelayRules.intOf(start.get("discipline_id")))) {
                 throw new IllegalArgumentException("Start " + startId + " is not a start of "
-                    + discipline.getBasedOn() + " and cannot count for " + discipline.getEvent());
+                    + compositionText(discipline, registry) + " and cannot count for " + discipline.getEvent());
             }
             int competitorId = RelayRules.intOf(start.get("competitor_id"));
             if (!competitorsInTeam.add(competitorId)) {
@@ -521,6 +530,57 @@ public class TeamService {
             throw new IllegalArgumentException(discipline.getEvent() + " is not a team discipline");
         }
         return discipline;
+    }
+
+    /** The disciplines a team discipline counts, as text, e.g. "14_Tanegashima_O (original), 14_Tanegashima_R (reproduction)". */
+    private static String compositionText(Discipline team, Registry registry) {
+        List<String> names = new ArrayList<>();
+        for (Discipline d : eligibleDisciplines(team, new ArrayList<>(registry.disciplines().values()))) {
+            names.add(disciplineName(d));
+        }
+        return names.isEmpty() ? "no discipline" : String.join(", ", names);
+    }
+
+    /**
+     * Runs save (which stores a new team_of for a team discipline) while no team
+     * can change, unless a stored team has a member whose start would no longer
+     * count: then a ConflictException lists them and nothing is saved.
+     */
+    public <T> T changeComposition(int disciplineId, List<Integer> teamOf, Callable<T> save) throws Exception {
+        return read(teams -> {
+            if (teamOf != null) {
+                Registry registry = registry();
+                List<String> outside = new ArrayList<>();
+                for (Map<String, Object> team : listOf(teams)) {
+                    if (RelayRules.intOf(team.get("discipline_id")) != disciplineId) {
+                        continue;
+                    }
+                    for (String startId : membersOf(team)) {
+                        Map<String, Object> start = registry.starts().get(startId);
+                        if (start != null && !teamOf.contains(RelayRules.intOf(start.get("discipline_id")))) {
+                            outside.add(team.get("name") + ": " + startId + " ("
+                                + competitorName(registry, RelayRules.intOf(start.get("competitor_id"))) + ")");
+                        }
+                    }
+                }
+                if (!outside.isEmpty()) {
+                    throw new ConflictException("These team members' starts would no longer count; "
+                        + "remove them from their teams first: " + String.join(", ", outside), outside);
+                }
+            }
+            return save.call();
+        });
+    }
+
+    /** How many teams are entered per team discipline. */
+    public Map<Integer, Integer> teamCounts() throws Exception {
+        return read(teams -> {
+            Map<Integer, Integer> counts = new HashMap<>();
+            for (Map<String, Object> team : listOf(teams)) {
+                counts.merge(RelayRules.intOf(team.get("discipline_id")), 1, Integer::sum);
+            }
+            return counts;
+        });
     }
 
     private static Set<Integer> eligibleIds(Discipline team, Registry registry) {

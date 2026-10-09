@@ -54,6 +54,11 @@
                         <label for="form-based-on" class="block text-sm font-medium text-gray-700 mb-1">Based On</label>
                         <input type="text" id="form-based-on" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miquelet">
                     </div>
+                    <div id="team-of-group" class="md:col-span-2 lg:col-span-3">
+                        <span class="block text-sm font-medium text-gray-700 mb-1">Results that count</span>
+                        <p class="text-xs text-gray-500 mb-2">The individual disciplines whose starts can be team members. None ticked: taken from "Based On".</p>
+                        <div id="form-team-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
+                    </div>
                     <div id="team-size-group">
                         <label for="form-team-size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
                         <input type="number" id="form-team-size" min="2" max="20" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="3">
@@ -71,12 +76,10 @@
                 </form>
             </div>
 
-            <!-- Combined ranking of original and reproduction -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h3 class="text-lg font-semibold mb-1">Combined Ranking</h3>
-                <p class="text-sm text-gray-600 mb-4">Rank an event's original and reproduction discipline together, e.g. when one of them has too few starters. The ranking then shows for every competitor whether they shot an original (O) or a reproduction (R). A competitor can start in only one of the two. Team rankings are not affected.</p>
-                <div id="combined-events" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2"></div>
-            </div>
+            <p class="mb-6 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm no-print">
+                Which disciplines this meet shoots, and whether original and reproduction are ranked combined, is set in
+                the <a href="/meet/" class="underline font-medium">Program on the Meet page</a>.
+            </p>
 
             <!-- Discipline List -->
             <div class="bg-white rounded-lg shadow-md p-6">
@@ -98,7 +101,6 @@
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Info</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shooting Distance</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
                             </tr>

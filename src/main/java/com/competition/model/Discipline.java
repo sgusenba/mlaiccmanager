@@ -43,6 +43,10 @@ public class Discipline {
     @JsonProperty("team_size")
     private Integer teamSize;
 
+    // Set on a team discipline: the individual disciplines whose starts count for its teams
+    @JsonProperty("team_of")
+    private List<Integer> teamOf;
+
     @JsonProperty("shooting_distance")
     private String shootingDistance;
 
@@ -98,6 +102,9 @@ public class Discipline {
 
     public Integer getTeamSize() { return teamSize; }
     public void setTeamSize(Integer teamSize) { this.teamSize = teamSize; }
+
+    public List<Integer> getTeamOf() { return teamOf; }
+    public void setTeamOf(List<Integer> teamOf) { this.teamOf = teamOf; }
 
     public String getShootingDistance() { return shootingDistance; }
     public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }

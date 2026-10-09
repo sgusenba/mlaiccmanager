@@ -165,7 +165,8 @@
   "type" : "original",
   "event" : "9_Gustav Adolph",
   "based_on" : "1_Miquelet_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 1 ]
 }, {
   "id" : 32,
   "category" : "rifle",
@@ -173,7 +174,8 @@
   "type" : "original",
   "event" : "10_Pauly",
   "based_on" : "3_Minie_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 3 ]
 }, {
   "id" : 33,
   "category" : "rifle",
@@ -181,7 +183,8 @@
   "type" : "open",
   "event" : "17_Amazons",
   "based_on" : "8_Walkyrie_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 5, 15 ]
 }, {
   "id" : 34,
   "category" : "rifle",
@@ -189,7 +192,8 @@
   "type" : "open",
   "event" : "19_Nagashino",
   "based_on" : "14_Tanegashima_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 6, 16 ]
 }, {
   "id" : 35,
   "category" : "rifle",
@@ -197,7 +201,8 @@
   "type" : "open",
   "event" : "20_Rigby",
   "based_on" : "4_Whitworth_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 4, 14 ]
 }, {
   "id" : 36,
   "category" : "rifle",
@@ -205,7 +210,8 @@
   "type" : "open",
   "event" : "24_Pforzheim",
   "based_on" : "15_Vetterli_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 7, 17 ]
 }, {
   "id" : 37,
   "category" : "rifle",
@@ -213,7 +219,8 @@
   "type" : "original",
   "event" : "26_Wedgnock",
   "based_on" : "2_Maximilian_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 2 ]
 }, {
   "id" : 38,
   "category" : "rifle",
@@ -221,7 +228,8 @@
   "type" : "original",
   "event" : "27_Nobunaga",
   "based_on" : "14_Tanegashima_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 6 ]
 }, {
   "id" : 39,
   "category" : "rifle",
@@ -229,7 +237,8 @@
   "type" : "reproduction",
   "event" : "31_Halikko",
   "based_on" : "1_Miquelet_R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 11 ]
 }, {
   "id" : 40,
   "category" : "rifle",
@@ -237,7 +246,8 @@
   "type" : "original",
   "event" : "43_Hibuta",
   "based_on" : "16_Hizadai_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 8 ]
 }, {
   "id" : 41,
   "category" : "rifle",
@@ -245,7 +255,8 @@
   "type" : "original",
   "event" : "XX_Königgrätz",
   "based_on" : "37_Lamarmora_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 10 ]
 }, {
   "id" : 42,
   "category" : "rifle",
@@ -253,7 +264,8 @@
   "type" : "reproduction",
   "event" : "29_Lucca",
   "based_on" : "2_Maximilian_R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 12 ]
 }, {
   "id" : 43,
   "category" : "rifle",
@@ -261,7 +273,8 @@
   "type" : "reproduction",
   "event" : "32_Magenta",
   "based_on" : "3_Minie_R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 13 ]
 }, {
   "id" : 44,
   "category" : "rifle",
@@ -269,7 +282,8 @@
   "type" : "open",
   "event" : "40_Enfield",
   "based_on" : "37_Lamarmora_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 10, 20 ]
 }, {
   "id" : 45,
   "category" : "rifle",
@@ -277,7 +291,8 @@
   "type" : "reproduction",
   "event" : "44_Hinawa",
   "based_on" : "16_Hizadai_R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 18 ]
 }, {
   "id" : 46,
   "category" : "rifle",
@@ -293,7 +308,8 @@
   "type" : "open",
   "event" : "Rigby",
   "based_on" : "Whitworth",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 4, 14 ]
 }, {
   "id" : 48,
   "category" : "rifle",
@@ -301,7 +317,8 @@
   "type" : "open",
   "event" : "Pforzheim",
   "based_on" : "Vetterli",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 7, 17 ]
 }, {
   "id" : 49,
   "category" : "rifle",
@@ -309,7 +326,8 @@
   "type" : "open",
   "event" : "42_Kossuth",
   "based_on" : "36_Pennsylvania_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 9, 19 ]
 }, {
   "id" : 50,
   "category" : "pistol",
@@ -413,7 +431,8 @@
   "type" : "original",
   "event" : "18_Boutet",
   "based_on" : "6_Kuchenreuter_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 51 ]
 }, {
   "id" : 67,
   "category" : "pistol",
@@ -421,7 +440,8 @@
   "type" : "open",
   "event" : "25_Wogdon",
   "based_on" : "5_Cominazzo_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 50, 55 ]
 }, {
   "id" : 68,
   "category" : "pistol",
@@ -429,7 +449,8 @@
   "type" : "original",
   "event" : "30_Adams",
   "based_on" : "7_Colt",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 52 ]
 }, {
   "id" : 69,
   "category" : "pistol",
@@ -437,7 +458,8 @@
   "type" : "original",
   "event" : "41_Egg",
   "based_on" : "5_Cominazzo_O",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 50 ]
 }, {
   "id" : 70,
   "category" : "pistol",
@@ -445,7 +467,8 @@
   "type" : "reproduction",
   "event" : "13_Peterlongo",
   "based_on" : "12_Mariette",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 57 ]
 }, {
   "id" : 71,
   "category" : "pistol",
@@ -453,7 +476,8 @@
   "type" : "reproduction",
   "event" : "33_Forsyth",
   "based_on" : "6_Kuchenreuter_R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 56 ]
 }, {
   "id" : 72,
   "category" : "pistol",
@@ -461,7 +485,8 @@
   "type" : "open",
   "event" : "39_Kunitomo",
   "based_on" : "28_Tanzutsu_O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 54, 59 ]
 }, {
   "id" : 73,
   "category" : "pistol",
@@ -469,5 +494,6 @@
   "type" : "open",
   "event" : "45_El Alamo",
   "based_on" : "23_Donald Malson O/R",
-  "team_size" : 3
+  "team_size" : 3,
+  "team_of" : [ 53, 58 ]
 } ]
