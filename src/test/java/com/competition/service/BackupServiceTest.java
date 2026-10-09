@@ -31,10 +31,13 @@ class BackupServiceTest {
     private static final String TEAMS = "{\"teams\":[{\"id\":1,\"name\":\"SG Wien\"}]}";
     private static final String RELAYS = "{\"config\":{\"relay_duration_min\":10},\"days\":[]}";
     private static final String MEET = "{\"name\":\"Staatsmeisterschaft\",\"location\":\"Bad Zell\",\"version\":1}";
+    private static final String CATALOG = "[{\"id\":1,\"level\":\"individual\"}]";
+    private static final String CATALOG_LOCAL = "{\"overrides\":{\"1\":{\"short_name\":\"MIQ\"}}}";
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), "[{\"id\":1,\"level\":\"individual\"}]");
+        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG);
+        Files.writeString(tempDir.resolve("disciplines.local.json"), CATALOG_LOCAL);
         Files.writeString(tempDir.resolve("data.json"), DATA);
         Files.writeString(tempDir.resolve("competition.json"), COMPETITION);
         Files.writeString(tempDir.resolve("teams.json"), TEAMS);
@@ -76,12 +79,14 @@ class BackupServiceTest {
     }
 
     @Test
-    void backupContainsEveryDataFileButNotTheCatalog() throws Exception {
+    void backupContainsEveryDataFileAndTheCatalog() throws Exception {
         Map<String, String> entries = unzip(backupService.createBackup());
         assertEquals(List.of("backup-info.json", "data.json", "competition.json", "teams.json", "relays.json",
-                "meet.json"),
+                "meet.json", "disciplines.json", "disciplines.local.json"),
             List.copyOf(entries.keySet()));
         assertEquals(DATA, entries.get("data.json"));
+        assertEquals(CATALOG, entries.get("disciplines.json"));
+        assertEquals(CATALOG_LOCAL, entries.get("disciplines.local.json"));
         assertEquals(TEAMS, entries.get("teams.json"));
         assertTrue(entries.get("backup-info.json").contains("\"format\" : 1"));
     }
@@ -93,6 +98,8 @@ class BackupServiceTest {
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":[],\"results\":[]}");
         Files.writeString(tempDir.resolve("teams.json"), "{\"teams\":[]}");
         Files.writeString(tempDir.resolve("meet.json"), "{\"name\":\"Other meet\"}");
+        Files.writeString(tempDir.resolve("disciplines.json"), "[]");
+        Files.delete(tempDir.resolve("disciplines.local.json"));
 
         Map<String, Object> result = backupService.restore(new ByteArrayInputStream(backup));
         assertEquals(DATA, read("data.json"));
@@ -100,7 +107,10 @@ class BackupServiceTest {
         assertEquals(TEAMS, read("teams.json"));
         assertEquals(RELAYS, read("relays.json"));
         assertEquals(MEET, read("meet.json"));
-        assertEquals(List.of("data.json", "competition.json", "teams.json", "relays.json", "meet.json"),
+        assertEquals(CATALOG, read("disciplines.json"));
+        assertEquals(CATALOG_LOCAL, read("disciplines.local.json"));
+        assertEquals(List.of("data.json", "competition.json", "teams.json", "relays.json", "meet.json",
+                "disciplines.json", "disciplines.local.json"),
             result.get("restored_files"));
 
         // The safety copy holds the data as it was right before the restore
@@ -118,8 +128,9 @@ class BackupServiceTest {
         assertFalse(Files.exists(tempDir.resolve("relays.json")));
         assertFalse(Files.exists(tempDir.resolve("competition.json")));
         assertFalse(Files.exists(tempDir.resolve("meet.json")));
-        // The catalog is never touched
-        assertTrue(Files.exists(tempDir.resolve("disciplines.json")));
+        assertFalse(Files.exists(tempDir.resolve("disciplines.local.json")));
+        // An older backup without the catalog keeps the current one
+        assertEquals(CATALOG, read("disciplines.json"));
     }
 
     @Test
@@ -141,9 +152,12 @@ class BackupServiceTest {
             () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", "{broken")))));
         assertThrows(IllegalArgumentException.class,
             () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "teams.json", "[]")))));
+        assertThrows(IllegalArgumentException.class,
+            () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "disciplines.json", "{}")))));
 
         assertEquals(DATA, read("data.json"));
         assertEquals(TEAMS, read("teams.json"));
+        assertEquals(CATALOG, read("disciplines.json"));
         assertFalse(Files.exists(tempDir.resolve("backups")));
     }
 }

@@ -46,6 +46,9 @@ public class DataService {
     private String dataFilePath;
     // The shipped MLAIC catalog: tracked in git, replaced on every deploy, never written at runtime.
     private String disciplinesFilePath;
+    // This installation's edits to the catalog itself (short names), next to the
+    // shipped file. Git-ignored and kept on deploys; applies to every competition.
+    private String catalogLocalFilePath;
     // What this competition changed on top of the catalog (active list, overrides,
     // added and removed disciplines). Git-ignored, so deploys leave it alone.
     private String competitionFilePath;
@@ -53,6 +56,7 @@ public class DataService {
     public DataService(String dataFilePath, String disciplinesFilePath, String competitionFilePath) {
         this.dataFilePath = dataFilePath;
         this.disciplinesFilePath = disciplinesFilePath;
+        this.catalogLocalFilePath = disciplinesFilePath.replaceFirst("\\.json$", "") + ".local.json";
         this.competitionFilePath = competitionFilePath;
     }
 
@@ -284,10 +288,7 @@ public class DataService {
                 continue;
             }
             ObjectNode copy = entry.deepCopy();
-            for (Iterator<Map.Entry<String, JsonNode>> it = overrides.path(String.valueOf(id)).fields(); it.hasNext(); ) {
-                Map.Entry<String, JsonNode> field = it.next();
-                copy.set(field.getKey(), field.getValue());
-            }
+            applyOverrides(copy, overrides.path(String.valueOf(id)));
             merged.add(copy);
         }
         settings.path("custom_disciplines").forEach(entry -> merged.add(((ObjectNode) entry).deepCopy()));
@@ -301,7 +302,75 @@ public class DataService {
         return disciplines;
     }
 
+    private static void applyOverrides(ObjectNode entry, JsonNode overrides) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = overrides.fields(); it.hasNext(); ) {
+            Map.Entry<String, JsonNode> field = it.next();
+            entry.set(field.getKey(), field.getValue());
+        }
+    }
+
+    /** The catalog as this installation sees it: the shipped file with the local catalog edits applied. */
     private List<ObjectNode> loadCatalog() throws IOException {
+        List<ObjectNode> catalog = loadShippedCatalog();
+        JsonNode overrides = loadCatalogLocal().path("overrides");
+        for (ObjectNode entry : catalog) {
+            applyOverrides(entry, overrides.path(String.valueOf(entry.path("id").asInt())));
+        }
+        return catalog;
+    }
+
+    private ObjectNode loadCatalogLocal() throws IOException {
+        File localFile = new File(catalogLocalFilePath);
+        JsonNode local = localFile.exists() ? objectMapper.readTree(localFile) : null;
+        return local instanceof ObjectNode o ? o : objectMapper.createObjectNode();
+    }
+
+    /**
+     * Sets a catalog discipline's short name for every competition, stored in
+     * disciplines.local.json so deploys keep it. A value equal to the shipped
+     * one removes the edit; clearing a shipped short name stores an explicit null.
+     *
+     * @return false, with nothing changed, if id is not in the shipped catalog (a discipline added by this competition)
+     */
+    public boolean setCatalogShortName(int id, String shortName) throws IOException {
+        disciplinesLock.lock();
+        try {
+            ObjectNode shipped = loadShippedCatalog().stream()
+                .filter(entry -> entry.path("id").asInt() == id).findFirst().orElse(null);
+            if (shipped == null) {
+                return false;
+            }
+            JsonNode value = shortName != null ? objectMapper.getNodeFactory().textNode(shortName) : null;
+
+            ObjectNode local = loadCatalogLocal();
+            if (!(local.get("overrides") instanceof ObjectNode)) {
+                local.set("overrides", objectMapper.createObjectNode());
+            }
+            ObjectNode overrides = (ObjectNode) local.get("overrides");
+            if (!(overrides.get(String.valueOf(id)) instanceof ObjectNode)) {
+                overrides.set(String.valueOf(id), objectMapper.createObjectNode());
+            }
+            ObjectNode entry = (ObjectNode) overrides.get(String.valueOf(id));
+            if (Objects.equals(shipped.get("short_name"), value)) {
+                entry.remove("short_name");
+            } else {
+                entry.set("short_name", value != null ? value : NullNode.getInstance());
+            }
+            if (entry.isEmpty()) {
+                overrides.remove(String.valueOf(id));
+            }
+
+            File tempFile = new File(catalogLocalFilePath + ".tmp");
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, local);
+            Files.move(tempFile.toPath(), Paths.get(catalogLocalFilePath),
+                       StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            return true;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    private List<ObjectNode> loadShippedCatalog() throws IOException {
         File disciplinesFile = new File(disciplinesFilePath);
 
         if (!disciplinesFile.exists()) {

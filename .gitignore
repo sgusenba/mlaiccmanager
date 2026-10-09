@@ -25,6 +25,8 @@ relays.json
 teams.json
 # This competition's changes to the discipline catalog (active list, overrides)
 competition.json
+# This installation's edits to the discipline catalog (short names), kept on deploys
+disciplines.local.json
 # The meet's name, venue, host and dates
 meet.json
 # Machine-specific settings (external backup receiver URL)

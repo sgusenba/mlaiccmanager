@@ -28,8 +28,10 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Backup and restore of all runtime data as one zip file: data.json,
- * competition.json, teams.json, relays.json and meet.json. The discipline catalog
- * (disciplines.json) ships with every release and is not part of it.
+ * competition.json, teams.json, relays.json, meet.json and the discipline
+ * catalog (disciplines.json as shipped, disciplines.local.json with this
+ * installation's edits to it). A backup without disciplines.json (taken before
+ * the catalog was included) leaves the current catalog in place on restore.
  *
  * <p>Both directions hold every file's lock, so a backup is a consistent
  * snapshot and a restore replaces all files at once. Lock order: meet.json,
@@ -46,8 +48,11 @@ public class BackupService {
 
     /** The runtime data files, in the order they are written to the zip. data.json is required on restore. */
     static final List<String> FILES = List.of(
-        "data.json", "competition.json", "teams.json", "relays.json", "meet.json");
+        "data.json", "competition.json", "teams.json", "relays.json", "meet.json",
+        "disciplines.json", "disciplines.local.json");
     static final String REQUIRED_FILE = "data.json";
+    /** The shipped catalog: a JSON array (or an object with a "disciplines" array), kept if a backup lacks it. */
+    static final String CATALOG_FILE = "disciplines.json";
     static final String MANIFEST = "backup-info.json";
     static final String SAFETY_COPY_DIR = "backups";
     static final int FORMAT = 1;
@@ -88,7 +93,8 @@ public class BackupService {
 
     /**
      * Replaces the runtime data with the backup's. Files missing from the backup
-     * are removed, so the result is exactly the state the backup was taken in.
+     * are removed, so the result is exactly the state the backup was taken in;
+     * only a missing disciplines.json keeps the current catalog.
      * Nothing is changed if the zip is not a valid backup.
      *
      * @return the restored files and the name of the safety copy of the previous data
@@ -102,7 +108,9 @@ public class BackupService {
                 Path target = baseDir.resolve(name);
                 byte[] content = files.get(name);
                 if (content == null) {
-                    Files.deleteIfExists(target);
+                    if (!name.equals(CATALOG_FILE)) {
+                        Files.deleteIfExists(target);
+                    }
                     continue;
                 }
                 Path temp = baseDir.resolve(name + ".tmp");
@@ -180,7 +188,8 @@ public class BackupService {
     }
 
     /**
-     * The data files of an uploaded backup, each checked to be a JSON object.
+     * The data files of an uploaded backup, each checked to be a JSON object
+     * (the catalog a discipline list).
      * Entries are matched by file name, so a zip of a folder holding the files
      * works too; anything else in the zip is ignored.
      */
@@ -207,7 +216,11 @@ public class BackupService {
                 } catch (IOException e) {
                     throw new IllegalArgumentException(name + " in the backup is not valid JSON");
                 }
-                if (json == null || !json.isObject()) {
+                if (name.equals(CATALOG_FILE)) {
+                    if (json == null || !(json.isArray() || json.path("disciplines").isArray())) {
+                        throw new IllegalArgumentException(name + " in the backup is not a discipline list");
+                    }
+                } else if (json == null || !json.isObject()) {
                     throw new IllegalArgumentException(name + " in the backup is not a JSON object");
                 }
                 files.put(name, content);
