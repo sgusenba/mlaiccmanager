@@ -15,23 +15,31 @@ let showMessage = null;
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+// The event's original and reproduction discipline (one each); any other discipline of the
+// event, e.g. one added with type "combined", is listed under the event name with its own checkbox
+const typed = (event, type) => event.disciplines.find(d => d.type === type);
+const others = (event) => event.disciplines.filter(d => d !== typed(event, 'original') && d !== typed(event, 'reproduction'));
+
+function disciplineCheckbox(event, d, label = '') {
+    return `
+        <input type="checkbox" class="program-discipline h-4 w-4" value="${d.id}" data-key="${escapeHtml(event.key)}"
+            data-type="${escapeHtml(d.type || '')}" ${d.active ? 'checked' : ''} aria-label="${escapeHtml(d.name)}">${label}
+        <span class="text-xs ${d.starts ? 'text-gray-500' : 'text-gray-300'}">${plural(d.starts, 'start')}</span>`;
+}
+
 /** The checkbox of the event's discipline of this type, or "–" if the event has none. */
 function typeCell(event, type) {
-    const d = event.disciplines.find(x => x.type === type);
+    const d = typed(event, type);
     if (!d) return '<td class="px-3 py-2 text-center text-gray-300">–</td>';
     return `
         <td class="px-3 py-2 text-center">
-            <label class="inline-flex flex-col items-center cursor-pointer">
-                <input type="checkbox" class="program-discipline h-4 w-4" value="${d.id}" data-key="${escapeHtml(event.key)}"
-                    ${d.active ? 'checked' : ''} aria-label="${escapeHtml(d.name)}">
-                <span class="text-xs ${d.starts ? 'text-gray-500' : 'text-gray-300'}">${plural(d.starts, 'start')}</span>
-            </label>
+            <label class="inline-flex flex-col items-center cursor-pointer">${disciplineCheckbox(event, d)}</label>
         </td>`;
 }
 
 function combinedCell(event) {
     if (!event.combinable) return '<td class="px-3 py-2 text-center text-gray-300">–</td>';
-    const bothShot = event.disciplines.every(d => d.active);
+    const bothShot = typed(event, 'original').active && typed(event, 'reproduction').active;
     return `
         <td class="px-3 py-2 text-center">
             <input type="checkbox" class="program-combined h-4 w-4" data-key="${escapeHtml(event.key)}"
@@ -44,7 +52,12 @@ function eventRow(event) {
     const note = event.aggregate ? '<div class="text-xs text-gray-500">Results of other disciplines added up</div>' : '';
     return `
         <tr class="hover:bg-gray-50">
-            <td class="px-3 py-2 text-sm"><span class="font-medium">${escapeHtml(event.name)}</span>${note}</td>
+            <td class="px-3 py-2 text-sm"><span class="font-medium">${escapeHtml(event.name)}</span>${note}
+                ${others(event).map(d => `
+                <label class="flex items-center gap-2 mt-1 cursor-pointer">
+                    ${disciplineCheckbox(event, d, ` <span>${escapeHtml(d.name)}${d.type ? ` <span class="text-gray-400">(${escapeHtml(d.type)})</span>` : ''}</span>`)}
+                </label>`).join('')}
+            </td>
             ${typeCell(event, 'original')}
             ${typeCell(event, 'reproduction')}
             ${combinedCell(event)}
@@ -84,8 +97,8 @@ function render() {
 function updateCombined(key) {
     const combined = [...document.querySelectorAll('.program-combined')].find(input => input.dataset.key === key);
     if (!combined) return;
-    const bothShot = [...document.querySelectorAll('.program-discipline')]
-        .filter(input => input.dataset.key === key).every(input => input.checked);
+    const bothShot = ['original', 'reproduction'].every(type => [...document.querySelectorAll('.program-discipline')]
+        .some(input => input.dataset.key === key && input.dataset.type === type && input.checked));
     combined.disabled = !bothShot;
     if (!bothShot) combined.checked = false;
 }
