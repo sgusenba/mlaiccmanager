@@ -10,6 +10,9 @@ export const disciplineDisplayName = (event, type) => (type ? `${event} (${type}
 /** Whether a ranking ranks an event's original and reproduction discipline together. */
 export const isCombined = (discipline) => discipline?.type === 'combined';
 
+/** An aggregate ranking (Remington) adds up other disciplines' results: one column per component. */
+export const componentsOf = (discipline) => discipline?.components || [];
+
 /** In a combined ranking: "O" (original) or "R" (reproduction), the type the competitor shot. */
 export const typeTag = (row) => ({ original: 'O', reproduction: 'R' }[row.discipline_type] || '');
 

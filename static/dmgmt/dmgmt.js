@@ -91,9 +91,10 @@ function renderTable() {
 
     tbody.innerHTML = sorted.map(d => {
         const isTeam = d.level === 'team';
+        const isAggregate = !!d.aggregate_of?.length;
         const teamInfo = isTeam
             ? `${escapeHtml(d.based_on || '')}${d.team_size ? ` (${d.team_size})` : ''}`
-            : '';
+            : isAggregate ? `Sum of ${escapeHtml(d.aggregate_of.join(' + '))}` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
         ).join('');
@@ -111,7 +112,7 @@ function renderTable() {
                 <input type="checkbox" class="active-toggle h-4 w-4 text-green-600 border-gray-300 rounded" data-discipline-id="${d.id}" ${d.active !== false ? 'checked' : ''}>
             </td>
             <td class="px-4 py-2 text-sm">
-                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : ''}>
+                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines have no starts of their own"' : ''}>
                     <option value="">any distance</option>
                     ${distanceOptions}
                 </select>

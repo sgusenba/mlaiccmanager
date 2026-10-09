@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class DisciplineService {
@@ -135,7 +136,7 @@ public class DisciplineService {
     static List<EventPair> eventPairsOf(List<Discipline> disciplines) {
         Map<String, List<Discipline>> byEvent = new LinkedHashMap<>();
         for (Discipline d : disciplines) {
-            if (!TeamService.isTeamDiscipline(d) && d.getEvent() != null
+            if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && d.getEvent() != null
                     && ("original".equals(d.getType()) || "reproduction".equals(d.getType()))) {
                 byEvent.computeIfAbsent(eventKey(d.getCategory(), d.getEvent()), k -> new ArrayList<>()).add(d);
             }
@@ -154,6 +155,36 @@ public class DisciplineService {
             }
         }
         return pairs;
+    }
+
+    /** Whether the discipline adds up the results of other disciplines instead of having starts. */
+    public static boolean isAggregate(Discipline discipline) {
+        return discipline != null && discipline.getAggregateOf() != null && !discipline.getAggregateOf().isEmpty();
+    }
+
+    /**
+     * The disciplines an aggregate discipline adds up, in the order of its
+     * aggregate_of: per named event the individual discipline of the same
+     * category and type. An event without such a discipline is left out.
+     */
+    static List<Discipline> componentsOf(Discipline aggregate, List<Discipline> disciplines) {
+        List<Discipline> components = new ArrayList<>();
+        for (String event : aggregate.getAggregateOf()) {
+            for (Discipline d : disciplines) {
+                if (!TeamService.isTeamDiscipline(d) && !isAggregate(d)
+                        && event.equalsIgnoreCase(d.getEvent())
+                        && Objects.equals(aggregate.getCategory(), d.getCategory())
+                        && Objects.equals(aggregate.getType(), d.getType())) {
+                    components.add(d);
+                    break;
+                }
+            }
+        }
+        return components;
+    }
+
+    public List<Discipline> getComponents(Discipline aggregate) throws Exception {
+        return componentsOf(aggregate, dataService.loadDisciplines());
     }
 
     /** All combinable events with whether this competition ranks them combined. */
