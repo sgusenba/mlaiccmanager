@@ -916,7 +916,7 @@ public class RelayService {
                 aggregateDisciplines.add(discipline.getId());
             }
             // original, reproduction and combined of one event form a family
-            String family = Objects.toString(discipline.getCategory(), "") + "|" + discipline.getEvent();
+            String family = Objects.toString(discipline.getCategory(), "") + "|" + DisciplineService.matchKey(discipline.getEvent());
             if (!familyRanks.containsKey(family)) {
                 familyRanks.put(family, familyRanks.size());
             }
