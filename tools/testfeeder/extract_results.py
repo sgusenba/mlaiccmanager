@@ -36,14 +36,18 @@ def ind(category, type_, event, distance):
             "event": event, "shooting_distance": distance}
 
 
-def team(category, type_, event, based_on, size=3):
+def team(category, type_, event, size=3):
+    # The results that count (team_of) are the disciplines the members start in; feed.py sets them
     return {"category": category, "level": "team", "type": type_,
-            "event": event, "based_on": based_on, "team_size": size}
+            "event": event, "team_size": size}
 
 
 # PDF list title -> discipline in the app's catalog (disciplines.json). The
-# feeder finds a discipline by category, level, type and event and creates the
-# ones the catalog lacks (Meixner, junior lists, teams of combined events).
+# feeder finds a discipline by category, level, type and event (without the
+# catalog's MLAIC number and type suffix, so "Kuchenreuter" finds
+# "6_Kuchenreuter_O") and creates the ones the catalog lacks (Meixner, junior
+# lists, and Halikko, Lucca and Magenta, which the catalog has as reproduction
+# teams but the PDF scores from O/R results).
 INDIVIDUAL = {
     "Kuchenreuter/O": ind("pistol", "original", "Kuchenreuter", "m25"),
     "Kuchenreuter/R": ind("pistol", "reproduction", "Kuchenreuter", "m25"),
@@ -72,22 +76,22 @@ INDIVIDUAL = {
 }
 
 TEAMS = {
-    "Boutet (Kuchenreuter/O)": team("pistol", "original", "Boutet", "Kuchenreuter"),
-    "Forsyth (Kuchenreuter/R)": team("pistol", "reproduction", "Forsyth", "Kuchenreuter"),
-    "Wogdon (Cominazzo-R/O)": team("pistol", "combined", "Wogdon", "Cominazzo"),
-    "Kunitomo (Tanzutsu O/R)": team("pistol", "open", "Kunitomo", "Tanzutsu"),
-    "Adams (Colt)": team("pistol", "original", "Adams", "Colt"),
-    "Peterlongo (Mariette)": team("pistol", "reproduction", "Peterlongo", "Mariette"),
-    "El Alamo (D.Malson O/R)": team("pistol", "open", "El Alamo", "Not specified"),
-    "Springfield(MEI-R/O)": team("pistol", "open", "Springfield", "Meixner"),
-    "Nagashino (Tanegash. O/R)": team("rifle", "combined", "Nagashino", "Tanegashima"),
-    "Halikko (Miqelet O/R)": team("rifle", "combined", "Halikko", "Miquelet"),
-    "Pforzheim (Vetterli-R/O)": team("rifle", "open", "Pforzheim", "Vetterli"),
-    "Enfield (Lamarmora O/R)": team("rifle", "combined", "Enfield", "Lamarmora"),
-    "Kossut (Pennsylvania O/R)": team("rifle", "open", "Kossuth", "Pennsylvania"),
-    "Lucca (Maximilian-R/O)": team("rifle", "combined", "Lucca", "Maximilian"),
-    "Magenta (Minie-R/O)": team("rifle", "combined", "Magenta", "Minie"),
-    "Rigby (Whitworth-R/O)": team("rifle", "open", "Rigby", "Whitworth"),
+    "Boutet (Kuchenreuter/O)": team("pistol", "original", "Boutet"),
+    "Forsyth (Kuchenreuter/R)": team("pistol", "reproduction", "Forsyth"),
+    "Wogdon (Cominazzo-R/O)": team("pistol", "open", "Wogdon"),
+    "Kunitomo (Tanzutsu O/R)": team("pistol", "open", "Kunitomo"),
+    "Adams (Colt)": team("pistol", "original", "Adams"),
+    "Peterlongo (Mariette)": team("pistol", "reproduction", "Peterlongo"),
+    "El Alamo (D.Malson O/R)": team("pistol", "open", "El Alamo"),
+    "Springfield(MEI-R/O)": team("pistol", "open", "Springfield"),
+    "Nagashino (Tanegash. O/R)": team("rifle", "open", "Nagashino"),
+    "Halikko (Miqelet O/R)": team("rifle", "combined", "Halikko"),
+    "Pforzheim (Vetterli-R/O)": team("rifle", "open", "Pforzheim"),
+    "Enfield (Lamarmora O/R)": team("rifle", "open", "Enfield"),
+    "Kossut (Pennsylvania O/R)": team("rifle", "open", "Kossuth"),
+    "Lucca (Maximilian-R/O)": team("rifle", "combined", "Lucca"),
+    "Magenta (Minie-R/O)": team("rifle", "combined", "Magenta"),
+    "Rigby (Whitworth-R/O)": team("rifle", "open", "Rigby"),
 }
 
 # Discipline code in the team lists -> individual list the member's result is from
