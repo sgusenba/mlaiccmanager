@@ -632,30 +632,6 @@ public class TeamService {
         });
     }
 
-    /**
-     * Runs change (which files the start under another discipline) while no team
-     * can change, unless the start is a member of a team whose results that
-     * count do not include that discipline: then a ConflictException names them.
-     */
-    public <T> T changeStartDiscipline(String startId, int toDisciplineId, Callable<T> change) throws Exception {
-        return read(teams -> {
-            Registry registry = registry();
-            List<String> blocking = new ArrayList<>();
-            for (Map<String, Object> team : listOf(teams)) {
-                Discipline discipline = registry.disciplines().get(RelayRules.intOf(team.get("discipline_id")));
-                if (discipline != null && membersOf(team).contains(startId)
-                        && (discipline.getTeamOf() == null || !discipline.getTeamOf().contains(toDisciplineId))) {
-                    blocking.add(team.get("name") + " (" + discipline.getEvent() + ")");
-                }
-            }
-            if (!blocking.isEmpty()) {
-                throw new ConflictException("Start " + startId + " is in team " + String.join(", ", blocking)
-                    + ", which would no longer count it: remove it from the team first", blocking);
-            }
-            return change.call();
-        });
-    }
-
     /** How many teams are entered per team discipline. */
     public Map<Integer, Integer> teamCounts() throws Exception {
         return read(teams -> {

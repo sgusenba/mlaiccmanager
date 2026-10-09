@@ -12,7 +12,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Starts of the removed combined disciplines (21-30, 60-65) and switching a start between original and reproduction. */
+/** Starts of the removed combined disciplines (21-30, 60-65). */
 class LegacyCombinedStartsTest {
 
     private static final String CATALOG = "["
@@ -28,8 +28,6 @@ class LegacyCombinedStartsTest {
 
     private DataService dataService;
     private DisciplineService disciplineService;
-    private StartService startService;
-    private TeamService teamService;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -45,8 +43,6 @@ class LegacyCombinedStartsTest {
             tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
         disciplineService = new DisciplineService(dataService);
         disciplineService.setActiveDisciplines(List.of(34), null);
-        startService = new StartService(dataService, disciplineService);
-        teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
     }
 
     @SuppressWarnings("unchecked")
@@ -82,40 +78,4 @@ class LegacyCombinedStartsTest {
         assertEquals(Map.of(), LegacyCombinedStarts.migrate(dataService));
     }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void aStartCanBeSwitchedBetweenOriginalAndReproduction() throws Exception {
-        LegacyCombinedStarts.migrate(dataService);
-
-        // Ben shot a reproduction: his start moves, id and result kept
-        assertEquals(16, startService.switchType(2, "2-26-1").getDisciplineId());
-        assertEquals(Set.of("16"), startsOf(2).keySet());
-        assertEquals(16, resultDisciplineId());
-        assertEquals(6, startService.switchType(2, "2-26-1").getDisciplineId(), "and back");
-
-        // Anna has two starts in the combined event: switching one would leave her in both types
-        assertThrows(ConflictException.class, () -> startService.switchType(1, "1-26-1"));
-        // Mariette has no original to switch to
-        assertThrows(IllegalArgumentException.class, () -> startService.switchType(3, "3-63-1"));
-        assertThrows(IllegalArgumentException.class, () -> disciplineService.partnerDisciplineOfStart(3, "3-63-1"));
-        assertEquals(16, disciplineService.partnerDisciplineOfStart(2, "2-26-1"));
-    }
-
-    @Test
-    void aTeamMemberIsOnlySwitchedIfTheTeamStillCountsIt() throws Exception {
-        LegacyCombinedStarts.migrate(dataService);
-        Files.writeString(tempDir.resolve("teams.json"), "{\"teams\":["
-            + "{\"id\":1,\"discipline_id\":38,\"name\":\"Nobunaga team\",\"members\":[\"2-26-1\"]}]}");
-
-        // Nobunaga counts the original only
-        assertThrows(ConflictException.class, () -> teamService.changeStartDiscipline("2-26-1", 16,
-            () -> startService.switchType(2, "2-26-1")));
-        assertEquals(Set.of("6"), startsOf(2).keySet(), "nothing moved");
-
-        // In a Nagashino team (original and reproduction) it may
-        Files.writeString(tempDir.resolve("teams.json"), "{\"teams\":["
-            + "{\"id\":1,\"discipline_id\":34,\"name\":\"Nagashino team\",\"members\":[\"2-26-1\"]}]}");
-        teamService.changeStartDiscipline("2-26-1", 16, () -> startService.switchType(2, "2-26-1"));
-        assertEquals(Set.of("16"), startsOf(2).keySet());
-    }
 }

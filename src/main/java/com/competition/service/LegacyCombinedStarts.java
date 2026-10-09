@@ -14,8 +14,8 @@ import java.util.Objects;
  * start counts in no ranking, so at startup it is moved to its event's
  * original discipline (or the only discipline of a one-type event, e.g.
  * Mariette), keeping its start id so lanes, teams and printed labels stay
- * valid, and the event is ranked combined. A start shot as a reproduction can
- * then be switched to it with {@link StartService#switchType}.
+ * valid, and the event is ranked combined: whether a start was shot as an
+ * original or a reproduction does not matter for a combined ranking.
  */
 public final class LegacyCombinedStarts {
 

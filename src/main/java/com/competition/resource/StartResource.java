@@ -2,9 +2,7 @@ package com.competition.resource;
 
 import com.competition.model.Start;
 import com.competition.service.ConflictException;
-import com.competition.service.DisciplineService;
 import com.competition.service.StartService;
-import com.competition.service.TeamService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -22,12 +20,6 @@ public class StartResource {
     
     @Inject
     private StartService startService;
-
-    @Inject
-    private TeamService teamService;
-
-    @Inject
-    private DisciplineService disciplineService;
 
     public StartResource() {
         // Default constructor for Jersey
@@ -56,28 +48,6 @@ public class StartResource {
         } catch (Exception e) {
             logger.error("Error creating start", e);
             return Response.serverError().entity("{\"error\": \"Failed to create start\"}").build();
-        }
-    }
-
-    /** Files the start under the other type of its event (original / reproduction), keeping its id. */
-    @POST
-    @Path("/{generatedId}/switch-type")
-    public Response switchType(@PathParam("competitorId") int competitorId, @PathParam("generatedId") String generatedId) {
-        try {
-            int toId = disciplineService.partnerDisciplineOfStart(competitorId, generatedId);
-            Start switched = teamService.changeStartDiscipline(generatedId, toId,
-                () -> startService.switchType(competitorId, generatedId));
-            return Response.ok(switched).build();
-        } catch (ConflictException e) {
-            throw e; // mapped to 409
-        } catch (IllegalArgumentException e) {
-            logger.warn("Invalid start switch: {}", e.getMessage());
-            return Response.status(Response.Status.BAD_REQUEST)
-                .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage())).build();
-        } catch (Exception e) {
-            logger.error("Error switching start", e);
-            return Response.serverError().entity("{\"error\": \"Failed to switch the start\"}").build();
         }
     }
 

@@ -298,34 +298,6 @@ public class DisciplineService {
         return names;
     }
 
-    /** The other type's discipline of the event a competitor's start is filed under (original <-> reproduction). */
-    public int partnerDisciplineOfStart(int competitorId, String startId) throws Exception {
-        Integer fromId = dataService.read(data -> {
-            if (data.get("competitors") instanceof List<?> competitors) {
-                for (Object c : competitors) {
-                    if (c instanceof Map<?, ?> competitor && competitor.get("id") instanceof Number id
-                            && id.intValue() == competitorId && competitor.get("starts") instanceof Map<?, ?> starts) {
-                        for (Map.Entry<?, ?> entry : starts.entrySet()) {
-                            if (entry.getValue() instanceof List<?> list && list.stream().anyMatch(
-                                    s -> s instanceof Map<?, ?> start && startId.equals(start.get("generated_id")))) {
-                                return Integer.valueOf(String.valueOf(entry.getKey()));
-                            }
-                        }
-                    }
-                }
-            }
-            return null;
-        });
-        if (fromId == null) {
-            throw new IllegalArgumentException("Start not found");
-        }
-        return eventPairsOf(dataService.loadDisciplines()).stream()
-            .filter(p -> p.originalId() == fromId || p.reproductionId() == fromId).findFirst()
-            .map(p -> p.partnerOf(fromId))
-            .orElseThrow(() -> new IllegalArgumentException(
-                "This start's discipline has no original and reproduction to switch between"));
-    }
-
     /** Whether the competitor (a data.json record) has a start in the discipline. */
     static boolean startsIn(Map<String, Object> competitor, int disciplineId) {
         return competitor.get("starts") instanceof Map<?, ?> starts
