@@ -6,8 +6,11 @@ running competition manager through its REST API (see static/openapi.yaml).
     python feed.py data/vl-stm-2026.json --host 192.168.1.20 --port 5000
 
 Steps, each safe to repeat (a second run updates instead of duplicating):
-  1. disciplines  find each by category/level/type/event, create the missing
-                  ones and activate all of them
+  1. disciplines  find each by category/level/type/event (event without the
+                  MLAIC number and type suffix), create the missing
+                  ones and activate all of them; a team discipline's
+                  results that count (team_of) get the disciplines its
+                  members start in
   2. competitors  matched by name and club, created if missing
   3. starts       one start per competitor and discipline
   4. results      shots rebuilt from the ring counts, tie-break as override
@@ -18,6 +21,7 @@ Only the Python standard library is needed.
 """
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -77,8 +81,19 @@ def norm(value):
     return (value or "").strip().casefold()
 
 
+TYPE_SUFFIX = re.compile(r"[_ ](?:O/R|O|R)$")
+NUMBER_PREFIX = re.compile(r"^(?:\d+|XX)_")
+
+
+def match_event(event):
+    """The event without MLAIC number and type suffix, as the server matches it
+    (DisciplineService.matchKey): "6_Kuchenreuter_O" and "Kuchenreuter" are the same event."""
+    event = TYPE_SUFFIX.sub("", (event or "").strip()).strip()
+    return norm(NUMBER_PREFIX.sub("", event))
+
+
 def discipline_key(d):
-    return (norm(d.get("category")), norm(d.get("level")), norm(d.get("type")), norm(d.get("event")))
+    return (norm(d.get("category")), norm(d.get("level")), norm(d.get("type")), match_event(d.get("event")))
 
 
 def shots(counts):
@@ -102,14 +117,30 @@ class Feeder:
 
     def disciplines(self):
         print("Disciplines")
-        catalog = {discipline_key(d): d for d in self.api.get("/available-disciplines")}
-        for spec in self.data["disciplines"]:
+        catalog = {}
+        for d in self.api.get("/available-disciplines"):
+            catalog.setdefault(discipline_key(d), d)   # first in catalog order wins
+        # Individual disciplines first: a team discipline's team_of needs their ids
+        specs = sorted(self.data["disciplines"], key=lambda s: s.get("level") == "team")
+        for spec in specs:
             existing = catalog.get(discipline_key(spec))
+            team_of = self.team_of(spec) if spec.get("level") == "team" else None
             if existing:
                 self.discipline_ids[spec["key"]] = existing["id"]
                 self.count("disciplines found")
+                if self.api.verbose:
+                    print(f"  {spec['key']} -> {existing['id']} '{existing['event']}'")
+                # Let the catalog team also count the disciplines the PDF's members start in
+                current = existing.get("team_of") or []
+                if team_of and not set(team_of) <= set(current):
+                    wanted = current + [i for i in team_of if i not in current]
+                    self.api.put(f"/available-disciplines/{existing['id']}", {"team_of": wanted})
+                    self.count("team compositions extended")
+                    print(f"  {existing['event']}: results that count {current} -> {wanted}")
                 continue
-            body = {k: v for k, v in spec.items() if k != "key" and v is not None}
+            body = {k: v for k, v in spec.items() if k not in ("key", "based_on") and v is not None}
+            if team_of:
+                body["team_of"] = team_of
             created = self.api.post("/available-disciplines", body)
             self.discipline_ids[spec["key"]] = created["id"]
             self.count("disciplines created")
@@ -120,6 +151,11 @@ class Feeder:
         if set(wanted) != set(active):
             self.api.post("/active-disciplines", {"discipline_ids": wanted, "base_ids": active})
             print(f"  activated {len(set(wanted) - set(active))} disciplines")
+
+    def team_of(self, spec):
+        """Ids of the individual disciplines the team discipline's members start in."""
+        keys = {m["discipline"] for t in self.data["teams"] if t["discipline"] == spec["key"] for m in t["members"]}
+        return sorted(self.discipline_ids[k] for k in keys)
 
     def competitors(self):
         print("Competitors")

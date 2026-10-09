@@ -38,10 +38,11 @@ data directory, not at a live competition. It also creates and activates discipl
 {
   "event": { "name": "...", "place": "...", "dates": ["2026-06-26"] },
   "disciplines": [   // matched in the catalog by category, level, type, event; created if missing
+                     // (event without the MLAIC number and type suffix: "Kuchenreuter" finds "6_Kuchenreuter_O")
     { "key": "Kuchenreuter/O", "category": "pistol", "level": "individual",
       "type": "original", "event": "Kuchenreuter", "shooting_distance": "m25" },
     { "key": "Boutet (Kuchenreuter/O)", "category": "pistol", "level": "team",
-      "type": "original", "event": "Boutet", "based_on": "Kuchenreuter", "team_size": 3 }
+      "type": "original", "event": "Boutet", "team_size": 3 }   // team_of: set from the members' disciplines
   ],
   "competitors": [ { "bib": 61, "name": "Werner Fasching", "club": "PSV Burgenland", "country": "BGL" } ],
   "results": [       // one per competitor and discipline; "dns": true registers the start only
@@ -65,7 +66,10 @@ The competitor's federal state (`BGL`, `OOE`, …) goes into `country`.
 
 - `X/O` and `X/R` lists map to the `original` and `reproduction` disciplines. `X(O/R)` lists map to `combined`.
 - The catalog has no Meixner or junior lists, so they become custom disciplines (ids from 1000).
-- Some team events score combined results (Wogdon, Nagashino, Halikko, Enfield, Lucca and Magenta), and so does Springfield (Meixner). The catalog's team entries for these would only accept original or reproduction starts, so they are created as `combined` or `open` team disciplines.
+- The catalog numbers its events (`6_Kuchenreuter_O`, `23_Donald Malson R`, `18_Boutet`). The feeder matches events without the number and the type suffix, like the server does, so the JSON keeps plain names. If the catalog lists an event twice (Rigby, Pforzheim), the first entry is used.
+- Wogdon, Nagashino, Enfield, Pforzheim, Rigby, Kunitomo, Kossuth and El Alamo are `open` teams in the catalog and take the O/R results as they are.
+- Halikko, Lucca and Magenta are reproduction teams in the catalog, but the PDF scores them from O/R results, so they are created as `combined` team disciplines. Springfield (Meixner) is created as an `open` one.
+- A team discipline's results that count (`team_of`) are the disciplines its members start in. The O/R lists are custom `combined` disciplines, so for catalog teams such as Wogdon or Rigby the feeder adds them to the catalog's composition.
 - The aggregate lists (Remington, Schulhof) and the entry and medal summaries are skipped.
 
 The extractor checks every row: the ring counts must add up to the printed total,
