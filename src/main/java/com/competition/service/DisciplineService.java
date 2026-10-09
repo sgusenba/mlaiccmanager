@@ -78,6 +78,7 @@ public class DisciplineService {
             // Added disciplines start at 1000 so a later catalog release cannot reuse their ids
             d.setId(Math.max(maxId + 1, FIRST_CUSTOM_ID));
             applyCatalogFields(d, data);
+            checkTeamOf(d, disciplines);
             disciplines.add(d);
             return d;
         });
@@ -87,8 +88,9 @@ public class DisciplineService {
         return dataService.updateDisciplines(disciplines -> {
             Discipline target = disciplines.stream()
                 .filter(d -> d.getId() == id).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Discipline not found: " + id));
+                .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
             applyCatalogFields(target, data);
+            checkTeamOf(target, disciplines);
             // A catalog discipline's short name goes into the catalog for every competition;
             // the competition file then no longer differs from it there
             if (data.containsKey("short_name")) {
@@ -278,7 +280,7 @@ public class DisciplineService {
     }
 
     @SuppressWarnings("unchecked")
-    private static List<String> competitorsStartingInBoth(Map<String, Object> data, EventPair pair) {
+    static List<String> competitorsStartingInBoth(Map<String, Object> data, EventPair pair) {
         List<String> names = new ArrayList<>();
         List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
         if (competitors == null) {
@@ -299,6 +301,25 @@ public class DisciplineService {
             && !list.isEmpty();
     }
 
+    /** A team's team_of may only list individual (not aggregate) disciplines of its category. */
+    private static void checkTeamOf(Discipline team, List<Discipline> disciplines) {
+        if (team.getTeamOf() == null) {
+            return;
+        }
+        if (!TeamService.isTeamDiscipline(team)) {
+            team.setTeamOf(null); // only team disciplines have a composition
+            return;
+        }
+        for (int id : team.getTeamOf()) {
+            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
+            if (d == null || TeamService.isTeamDiscipline(d) || isAggregate(d)
+                    || !Objects.equals(d.getCategory(), team.getCategory())) {
+                throw new IllegalArgumentException("A " + team.getCategory() + " team can only count individual "
+                    + team.getCategory() + " disciplines, not discipline " + id);
+            }
+        }
+    }
+
     private static void applyCatalogFields(Discipline d, Map<String, Object> data) {
         if (data.containsKey("category")) d.setCategory((String) data.get("category"));
         if (data.containsKey("level")) d.setLevel((String) data.get("level"));
@@ -309,6 +330,11 @@ public class DisciplineService {
             d.setShortName(sn != null && !sn.isBlank() ? sn.trim() : null);
         }
         if (data.containsKey("based_on")) d.setBasedOn((String) data.get("based_on"));
+        if (data.containsKey("team_of")) {
+            d.setTeamOf(data.get("team_of") instanceof List<?> ids
+                ? ids.stream().map(id -> ((Number) id).intValue()).distinct().toList()
+                : null);
+        }
         if (data.containsKey("team_size")) {
             Object ts = data.get("team_size");
             d.setTeamSize(ts instanceof Number ? ((Number) ts).intValue() : null);

@@ -476,6 +476,23 @@ public class DataService {
         }
     }
 
+    /**
+     * Loads, modifies and saves the disciplines (their active flags) and the
+     * combined events together, so a meet's program changes in one step.
+     */
+    public <T> T updateProgram(ProgramFunction<T> fn) throws Exception {
+        disciplinesLock.lock();
+        try {
+            List<Discipline> disciplines = loadDisciplinesInternal();
+            Set<String> combinedEvents = loadCombinedEventsInternal();
+            T result = fn.apply(disciplines, combinedEvents);
+            saveDisciplinesInternal(disciplines, combinedEvents);
+            return result;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
     private Set<String> loadCombinedEventsInternal() throws IOException {
         Set<String> combinedEvents = new LinkedHashSet<>();
         JsonNode settings = loadCompetitionSettings();
@@ -552,6 +569,11 @@ public class DataService {
     @FunctionalInterface
     public interface DisciplineFunction<T> {
         T apply(List<Discipline> disciplines) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface ProgramFunction<T> {
+        T apply(List<Discipline> disciplines, Set<String> combinedEvents) throws Exception;
     }
 
     @FunctionalInterface

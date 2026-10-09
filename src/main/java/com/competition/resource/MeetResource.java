@@ -2,6 +2,7 @@ package com.competition.resource;
 
 import com.competition.service.ConflictException;
 import com.competition.service.MeetService;
+import com.competition.service.ProgramService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-/** The meet's name, venue, host and dates; stored in meet.json. */
+/** The meet's name, venue, host and dates (meet.json), and its program: which disciplines are shot and how. */
 @Path("/meet")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -20,6 +21,9 @@ public class MeetResource {
 
     @Inject
     private MeetService meetService;
+
+    @Inject
+    private ProgramService programService;
 
     public MeetResource() {
         // Default constructor for Jersey
@@ -55,6 +59,42 @@ public class MeetResource {
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
                 .entity(Map.of("error", "Failed to update meet details"))
+                .build();
+        }
+    }
+
+    @GET
+    @Path("/program")
+    public Response getProgram() {
+        try {
+            return Response.ok(programService.getProgram()).build();
+        } catch (Exception e) {
+            logger.error("Failed to get the program", e);
+            return Response.serverError()
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", "Failed to get the program"))
+                .build();
+        }
+    }
+
+    @PUT
+    @Path("/program")
+    public Response setProgram(Map<String, Object> request) {
+        try {
+            return Response.ok(programService.setProgram(request)).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid program: {}", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", e.getMessage()))
+                .build();
+        } catch (Exception e) {
+            logger.error("Failed to save the program", e);
+            return Response.serverError()
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", "Failed to save the program"))
                 .build();
         }
     }

@@ -2,8 +2,7 @@ const API = '/api';
 
 const state = {
     disciplines: [],
-    ranges: [],
-    combinedEvents: []
+    ranges: []
 };
 
 class ApiError extends Error {
@@ -45,29 +44,38 @@ function showMessage(text, type = 'error') {
 }
 
 async function loadData() {
-    const [disciplines, relayData, combinedEvents] = await Promise.all([
+    const [disciplines, relayData] = await Promise.all([
         api('/available-disciplines'),
-        api('/rmgmt'),
-        api('/combined-events')
+        api('/rmgmt')
     ]);
     state.disciplines = disciplines;
     state.ranges = relayData.ranges;
-    state.combinedEvents = combinedEvents;
 }
 
-function renderCombinedEvents() {
-    const container = document.getElementById('combined-events');
-    if (!state.combinedEvents.length) {
-        container.innerHTML = '<p class="text-sm text-gray-500">No event has both an original and a reproduction discipline.</p>';
-        return;
-    }
-    container.innerHTML = state.combinedEvents.map(e => `
-        <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-md text-sm cursor-pointer hover:bg-gray-50">
-            <input type="checkbox" class="combined-toggle h-4 w-4 text-blue-600 border-gray-300 rounded" data-key="${escapeHtml(e.key)}" ${e.combined ? 'checked' : ''}>
-            ${categoryBadge(e.category)}
-            <span class="font-medium">${escapeHtml(e.event)}</span>
-            <span class="text-gray-400 text-xs">#${e.original_id} + #${e.reproduction_id}</span>
-        </label>`).join('');
+// Individual disciplines a team can count: not team, not aggregate (Remington adds up others)
+const countable = (d) => d.level !== 'team' && !d.aggregate_of?.length;
+
+/** A team's composition as short names (or names), e.g. "TANO + TANR"; falls back to its Based On text. */
+function compositionText(team) {
+    if (!team.team_of) return escapeHtml(team.based_on || '');
+    const names = team.team_of
+        .map(id => state.disciplines.find(d => d.id === id))
+        .filter(Boolean)
+        .map(d => escapeHtml(d.short_name || d.event));
+    return names.join(' + ') || '<span class="text-red-600">none</span>';
+}
+
+/** The checkboxes of the disciplines a team of the form's category can count, ticked from checkedIds. */
+function renderTeamOfOptions(checkedIds) {
+    const category = document.getElementById('form-category').value;
+    const checked = new Set(checkedIds || []);
+    document.getElementById('form-team-of').innerHTML = state.disciplines
+        .filter(d => countable(d) && d.category === category)
+        .map(d => `
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" class="team-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
+                <span>${escapeHtml(d.event)}${d.short_name ? ` <span class="text-gray-400">${escapeHtml(d.short_name)}</span>` : ''}</span>
+            </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
 }
 
 function levelBadge(level) {
@@ -83,7 +91,7 @@ function categoryBadge(category) {
 function renderTable() {
     const tbody = document.getElementById('discipline-table-body');
     if (!state.disciplines.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
         return;
     }
 
@@ -93,7 +101,7 @@ function renderTable() {
         const isTeam = d.level === 'team';
         const isAggregate = !!d.aggregate_of?.length;
         const teamInfo = isTeam
-            ? `${escapeHtml(d.based_on || '')}${d.team_size ? ` (${d.team_size})` : ''}`
+            ? `${compositionText(d)}${d.team_size ? ` (${d.team_size})` : ''}`
             : isAggregate ? `Sum of ${escapeHtml(d.aggregate_of.join(' + '))}` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
@@ -108,9 +116,6 @@ function renderTable() {
             <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
             <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
-            <td class="px-4 py-2 text-sm">
-                <input type="checkbox" class="active-toggle h-4 w-4 text-green-600 border-gray-300 rounded" data-discipline-id="${d.id}" ${d.active !== false ? 'checked' : ''}>
-            </td>
             <td class="px-4 py-2 text-sm">
                 <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines take no lane: their results come from other disciplines"' : ''}>
                     <option value="">any distance</option>
@@ -129,6 +134,7 @@ function toggleTeamFields() {
     const level = document.getElementById('form-level').value;
     const isTeam = level === 'team';
     document.getElementById('based-on-group').classList.toggle('hidden', !isTeam);
+    document.getElementById('team-of-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-size-group').classList.toggle('hidden', !isTeam);
     const sdSelect = document.getElementById('form-shooting-distance');
     sdSelect.disabled = isTeam;
@@ -162,11 +168,13 @@ function showForm(discipline) {
         document.getElementById('form-based-on').value = discipline.based_on || '';
         document.getElementById('form-team-size').value = discipline.team_size || 3;
         document.getElementById('form-shooting-distance').value = discipline.shooting_distance || '';
+        renderTeamOfOptions(discipline.team_of);
     } else {
         title.textContent = 'Add Discipline';
         document.getElementById('form-id').value = '';
         document.getElementById('discipline-form').reset();
         document.getElementById('short-name-hint').classList.add('hidden');
+        renderTeamOfOptions([]);
     }
     toggleTeamFields();
     document.getElementById('form-event').focus();
@@ -190,9 +198,12 @@ function formData() {
     if (level === 'team') {
         data.based_on = document.getElementById('form-based-on').value.trim() || null;
         data.team_size = parseInt(document.getElementById('form-team-size').value, 10) || 3;
+        const teamOf = [...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value));
+        data.team_of = teamOf.length ? teamOf : null;
     } else {
         data.based_on = null;
         data.team_size = null;
+        data.team_of = null;
     }
     const sd = document.getElementById('form-shooting-distance').value;
     data.shooting_distance = sd || null;
@@ -200,23 +211,12 @@ function formData() {
 }
 
 function setupListeners() {
-    document.getElementById('combined-events').addEventListener('change', async (event) => {
-        const checkbox = event.target.closest('.combined-toggle');
-        if (!checkbox) return;
-        const combined = checkbox.checked;
-        try {
-            state.combinedEvents = await api('/combined-events', 'PUT', { key: checkbox.dataset.key, combined });
-            renderCombinedEvents();
-            showMessage(combined ? 'Original and reproduction are now ranked together' : 'Original and reproduction are now ranked separately', 'success');
-        } catch (error) {
-            checkbox.checked = !combined;
-            showMessage(error.message);
-        }
-    });
-
     document.getElementById('add-btn').addEventListener('click', () => showForm(null));
     document.getElementById('cancel-btn').addEventListener('click', hideForm);
     document.getElementById('form-level').addEventListener('change', toggleTeamFields);
+    // The disciplines a team can count depend on its category
+    document.getElementById('form-category').addEventListener('change', () => renderTeamOfOptions(
+        [...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value))));
 
     document.getElementById('discipline-form').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -232,7 +232,6 @@ function setupListeners() {
             }
             hideForm();
             await loadData();
-            renderCombinedEvents();
             renderTable();
         } catch (error) {
             showMessage(error.message);
@@ -255,7 +254,6 @@ function setupListeners() {
                 await api(`/available-disciplines/${id}`, 'DELETE');
                 showMessage('Discipline deleted', 'success');
                 await loadData();
-                renderCombinedEvents();
                 renderTable();
             } catch (error) {
                 showMessage(error.message);
@@ -272,7 +270,6 @@ function setupListeners() {
             await api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping });
             showMessage('Shooting distances saved', 'success');
             await loadData();
-            renderCombinedEvents();
             renderTable();
         } catch (error) {
             showMessage(error.message);
@@ -283,28 +280,12 @@ function setupListeners() {
         if (event.target.classList.contains('shooting-distance')) {
             document.getElementById('save-distances-btn').classList.remove('hidden');
         }
-
-        if (event.target.classList.contains('active-toggle')) {
-            const checkbox = event.target;
-            const id = parseInt(checkbox.dataset.disciplineId, 10);
-            const active = checkbox.checked;
-            try {
-                await api(`/available-disciplines/${id}`, 'PUT', { active });
-                const discipline = state.disciplines.find(d => d.id === id);
-                if (discipline) discipline.active = active;
-                showMessage(active ? 'Discipline activated' : 'Discipline deactivated', 'success');
-            } catch (error) {
-                checkbox.checked = !active;
-                showMessage(error.message);
-            }
-        }
     });
 }
 
 async function init() {
     try {
         await loadData();
-        renderCombinedEvents();
         renderTable();
         setupListeners();
     } catch (error) {

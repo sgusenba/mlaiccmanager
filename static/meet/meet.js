@@ -1,13 +1,15 @@
 // Meet page: the meet's name, venue, host and dates, and the printouts made
 // from them: a start card per starter (A4 portrait) and a race bib per
 // starter (A4 landscape), printed or exported as Word documents, plus the
-// lane assignments as a CSV file and as target labels (printed or Word).
+// lane assignments as a CSV file and as target labels (printed or Word), and
+// the program: which disciplines are shot and how (program.js).
 
 import { escapeHtml, formatDateRange, loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { laneRows, toCsv } from './laneExport.js';
 import { LABEL_PAGE_SIZE, labelSize, labelsPerSheet, targetLabels, targetLabelsDocx, targetLabelsHtml } from './labelExport.js';
 import { raceBibsDocx, startCardsDocx } from './wordExport.js';
+import { initProgram } from './program.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
@@ -476,7 +478,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-        await Promise.all([refreshMeet(), refreshStarterSelects()]);
+        await Promise.all([refreshMeet(), refreshStarterSelects(), initProgram({ api, showMessage })]);
     } catch (error) {
         showMessage(`Error loading the meet: ${error.message}`);
     }

@@ -58,6 +58,25 @@
                 </div>
             </form>
 
+            <!-- Program: which disciplines are shot and how -->
+            <section class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h3 class="text-lg font-semibold mb-1">Program</h3>
+                <p class="text-sm text-gray-600">
+                    Tick the original and/or reproduction of each event this meet shoots. With "Combined" ticked there is
+                    only one ranking for both: each start is still an original or a reproduction start (shown as O or R),
+                    and a competitor starts in only one of the two. Competitors can only start in disciplines that are shot.
+                </p>
+                <div id="program-events"><p class="text-sm text-gray-500 mt-4">Loading…</p></div>
+                <h4 class="text-sm font-semibold text-gray-700 mt-6 mb-1">Team rankings</h4>
+                <p class="text-sm text-gray-600 mb-2">Which results count for a team is set on the Disciplines page.</p>
+                <div id="program-teams" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+                <div class="flex justify-end mt-4">
+                    <button type="button" id="program-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        Save Program
+                    </button>
+                </div>
+            </section>
+
             <!-- Start cards -->
             <div class="bg-white rounded-lg shadow-md p-6 flex flex-col">
                 <h3 class="text-lg font-semibold mb-1">Start Cards</h3>
