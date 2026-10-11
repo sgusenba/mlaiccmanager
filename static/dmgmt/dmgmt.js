@@ -77,7 +77,37 @@ function renderTeamOfOptions(checkedIds) {
             </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
 }
 
-function levelBadge(level) {
+// The event name matched on, as DisciplineService.matchKey: without type suffix and MLAIC number,
+// so "38_Colt_O" and "Colt" name the same event
+const matchKey = (event) => String(event ?? '').trim()
+    .replace(/[_ ](?:O\/R|O|R)$/, '').trim()
+    .replace(/^(?:No\.?\s*)?(?:\d+|XX)[_ ]\s*/, '').trim();
+
+/** The checkboxes of the events an aggregate of the form's category and type can add up, ticked from checkedEvents. */
+function renderAggregateOfOptions(checkedEvents) {
+    const category = document.getElementById('form-category').value;
+    const type = document.getElementById('form-type').value;
+    const id = Number(document.getElementById('form-id').value);
+    const checked = new Set((checkedEvents || []).map(e => matchKey(e).toLowerCase()));
+    const events = new Map(); // match key -> discipline, first in id order
+    [...state.disciplines].sort((a, b) => a.id - b.id)
+        .filter(d => countable(d) && d.id !== id && d.category === category && d.type === type && d.event)
+        .forEach(d => {
+            const key = matchKey(d.event).toLowerCase();
+            if (!events.has(key)) events.set(key, d);
+        });
+    document.getElementById('form-aggregate-of').innerHTML = [...events.entries()]
+        .map(([key, d]) => `
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" class="aggregate-of-option h-4 w-4" value="${escapeHtml(matchKey(d.event))}" ${checked.has(key) ? 'checked' : ''}>
+                <span>${escapeHtml(matchKey(d.event))} <span class="text-gray-400">${escapeHtml(d.event)}</span></span>
+            </label>`).join('') || `<p class="text-sm text-gray-500">No individual ${escapeHtml(type)} ${escapeHtml(category)} disciplines.</p>`;
+}
+
+const checkedAggregateOf = () => [...document.querySelectorAll('.aggregate-of-option:checked')].map(input => input.value);
+
+function levelBadge(level, isAggregate) {
+    if (isAggregate) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Aggregate</span>';
     if (level === 'team') return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Team</span>';
     return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Individual</span>';
 }
@@ -112,7 +142,7 @@ function renderTable() {
             <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.event)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(d.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${categoryBadge(d.category)}</td>
-            <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
+            <td class="px-4 py-2 text-sm">${levelBadge(d.level, isAggregate)}</td>
             <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
             <td class="px-4 py-2 text-sm">
@@ -129,14 +159,17 @@ function renderTable() {
     }).join('');
 }
 
-function toggleTeamFields() {
+/** Team and aggregate fields for the chosen level; neither takes a lane. */
+function toggleLevelFields() {
     const level = document.getElementById('form-level').value;
     const isTeam = level === 'team';
+    const isAggregate = level === 'aggregate';
     document.getElementById('team-of-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-size-group').classList.toggle('hidden', !isTeam);
+    document.getElementById('aggregate-of-group').classList.toggle('hidden', !isAggregate);
     const sdSelect = document.getElementById('form-shooting-distance');
-    sdSelect.disabled = isTeam;
-    if (isTeam) sdSelect.value = '';
+    sdSelect.disabled = isTeam || isAggregate;
+    if (isTeam || isAggregate) sdSelect.value = '';
 }
 
 function populateDistanceOptions() {
@@ -161,7 +194,8 @@ function showForm(discipline) {
         // Disciplines added by this competition (ids from 1000) keep their short name to themselves
         document.getElementById('short-name-hint').classList.toggle('hidden', discipline.id >= 1000);
         document.getElementById('form-category').value = discipline.category || 'rifle';
-        document.getElementById('form-level').value = discipline.level || 'individual';
+        document.getElementById('form-level').value = discipline.aggregate_of?.length
+            ? 'aggregate' : discipline.level || 'individual';
         // A type from older data (e.g. "combined") is kept as an option, so the form can still be saved
         const typeSelect = document.getElementById('form-type');
         typeSelect.querySelectorAll('option[data-legacy]').forEach(option => option.remove());
@@ -173,14 +207,16 @@ function showForm(discipline) {
         document.getElementById('form-team-size').value = discipline.team_size || 3;
         document.getElementById('form-shooting-distance').value = discipline.shooting_distance || '';
         renderTeamOfOptions(discipline.team_of);
+        renderAggregateOfOptions(discipline.aggregate_of);
     } else {
         title.textContent = 'Add Discipline';
         document.getElementById('form-id').value = '';
         document.getElementById('discipline-form').reset();
         document.getElementById('short-name-hint').classList.add('hidden');
         renderTeamOfOptions([]);
+        renderAggregateOfOptions([]);
     }
-    toggleTeamFields();
+    toggleLevelFields();
     document.getElementById('form-event').focus();
 }
 
@@ -192,12 +228,15 @@ function hideForm() {
 
 function formData() {
     const level = document.getElementById('form-level').value;
+    const isAggregate = level === 'aggregate';
     const data = {
         event: document.getElementById('form-event').value.trim(),
         short_name: document.getElementById('form-short-name').value.trim() || null,
         category: document.getElementById('form-category').value,
-        level,
-        type: document.getElementById('form-type').value
+        // An aggregate is an individual discipline that adds up other events
+        level: isAggregate ? 'individual' : level,
+        type: document.getElementById('form-type').value,
+        aggregate_of: isAggregate ? checkedAggregateOf() : null
     };
     if (level === 'team') {
         data.team_size = parseInt(document.getElementById('form-team-size').value, 10) || 3;
@@ -214,15 +253,22 @@ function formData() {
 function setupListeners() {
     document.getElementById('add-btn').addEventListener('click', () => showForm(null));
     document.getElementById('cancel-btn').addEventListener('click', hideForm);
-    document.getElementById('form-level').addEventListener('change', toggleTeamFields);
-    // The disciplines a team can count depend on its category
-    document.getElementById('form-category').addEventListener('change', () => renderTeamOfOptions(
-        [...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value))));
+    document.getElementById('form-level').addEventListener('change', toggleLevelFields);
+    // The disciplines a team can count depend on its category, the events an aggregate adds up also on its type
+    document.getElementById('form-category').addEventListener('change', () => {
+        renderTeamOfOptions([...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value)));
+        renderAggregateOfOptions(checkedAggregateOf());
+    });
+    document.getElementById('form-type').addEventListener('change', () => renderAggregateOfOptions(checkedAggregateOf()));
 
     document.getElementById('discipline-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const id = document.getElementById('form-id').value;
         const data = formData();
+        if (data.aggregate_of && !data.aggregate_of.length) {
+            showMessage('Tick at least one event that is added up');
+            return;
+        }
         try {
             if (id) {
                 await api(`/available-disciplines/${id}`, 'PUT', data);

@@ -1572,6 +1572,10 @@ components:
           type: array
           items: { type: integer }
           description: "Team discipline only: individual disciplines of its category whose starts count, at least one. 409 if a stored team member's start would no longer count"
+        aggregate_of:
+          type: array
+          items: { type: string }
+          description: "Individual discipline only: makes it an aggregate (e.g. Remington) that adds up these events' best results. Each event needs an individual discipline of the same category and type; an aggregate takes no lane. Empty or null makes it a plain discipline again"
         shooting_distance: { type: string }
         active: { type: boolean }
 
