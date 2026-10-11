@@ -364,7 +364,7 @@
   "level" : "individual",
   "type" : "reproduction",
   "event" : "6_Kuchenreuter_RU",
-  "short_name" : "KUCR",
+  "short_name" : "KUCRU",
   "shooting_distance" : "m25"
 }, {
   "id" : 57,
