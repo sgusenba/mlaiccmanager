@@ -2,7 +2,7 @@
 // optional cover and statistics pages) or as an Excel workbook (one sheet
 // per discipline, optionally a statistics sheet).
 
-import { disciplineDisplayName, formatScore, isCombined, typeTag } from '../js/teamRanking.js';
+import { disciplineDisplayName, formatScore, isCombined, typeHeader, typeTag } from '../js/teamRanking.js';
 import { docx, logoParagraph, paragraph, table, xlsx } from '../js/officeFiles.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
@@ -116,9 +116,10 @@ function individualTable(data) {
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(data.discipline);
     const ringWidths = RINGS.map(() => 6);
-    // A combined ranking has an O/R column, taken from the name column
-    const nameWidth = (hasNotes ? 34 : 40) - (combined ? 7 : 0);
-    const widths = [9, nameWidth, ...(combined ? [7] : []),
+    // A combined ranking has an O/R column (or the discipline shot, e.g. KUCRS), taken from the name column
+    const tagWidth = data.discipline?.combined_of?.length ? 11 : 7;
+    const nameWidth = (hasNotes ? 34 : 40) - (combined ? tagWidth : 0);
+    const widths = [9, nameWidth, ...(combined ? [tagWidth] : []),
         ...(hasNotes ? [24, 15, 12, ...ringWidths, 12, 18] : [31, 20, 12, ...ringWidths, 12])];
     const center = (text) => ({ text, align: 'center' });
     // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
@@ -147,7 +148,7 @@ function individualTable(data) {
     });
     return table([
         {
-            cells: ['Rank', 'Name', ...(combined ? [center('O/R')] : []), 'Club', 'Country',
+            cells: ['Rank', 'Name', ...(combined ? [center(typeHeader(data.discipline))] : []), 'Club', 'Country',
                 center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
                 center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
@@ -270,7 +271,7 @@ function individualSheet(data) {
         name: disciplineTitle(data.discipline),
         columns: [
             { header: 'Rank', width: 6 }, { header: 'Start', width: 12 }, { header: 'Name', width: 28 },
-            ...(combined ? [{ header: 'O/R', width: 5 }] : []),
+            ...(combined ? [{ header: typeHeader(data.discipline), width: data.discipline.combined_of?.length ? 8 : 5 }] : []),
             { header: 'Club', width: 24 }, { header: 'Country', width: 16 }, { header: 'Result', width: 9 },
             ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             ...(hasNotes ? [{ header: 'Notes', width: 30 }] : [])

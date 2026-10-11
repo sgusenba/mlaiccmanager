@@ -92,9 +92,12 @@ async function loadDisciplines() {
         combinedPairs.set(e.original_id, e);
         combinedPairs.set(e.reproduction_id, e);
     }
+    // The disciplines of an active combined ranking (KUC) are ranked only through it
+    const activeDisciplines = (active || []).map(id => available.find(a => a.id === id)).filter(Boolean);
+    const rankedThrough = new Set(activeDisciplines.flatMap(d => d.combined_of || []));
     const shown = new Set();
     const options = [];
-    for (const d of (active || []).map(id => available.find(a => a.id === id)).filter(Boolean)) {
+    for (const d of activeDisciplines.filter(d => !rankedThrough.has(d.id))) {
         const pair = combinedPairs.get(d.id);
         const id = pair ? pair.original_id : d.id;
         if (shown.has(id)) continue;

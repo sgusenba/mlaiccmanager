@@ -55,6 +55,11 @@ public class Discipline {
     @JsonProperty("aggregate_of")
     private List<String> aggregateOf;
 
+    // Set on a combined ranking (e.g. KUCR = KUCRS + KUCRU): the individual disciplines,
+    // of the same category, ranked together. Competitors start in those, not in it.
+    @JsonProperty("combined_of")
+    private List<Integer> combinedOf;
+
     @JsonProperty("active")
     private boolean active = true;
 
@@ -111,6 +116,9 @@ public class Discipline {
 
     public List<String> getAggregateOf() { return aggregateOf; }
     public void setAggregateOf(List<String> aggregateOf) { this.aggregateOf = aggregateOf; }
+
+    public List<Integer> getCombinedOf() { return combinedOf; }
+    public void setCombinedOf(List<Integer> combinedOf) { this.combinedOf = combinedOf; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

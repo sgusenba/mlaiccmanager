@@ -124,7 +124,7 @@ public class TeamService {
     static List<Integer> teamOfFromBasedOn(Discipline team, List<Discipline> catalog) {
         List<Discipline> basedOn = new ArrayList<>();
         for (Discipline d : catalog) {
-            if (!isTeamDiscipline(d) && !DisciplineService.isAggregate(d)
+            if (!isTeamDiscipline(d) && !DisciplineService.isAggregate(d) && !DisciplineService.isCombinedRanking(d)
                     && Objects.equals(d.getCategory(), team.getCategory())
                     && DisciplineService.sameEvent(d.getEvent(), team.getBasedOn())) {
                 basedOn.add(d);
@@ -190,7 +190,8 @@ public class TeamService {
             ids.addAll(fromBasedOn);
         }
         List<Integer> ordered = catalog.stream()
-            .filter(d -> ids.contains(d.getId()) && !isTeamDiscipline(d) && !DisciplineService.isAggregate(d))
+            .filter(d -> ids.contains(d.getId()) && !isTeamDiscipline(d) && !DisciplineService.isAggregate(d)
+                && !DisciplineService.isCombinedRanking(d))
             .map(Discipline::getId).toList();
         return ordered.isEmpty() ? null : ordered;
     }

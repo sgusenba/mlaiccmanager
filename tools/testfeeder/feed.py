@@ -11,7 +11,9 @@ Steps, each safe to repeat (a second run updates instead of duplicating):
                   ones and activate all of them; an O/R list goes into
                   the event's original and reproduction disciplines,
                   ranked combined; a list with variants (Kuchenreuter R:
-                  S and U) into one discipline per variant; a team discipline's
+                  S and U) into one discipline per variant, ranked through
+                  the catalog's combined ranking of them (KUCR) if there is
+                  one; a team discipline's
                   results that count (team_of) get the disciplines its
                   members start in
   2. competitors  matched by name and club, created if missing
@@ -111,6 +113,8 @@ class Feeder:
         self.discipline_ids = {}   # JSON key -> discipline id (of an O/R list: the original's, which has the combined ranking)
         self.split = {}            # JSON key of an O/R list -> {"original": id, "reproduction": id}
         self.variants = {}         # JSON key of a list with variants -> {marker: id}
+        self.variant_rankings = {} # JSON key of a list with variants -> id of the combined ranking of them (KUCR)
+        self.combined_rankings = []  # the catalog's combined rankings (KUCR = KUCRS + KUCRU)
         self.result_types = {(r["discipline"], r["bib"]): r.get("type") for r in data["results"]}
         self.result_markers = {(r["discipline"], r["bib"]): r.get("marker") for r in data["results"]}
         self.competitor_ids = {}   # bib -> competitor id
@@ -126,6 +130,9 @@ class Feeder:
         print("Disciplines")
         catalog = {}
         for d in self.api.get("/available-disciplines"):
+            if d.get("combined_of"):
+                self.combined_rankings.append(d)   # ranks other disciplines, takes no starts
+                continue
             catalog.setdefault(discipline_key(d), d)   # first in catalog order wins
         # Individual disciplines first: a team discipline's team_of needs their ids
         specs = sorted(self.data["disciplines"], key=lambda s: s.get("level") == "team")
@@ -162,6 +169,23 @@ class Feeder:
         if set(wanted) != set(active):
             self.api.post("/active-disciplines", {"discipline_ids": wanted, "base_ids": active})
             print(f"  activated {len(set(wanted) - set(active))} disciplines")
+        self.rank_variants_combined()
+
+    def rank_variants_combined(self):
+        """Ranks the combined rankings of the lists with variants (KUCR for Kuchenreuter R),
+        as the PDF ranks each such list as one."""
+        wanted = set(self.variant_rankings.values())
+        if not wanted:
+            return
+        program = self.api.get("/meet/program")
+        current = {r["id"] for r in program.get("combined_rankings", []) if r.get("active")}
+        if wanted <= current:
+            return
+        self.api.put("/meet/program", {"combined_rankings": sorted(current | wanted), "base": program.get("base")})
+        for key, ranking_id in self.variant_rankings.items():
+            if ranking_id not in current:
+                self.count("combined rankings ranked")
+                print(f"  ranking {key} through combined ranking {ranking_id}")
 
     def split_list(self, spec, catalog):
         """An O/R list whose results carry their type goes into the catalog's original and
@@ -212,6 +236,12 @@ class Feeder:
             self.variants[spec["key"]][marker] = discipline_id
             if self.api.verbose:
                 print(f"  {spec['key']} {marker} -> {discipline_id}")
+        ids = set(self.variants[spec["key"]].values())
+        ranking = next((d for d in self.combined_rankings if set(d["combined_of"]) == ids), None)
+        if ranking:
+            self.variant_rankings[spec["key"]] = ranking["id"]
+            if self.api.verbose:
+                print(f"  {spec['key']} ranked through {ranking['id']} '{ranking['event']}'")
         return True
 
     def discipline_of(self, key, bib):
@@ -323,10 +353,13 @@ class Feeder:
         print("Verify")
         bib_of = {cid: bib for bib, cid in self.competitor_ids.items()}
         problems = 0
-        # A list with variants is checked per variant: its rows keep their order from the PDF
+        # A list with variants is checked as a whole through its combined ranking (KUCR), else
+        # per variant: its rows keep their order from the PDF
         targets = [(key, key, discipline_id, None) for key, discipline_id in self.discipline_ids.items()]
+        targets += [(key, key, ranking_id, None) for key, ranking_id in self.variant_rankings.items()]
         targets += [(f"{key} {marker}", key, discipline_id, marker)
-                    for key, by_marker in self.variants.items() for marker, discipline_id in by_marker.items()]
+                    for key, by_marker in self.variants.items() if key not in self.variant_rankings
+                    for marker, discipline_id in by_marker.items()]
         for label, key, discipline_id, marker in targets:
             expected_individual = [r for r in self.data["results"] if r["discipline"] == key and not r.get("dns")
                                    and (marker is None or r.get("marker") == marker)]

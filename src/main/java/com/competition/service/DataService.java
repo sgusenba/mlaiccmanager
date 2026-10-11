@@ -274,7 +274,7 @@ public class DataService {
         List<ObjectNode> catalog = loadCatalog();
         JsonNode settings = loadCompetitionSettings();
         if (settings == null) {
-            return toDisciplines(catalog);
+            return withCatalogDefaults(toDisciplines(catalog));
         }
 
         Set<Integer> removed = new HashSet<>();
@@ -396,6 +396,16 @@ public class DataService {
         return competitionFile.exists() ? objectMapper.readTree(competitionFile) : null;
     }
 
+    /**
+     * The catalog as it applies without competition settings: everything active
+     * except the combined rankings, which a meet turns on (while one is on, its
+     * disciplines are ranked only through it).
+     */
+    private static List<Discipline> withCatalogDefaults(List<Discipline> catalog) {
+        catalog.forEach(d -> d.setActive(!DisciplineService.isCombinedRanking(d)));
+        return catalog;
+    }
+
     private static List<Discipline> toDisciplines(List<ObjectNode> nodes) {
         return objectMapper.convertValue(nodes,
             objectMapper.getTypeFactory().constructCollectionType(List.class, Discipline.class));
@@ -435,7 +445,7 @@ public class DataService {
     public Set<Integer> resetDisciplines() throws IOException {
         disciplinesLock.lock();
         try {
-            List<Discipline> catalog = toDisciplines(loadCatalog());
+            List<Discipline> catalog = withCatalogDefaults(toDisciplines(loadCatalog()));
             saveDisciplinesInternal(catalog, new LinkedHashSet<>());
             Set<Integer> ids = new HashSet<>();
             catalog.forEach(d -> ids.add(d.getId()));

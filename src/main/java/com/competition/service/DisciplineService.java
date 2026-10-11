@@ -80,6 +80,7 @@ public class DisciplineService {
             applyCatalogFields(d, data);
             checkTeamOf(d, disciplines);
             checkAggregateOf(d, disciplines);
+            checkCombinedOf(d, disciplines);
             disciplines.add(d);
             return d;
         });
@@ -99,6 +100,13 @@ public class DisciplineService {
                     || data.containsKey("shooting_distance")) {
                 checkAggregateOf(target, disciplines);
             }
+            checkCombinedOf(target, disciplines);
+            // The combined rankings this discipline is part of must still be valid with its new fields
+            for (Discipline d : disciplines) {
+                if (isCombinedRanking(d) && d.getCombinedOf().contains(id)) {
+                    checkCombinedOf(d, disciplines);
+                }
+            }
             // A catalog discipline's short name goes into the catalog for every competition;
             // the competition file then no longer differs from it there
             if (data.containsKey("short_name")) {
@@ -110,6 +118,13 @@ public class DisciplineService {
 
     public void deleteCatalogDiscipline(int id) throws Exception {
         dataService.updateDisciplines(disciplines -> {
+            List<String> usedBy = disciplines.stream()
+                .filter(d -> isCombinedRanking(d) && d.getCombinedOf().contains(id))
+                .map(Discipline::getEvent).toList();
+            if (!usedBy.isEmpty()) {
+                throw new ConflictException("Discipline " + id + " is ranked in "
+                    + String.join(", ", usedBy) + "; remove it there first", usedBy);
+            }
             if (!disciplines.removeIf(d -> d.getId() == id)) {
                 throw new IllegalArgumentException("Discipline not found: " + id);
             }
@@ -176,7 +191,7 @@ public class DisciplineService {
     static List<EventPair> eventPairsOf(List<Discipline> disciplines) {
         Map<String, List<Discipline>> byEvent = new LinkedHashMap<>();
         for (Discipline d : disciplines) {
-            if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && d.getEvent() != null
+            if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && !isCombinedRanking(d) && d.getEvent() != null
                     && ("original".equals(d.getType()) || "reproduction".equals(d.getType()))) {
                 byEvent.computeIfAbsent(eventKey(d.getCategory(), matchKey(d.getEvent())), k -> new ArrayList<>()).add(d);
             }
@@ -203,6 +218,37 @@ public class DisciplineService {
     }
 
     /**
+     * Whether the discipline is a combined ranking (e.g. KUCR = KUCRS + KUCRU): it
+     * ranks the results of other disciplines together and has no starts of its own.
+     */
+    public static boolean isCombinedRanking(Discipline discipline) {
+        return discipline != null && discipline.getCombinedOf() != null && !discipline.getCombinedOf().isEmpty();
+    }
+
+    /** Whether competitors can start in the discipline: not a team or a combined ranking. */
+    public static boolean takesStarts(Discipline discipline) {
+        return !TeamService.isTeamDiscipline(discipline) && !isCombinedRanking(discipline);
+    }
+
+    /**
+     * The active combined rankings, by the id of each discipline they rank. A
+     * discipline listed here is ranked only through them, not on its own.
+     */
+    static Map<Integer, List<Discipline>> activeCombinedRankingsByMember(List<Discipline> disciplines) {
+        Map<Integer, List<Discipline>> byMember = new HashMap<>();
+        for (Discipline d : disciplines) {
+            if (d.isActive() && isCombinedRanking(d)) {
+                d.getCombinedOf().forEach(id -> byMember.computeIfAbsent(id, k -> new ArrayList<>()).add(d));
+            }
+        }
+        return byMember;
+    }
+
+    public Map<Integer, List<Discipline>> getActiveCombinedRankingsByMember() throws Exception {
+        return activeCombinedRankingsByMember(dataService.loadDisciplines());
+    }
+
+    /**
      * The disciplines an aggregate discipline adds up, in the order of its
      * aggregate_of: per named event the individual discipline of the same
      * category and type. An event without such a discipline is left out.
@@ -211,7 +257,7 @@ public class DisciplineService {
         List<Discipline> components = new ArrayList<>();
         for (String event : aggregate.getAggregateOf()) {
             for (Discipline d : disciplines) {
-                if (!TeamService.isTeamDiscipline(d) && !isAggregate(d)
+                if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && !isCombinedRanking(d)
                         && sameEvent(event, d.getEvent())
                         && Objects.equals(aggregate.getCategory(), d.getCategory())
                         && Objects.equals(aggregate.getType(), d.getType())) {
@@ -289,15 +335,20 @@ public class DisciplineService {
         });
     }
 
-    @SuppressWarnings("unchecked")
     static List<String> competitorsStartingInBoth(Map<String, Object> data, EventPair pair) {
+        return competitorsStartingInMoreThanOne(data, List.of(pair.originalId(), pair.reproductionId()));
+    }
+
+    /** Names of the competitors who start in more than one of the disciplines (a combined ranking lists each once). */
+    @SuppressWarnings("unchecked")
+    static List<String> competitorsStartingInMoreThanOne(Map<String, Object> data, List<Integer> disciplineIds) {
         List<String> names = new ArrayList<>();
         List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
         if (competitors == null) {
             return names;
         }
         for (Map<String, Object> competitor : competitors) {
-            if (startsIn(competitor, pair.originalId()) && startsIn(competitor, pair.reproductionId())) {
+            if (disciplineIds.stream().filter(id -> startsIn(competitor, id)).count() > 1) {
                 names.add(String.valueOf(competitor.get("name")));
             }
         }
@@ -325,7 +376,7 @@ public class DisciplineService {
         }
         for (int id : team.getTeamOf()) {
             Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
-            if (d == null || TeamService.isTeamDiscipline(d) || isAggregate(d)
+            if (d == null || TeamService.isTeamDiscipline(d) || isAggregate(d) || isCombinedRanking(d)
                     || !Objects.equals(d.getCategory(), team.getCategory())) {
                 throw new IllegalArgumentException("A " + team.getCategory() + " team can only count individual "
                     + team.getCategory() + " disciplines, not discipline " + id);
@@ -358,6 +409,39 @@ public class DisciplineService {
         aggregate.setShootingDistance(null);
     }
 
+    /**
+     * A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) is individual, ranks at
+     * least two individual disciplines of its category that take starts, and takes no lane.
+     */
+    private static void checkCombinedOf(Discipline combined, List<Discipline> disciplines) {
+        if (combined.getCombinedOf() != null && combined.getCombinedOf().isEmpty()) {
+            combined.setCombinedOf(null);
+        }
+        if (!isCombinedRanking(combined)) {
+            return;
+        }
+        if (TeamService.isTeamDiscipline(combined)) {
+            combined.setCombinedOf(null); // a team ranks teams, it combines no disciplines
+            return;
+        }
+        if (isAggregate(combined)) {
+            throw new IllegalArgumentException(combined.getEvent()
+                + " cannot both add up events (aggregate) and rank disciplines together (combined ranking)");
+        }
+        if (combined.getCombinedOf().size() < 2) {
+            throw new IllegalArgumentException("Tick at least two disciplines to rank together in " + combined.getEvent());
+        }
+        for (int id : combined.getCombinedOf()) {
+            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
+            if (d == null || d.getId() == combined.getId() || TeamService.isTeamDiscipline(d) || isAggregate(d)
+                    || isCombinedRanking(d) || !Objects.equals(d.getCategory(), combined.getCategory())) {
+                throw new IllegalArgumentException(combined.getEvent() + " can only rank individual "
+                    + combined.getCategory() + " disciplines together, not discipline " + id);
+            }
+        }
+        combined.setShootingDistance(null);
+    }
+
     /** A stand-in aggregate of the same category and type that adds up just the one event. */
     private static Discipline aggregateNaming(Discipline aggregate, String event) {
         Discipline single = new Discipline();
@@ -385,6 +469,11 @@ public class DisciplineService {
             d.setAggregateOf(data.get("aggregate_of") instanceof List<?> events
                 ? events.stream().filter(Objects::nonNull).map(e -> String.valueOf(e).trim())
                     .filter(e -> !e.isEmpty()).distinct().toList()
+                : null);
+        }
+        if (data.containsKey("combined_of")) {
+            d.setCombinedOf(data.get("combined_of") instanceof List<?> ids
+                ? ids.stream().filter(Objects::nonNull).map(id -> ((Number) id).intValue()).distinct().toList()
                 : null);
         }
         if (data.containsKey("team_size")) {

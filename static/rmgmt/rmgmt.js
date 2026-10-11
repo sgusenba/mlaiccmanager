@@ -114,7 +114,7 @@ async function loadDisciplines() {
     const [active, available] = await Promise.all([get('/active-disciplines'), get('/available-disciplines')]);
     state.disciplines = (active || [])
         .map(id => available.find(d => d.id === id))
-        .filter(d => d && d.level !== 'team' && !d.aggregate_of?.length)
+        .filter(d => d && d.level !== 'team' && !d.aggregate_of?.length && !d.combined_of?.length)
         .map(d => ({
             id: String(d.id),
             name: d.type ? `${d.event} (${d.type})` : d.event,

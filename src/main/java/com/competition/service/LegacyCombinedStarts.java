@@ -93,7 +93,7 @@ public final class LegacyCombinedStarts {
     private static Discipline targetOf(String category, String event, List<Discipline> disciplines) {
         List<Discipline> ofEvent = new ArrayList<>();
         for (Discipline d : disciplines) {
-            if (!TeamService.isTeamDiscipline(d) && !DisciplineService.isAggregate(d)
+            if (!TeamService.isTeamDiscipline(d) && !DisciplineService.isAggregate(d) && !DisciplineService.isCombinedRanking(d)
                     && Objects.equals(category, d.getCategory()) && DisciplineService.sameEvent(event, d.getEvent())) {
                 ofEvent.add(d);
             }

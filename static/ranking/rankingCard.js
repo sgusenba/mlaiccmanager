@@ -1,7 +1,7 @@
 // Card with the ranking table of one individual discipline (response of
 // /api/ranking/best/{id}), used by the Ranking page and the Todos page.
 
-import { componentsOf, escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeTag } from '../js/teamRanking.js';
+import { componentsOf, escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeHeader, typeTag } from '../js/teamRanking.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -58,7 +58,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                             <tr>
                                 ${showRank ? th('Rank') : ''}
                                 ${th('Name')}
-                                ${combined ? th('O/R', 'center', 'Original or reproduction', 'px-2') : ''}
+                                ${combined ? th(typeHeader(discipline), 'center', discipline.combined_of?.length ? 'Discipline shot' : 'Original or reproduction', 'px-2') : ''}
                                 ${th('Club')}
                                 ${th('Country')}
                                 ${th('Result', 'center')}

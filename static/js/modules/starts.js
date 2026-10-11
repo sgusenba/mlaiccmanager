@@ -54,8 +54,9 @@ function populateActiveDisciplinesDropdown() {
     const availableDisciplines = getState('availableDisciplines');
     const activeDisciplines = getState('activeDisciplines');
     
-    const activeDisciplinesList = availableDisciplines.filter(discipline => 
-        activeDisciplines.includes(discipline.id)
+    // Competitors start in a combined ranking's disciplines (KUCRS), not in the combined ranking (KUCR)
+    const activeDisciplinesList = availableDisciplines.filter(discipline =>
+        activeDisciplines.includes(discipline.id) && !discipline.combined_of?.length
     );
     
     dropdown.innerHTML = '<option value="">Select Discipline</option>' +

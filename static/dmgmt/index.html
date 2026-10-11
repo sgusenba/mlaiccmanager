@@ -41,6 +41,7 @@
                             <option value="individual">Individual</option>
                             <option value="team">Team</option>
                             <option value="aggregate">Aggregate (e.g. Remington)</option>
+                            <option value="combined">Combined ranking (e.g. KUCR = KUCRS + KUCRU)</option>
                         </select>
                     </div>
                     <div>
@@ -49,6 +50,7 @@
                             <option value="original">Original</option>
                             <option value="reproduction">Reproduction</option>
                             <option value="open">Open</option>
+                            <option value="combined" hidden>Combined (original + reproduction)</option>
                         </select>
                     </div>
                     <div id="team-of-group" class="md:col-span-2 lg:col-span-3">
@@ -60,6 +62,11 @@
                         <span class="block text-sm font-medium text-gray-700 mb-1">Events that are added up</span>
                         <p class="text-xs text-gray-500 mb-2">Individual events of the same category and type whose best results are summed (at least one). Competitors are entered in the aggregate, but it has no results or lane of its own.</p>
                         <div id="form-aggregate-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
+                    </div>
+                    <div id="combined-of-group" class="md:col-span-2 lg:col-span-3 hidden">
+                        <span class="block text-sm font-medium text-gray-700 mb-1">Disciplines ranked together</span>
+                        <p class="text-xs text-gray-500 mb-2">Individual disciplines of the same category, of any type (at least two). Competitors start in these; when a meet ranks the combined ranking, they are ranked only through it, each competitor once.</p>
+                        <div id="form-combined-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
                     </div>
                     <div id="team-size-group">
                         <label for="form-team-size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
