@@ -79,6 +79,7 @@ public class DisciplineService {
             d.setId(Math.max(maxId + 1, FIRST_CUSTOM_ID));
             applyCatalogFields(d, data);
             checkTeamOf(d, disciplines);
+            checkAggregateOf(d, disciplines);
             disciplines.add(d);
             return d;
         });
@@ -92,6 +93,11 @@ public class DisciplineService {
             applyCatalogFields(target, data);
             if (data.containsKey("team_of") || data.containsKey("level")) {
                 checkTeamOf(target, disciplines);
+            }
+            if (data.containsKey("aggregate_of") || data.containsKey("level")
+                    || data.containsKey("category") || data.containsKey("type")
+                    || data.containsKey("shooting_distance")) {
+                checkAggregateOf(target, disciplines);
             }
             // A catalog discipline's short name goes into the catalog for every competition;
             // the competition file then no longer differs from it there
@@ -327,6 +333,40 @@ public class DisciplineService {
         }
     }
 
+    /**
+     * An aggregate discipline (e.g. Remington) is individual, every event it adds
+     * up has an individual discipline of its category and type, and it takes no lane.
+     */
+    private static void checkAggregateOf(Discipline aggregate, List<Discipline> disciplines) {
+        if (aggregate.getAggregateOf() != null && aggregate.getAggregateOf().isEmpty()) {
+            aggregate.setAggregateOf(null);
+        }
+        if (!isAggregate(aggregate)) {
+            return;
+        }
+        if (TeamService.isTeamDiscipline(aggregate)) {
+            aggregate.setAggregateOf(null); // a team counts its members' starts, it adds up no events
+            return;
+        }
+        List<Discipline> others = disciplines.stream().filter(d -> d.getId() != aggregate.getId()).toList();
+        for (String event : aggregate.getAggregateOf()) {
+            if (componentsOf(aggregateNaming(aggregate, event), others).isEmpty()) {
+                throw new IllegalArgumentException(aggregate.getEvent() + ": there is no individual "
+                    + aggregate.getType() + " " + aggregate.getCategory() + " discipline " + event);
+            }
+        }
+        aggregate.setShootingDistance(null);
+    }
+
+    /** A stand-in aggregate of the same category and type that adds up just the one event. */
+    private static Discipline aggregateNaming(Discipline aggregate, String event) {
+        Discipline single = new Discipline();
+        single.setCategory(aggregate.getCategory());
+        single.setType(aggregate.getType());
+        single.setAggregateOf(List.of(event));
+        return single;
+    }
+
     private static void applyCatalogFields(Discipline d, Map<String, Object> data) {
         if (data.containsKey("category")) d.setCategory((String) data.get("category"));
         if (data.containsKey("level")) d.setLevel((String) data.get("level"));
@@ -339,6 +379,12 @@ public class DisciplineService {
         if (data.containsKey("team_of")) {
             d.setTeamOf(data.get("team_of") instanceof List<?> ids
                 ? ids.stream().map(id -> ((Number) id).intValue()).distinct().toList()
+                : null);
+        }
+        if (data.containsKey("aggregate_of")) {
+            d.setAggregateOf(data.get("aggregate_of") instanceof List<?> events
+                ? events.stream().filter(Objects::nonNull).map(e -> String.valueOf(e).trim())
+                    .filter(e -> !e.isEmpty()).distinct().toList()
                 : null);
         }
         if (data.containsKey("team_size")) {
