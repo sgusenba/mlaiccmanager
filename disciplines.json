@@ -363,7 +363,7 @@
   "category" : "pistol",
   "level" : "individual",
   "type" : "reproduction",
-  "event" : "6_Kuchenreuter_R",
+  "event" : "6_Kuchenreuter_RU",
   "short_name" : "KUCR",
   "shooting_distance" : "m25"
 }, {
@@ -389,6 +389,38 @@
   "type" : "reproduction",
   "event" : "28_Tanzutsu_R",
   "short_name" : "TANR",
+  "shooting_distance" : "m25"
+}, {
+  "id" : 60,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "91_Meixner_RS",
+  "short_name" : "MEIXRS",
+  "shooting_distance" : "m25"
+}, {
+  "id" : 61,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "91_Meixner_RU",
+  "short_name" : "MEIXRU",
+  "shooting_distance" : "m25"
+}, {
+  "id" : 62,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "6_Kuchenreuter_RS",
+  "short_name" : "KUCRS",
+  "shooting_distance" : "m25"
+}, {
+  "id" : 63,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "original",
+  "event" : "91_Meixner_O",
+  "short_name" : "MEIXO",
   "shooting_distance" : "m25"
 }, {
   "id" : 74,
@@ -470,4 +502,13 @@
   "event" : "45_El Alamo",
   "team_size" : 3,
   "team_of" : [ 53, 58 ]
+}, {
+  "id" : 76,
+  "category" : "pistol",
+  "level" : "team",
+  "type" : "open",
+  "event" : "92_Springfield",
+  "short_name" : "SPRING",
+  "team_size" : 3,
+  "team_of" : [ 60, 61, 63 ]
 } ]
