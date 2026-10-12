@@ -401,10 +401,13 @@ public class RankingService {
         return entry;
     }
 
-    /** A component as listed below a competitor, e.g. "12_Mariette/R" or "23_Donald Malson/O". */
+    /** A component as listed below a competitor, e.g. "12_Mariette/R", "23_Donald Malson/O" or "91_Meixner/RS". */
     private static String componentLabel(Discipline component) {
-        String tag = "original".equals(component.getType()) ? "O" : "reproduction".equals(component.getType()) ? "R" : null;
         String name = DisciplineService.baseEvent(component.getEvent());
+        String event = component.getEvent() != null ? component.getEvent().trim() : "";
+        String variant = event.matches(".*[_ ]R[SU]$") ? event.substring(event.length() - 2) : null;
+        String tag = variant != null ? variant
+            : "original".equals(component.getType()) ? "O" : "reproduction".equals(component.getType()) ? "R" : null;
         return tag != null ? name + "/" + tag : name;
     }
 

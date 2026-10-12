@@ -170,11 +170,12 @@ public class DisciplineService {
         return category + "|" + event;
     }
 
-    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|O|R)$");
+    // "_O", "_R", "_O/R" and the reproduction variants "_RS" (smooth bore) and "_RU" (rifled), e.g. Meixner
+    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|RS|RU|O|R)$");
     // "1_", "XX_" and the older "No 1 " / "No. 1 "
     private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:No\\.?\\s*)?(?:\\d+|XX)[_ ]\\s*");
 
-    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R". */
+    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R", "6_Kuchenreuter" for "6_Kuchenreuter_RS". */
     public static String baseEvent(String event) {
         return event == null ? null : TYPE_SUFFIX.matcher(event.trim()).replaceFirst("").trim();
     }
