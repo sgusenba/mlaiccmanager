@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -224,7 +226,7 @@ class CombinedRankingDisciplineTest {
         assertEquals("KUCR", kucr.get("short_name"));
 
         // Stopping to shoot KUCRU stops ranking KUCR
-        Map<String, Object> events = Map.of("pistol|Kuchenreuter_RU", Map.of("active", List.of()));
+        Map<String, Object> events = Map.of("pistol|Kuchenreuter", Map.of("active", List.of(62)));
         programService.setProgram(Map.of("events", events));
         assertFalse(disciplineService.getActiveDisciplines().contains(77));
     }
@@ -249,8 +251,11 @@ class CombinedRankingDisciplineTest {
     void combinedRankingsAreNotEventsOrTeamMembers() throws Exception {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> events = (List<Map<String, Object>>) programService.getProgram().get("events");
-        assertTrue(events.stream().noneMatch(e -> String.valueOf(e.get("key")).equals("pistol|Kuchenreuter")
-            && ((List<?>) e.get("disciplines")).size() > 1), "KUCR/KUC do not join the Kuchenreuter event");
+        // KUCO, KUCRU and KUCRS are one event, KUCR and KUC do not join it
+        Map<String, Object> kuchenreuter = events.stream()
+            .filter(e -> String.valueOf(e.get("key")).equals("pistol|Kuchenreuter")).findFirst().orElseThrow();
+        assertEquals(Set.of(51, 56, 62), ((List<?>) kuchenreuter.get("disciplines")).stream()
+            .map(d -> ((Number) ((Map<?, ?>) d).get("id")).intValue()).collect(Collectors.toSet()));
         assertThrows(IllegalArgumentException.class,
             () -> disciplineService.updateCatalogDiscipline(71, Map.of("team_of", List.of(77))));
     }

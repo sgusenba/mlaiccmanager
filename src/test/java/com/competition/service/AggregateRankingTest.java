@@ -25,9 +25,9 @@ class AggregateRankingTest {
             + "{\"id\":57,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"Mariette\"},"
             + "{\"id\":58,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"Donald Malson\"},"
             + "{\"id\":74,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"Remington\","
-            + "\"aggregate_of\":[\"Colt\",\"Donald Malson\"]},"
+            + "\"aggregate_of\":[52,53]},"
             + "{\"id\":75,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"Remington\","
-            + "\"aggregate_of\":[\"Mariette\",\"Donald Malson\"]}]";
+            + "\"aggregate_of\":[57,58]}]";
 
     @TempDir
     Path tempDir;

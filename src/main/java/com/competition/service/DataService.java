@@ -292,6 +292,8 @@ public class DataService {
             merged.add(copy);
         }
         settings.path("custom_disciplines").forEach(entry -> merged.add(((ObjectNode) entry).deepCopy()));
+        // Aggregates this competition changed or added may still name their events
+        DisciplineService.resolveAggregateNames(merged);
 
         Set<Integer> active = new HashSet<>();
         settings.path("active_disciplines").forEach(id -> active.add(id.asInt()));
@@ -316,6 +318,7 @@ public class DataService {
         for (ObjectNode entry : catalog) {
             applyOverrides(entry, overrides.path(String.valueOf(entry.path("id").asInt())));
         }
+        DisciplineService.resolveAggregateNames(catalog);
         return catalog;
     }
 

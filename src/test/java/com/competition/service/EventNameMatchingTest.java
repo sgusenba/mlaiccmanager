@@ -28,6 +28,10 @@ class EventNameMatchingTest {
         assertEquals("Tanegashima", DisciplineService.matchKey("No 14 Tanegashima"));
         assertEquals("Miquelet", DisciplineService.matchKey("No. 1 Miquelet"));
         assertEquals("Colt", DisciplineService.matchKey("Colt"));
+        assertEquals("Meixner", DisciplineService.matchKey("91_Meixner_RS"));
+        assertEquals("Kuchenreuter", DisciplineService.matchKey("6_Kuchenreuter_RU"));
+        assertEquals("6_Kuchenreuter", DisciplineService.baseEvent("6_Kuchenreuter_RS"));
+        assertTrue(DisciplineService.sameEvent("91_Meixner_O", "91_Meixner_RU"));
         assertEquals("1_Miquelet", DisciplineService.baseEvent("1_Miquelet_O"));
         assertTrue(DisciplineService.sameEvent("7_Colt", "Colt"));
         assertFalse(DisciplineService.sameEvent("Gustav Adolph + Pauly (aggregate)", "9_Gustav Adolph"));
@@ -58,5 +62,25 @@ class EventNameMatchingTest {
 
         List<Discipline> catalog = dataService.loadDisciplines();
         assertEquals(List.of(1), TeamService.teamOfFromBasedOn(disciplineService.getAvailableDisciplineById(33), catalog));
+    }
+
+    @Test
+    void reproductionVariantsBelongToTheirEventButMakeNoPair() {
+        List<Discipline> catalog = List.of(
+            discipline(63, "original", "91_Meixner_O"),
+            discipline(60, "reproduction", "91_Meixner_RS"),
+            discipline(61, "reproduction", "91_Meixner_RU"));
+
+        assertEquals(Map.of("pistol|Meixner", List.of(63, 60, 61)), ProgramService.eventsOf(catalog).entrySet().stream()
+            .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().map(Discipline::getId).toList())));
+        assertEquals(List.of(), DisciplineService.eventPairsOf(catalog), "one original and two reproductions are no O/R pair");
+    }
+
+    private static Discipline discipline(int id, String type, String event) {
+        Discipline d = new Discipline(event, "pistol");
+        d.setId(id);
+        d.setLevel("individual");
+        d.setType(type);
+        return d;
     }
 }

@@ -1,6 +1,9 @@
 package com.competition.service;
 
 import com.competition.model.Discipline;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,10 +104,13 @@ public class DisciplineService {
                 checkAggregateOf(target, disciplines);
             }
             checkCombinedOf(target, disciplines);
-            // The combined rankings this discipline is part of must still be valid with its new fields
+            // The combined rankings and aggregates this discipline is part of must still be valid with its new fields
             for (Discipline d : disciplines) {
                 if (isCombinedRanking(d) && d.getCombinedOf().contains(id)) {
                     checkCombinedOf(d, disciplines);
+                }
+                if (isAggregate(d) && d.getId() != id && d.getAggregateOf().contains(id)) {
+                    checkAggregateOf(d, disciplines);
                 }
             }
             // A catalog discipline's short name goes into the catalog for every competition;
@@ -119,7 +125,8 @@ public class DisciplineService {
     public void deleteCatalogDiscipline(int id) throws Exception {
         dataService.updateDisciplines(disciplines -> {
             List<String> usedBy = disciplines.stream()
-                .filter(d -> isCombinedRanking(d) && d.getCombinedOf().contains(id))
+                .filter(d -> (isCombinedRanking(d) && d.getCombinedOf().contains(id))
+                    || (isAggregate(d) && d.getAggregateOf().contains(id)))
                 .map(Discipline::getEvent).toList();
             if (!usedBy.isEmpty()) {
                 throw new ConflictException("Discipline " + id + " is ranked in "
@@ -163,11 +170,12 @@ public class DisciplineService {
         return category + "|" + event;
     }
 
-    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|O|R)$");
+    // "_O", "_R", "_O/R" and the reproduction variants "_RS" (smooth bore) and "_RU" (rifled), e.g. Meixner
+    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|RS|RU|O|R)$");
     // "1_", "XX_" and the older "No 1 " / "No. 1 "
     private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:No\\.?\\s*)?(?:\\d+|XX)[_ ]\\s*");
 
-    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R". */
+    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R", "6_Kuchenreuter" for "6_Kuchenreuter_RS". */
     public static String baseEvent(String event) {
         return event == null ? null : TYPE_SUFFIX.matcher(event.trim()).replaceFirst("").trim();
     }
@@ -250,23 +258,64 @@ public class DisciplineService {
 
     /**
      * The disciplines an aggregate discipline adds up, in the order of its
-     * aggregate_of: per named event the individual discipline of the same
-     * category and type. An event without such a discipline is left out.
+     * aggregate_of. An id that is no longer a discipline is left out.
      */
     static List<Discipline> componentsOf(Discipline aggregate, List<Discipline> disciplines) {
         List<Discipline> components = new ArrayList<>();
-        for (String event : aggregate.getAggregateOf()) {
-            for (Discipline d : disciplines) {
-                if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && !isCombinedRanking(d)
-                        && sameEvent(event, d.getEvent())
-                        && Objects.equals(aggregate.getCategory(), d.getCategory())
-                        && Objects.equals(aggregate.getType(), d.getType())) {
-                    components.add(d);
-                    break;
-                }
-            }
+        for (int id : aggregate.getAggregateOf()) {
+            disciplines.stream().filter(d -> d.getId() == id).findFirst().ifPresent(components::add);
         }
         return components;
+    }
+
+    /**
+     * Aggregates used to name the events they add up (e.g. "aggregate_of":
+     * ["Colt", "Donald Malson"]) instead of listing discipline ids. Such a name
+     * becomes the id of the first individual discipline of that event with the
+     * aggregate's category and type, as it was matched then; a name without one
+     * is dropped. Works on the raw entries, before they are read as disciplines.
+     */
+    public static void resolveAggregateNames(List<ObjectNode> entries) {
+        for (ObjectNode aggregate : entries) {
+            JsonNode names = aggregate.get("aggregate_of");
+            if (names == null || !names.isArray()) {
+                continue;
+            }
+            boolean legacy = false;
+            for (JsonNode name : names) {
+                legacy |= name.isTextual();
+            }
+            if (!legacy) {
+                continue;
+            }
+            ArrayNode ids = aggregate.arrayNode();
+            Set<Integer> seen = new HashSet<>();
+            for (JsonNode name : names) {
+                Integer id = name.isNumber() ? Integer.valueOf(name.asInt()) : name.isTextual()
+                    ? namedComponentId(aggregate, name.asText(), entries) : null;
+                if (id != null && seen.add(id)) {
+                    ids.add(id);
+                }
+            }
+            aggregate.set("aggregate_of", ids);
+        }
+    }
+
+    private static Integer namedComponentId(ObjectNode aggregate, String event, List<ObjectNode> entries) {
+        for (ObjectNode d : entries) {
+            if (d != aggregate && !"team".equalsIgnoreCase(d.path("level").asText())
+                    && !isNonEmptyArray(d.get("aggregate_of")) && !isNonEmptyArray(d.get("combined_of"))
+                    && sameEvent(event, d.path("event").asText(null))
+                    && Objects.equals(aggregate.path("category").asText(null), d.path("category").asText(null))
+                    && Objects.equals(aggregate.path("type").asText(null), d.path("type").asText(null))) {
+                return d.path("id").asInt();
+            }
+        }
+        return null;
+    }
+
+    private static boolean isNonEmptyArray(JsonNode node) {
+        return node != null && node.isArray() && !node.isEmpty();
     }
 
     public List<Discipline> getComponents(Discipline aggregate) throws Exception {
@@ -385,8 +434,8 @@ public class DisciplineService {
     }
 
     /**
-     * An aggregate discipline (e.g. Remington) is individual, every event it adds
-     * up has an individual discipline of its category and type, and it takes no lane.
+     * An aggregate discipline (e.g. Remington) is individual, adds up individual
+     * disciplines of its category and type that take starts, and takes no lane.
      */
     private static void checkAggregateOf(Discipline aggregate, List<Discipline> disciplines) {
         if (aggregate.getAggregateOf() != null && aggregate.getAggregateOf().isEmpty()) {
@@ -399,11 +448,13 @@ public class DisciplineService {
             aggregate.setAggregateOf(null); // a team counts its members' starts, it adds up no events
             return;
         }
-        List<Discipline> others = disciplines.stream().filter(d -> d.getId() != aggregate.getId()).toList();
-        for (String event : aggregate.getAggregateOf()) {
-            if (componentsOf(aggregateNaming(aggregate, event), others).isEmpty()) {
-                throw new IllegalArgumentException(aggregate.getEvent() + ": there is no individual "
-                    + aggregate.getType() + " " + aggregate.getCategory() + " discipline " + event);
+        for (int id : aggregate.getAggregateOf()) {
+            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
+            if (d == null || d.getId() == aggregate.getId() || TeamService.isTeamDiscipline(d) || isAggregate(d)
+                    || isCombinedRanking(d) || !Objects.equals(d.getCategory(), aggregate.getCategory())
+                    || !Objects.equals(d.getType(), aggregate.getType())) {
+                throw new IllegalArgumentException(aggregate.getEvent() + " can only add up individual "
+                    + aggregate.getType() + " " + aggregate.getCategory() + " disciplines, not discipline " + id);
             }
         }
         aggregate.setShootingDistance(null);
@@ -442,15 +493,6 @@ public class DisciplineService {
         combined.setShootingDistance(null);
     }
 
-    /** A stand-in aggregate of the same category and type that adds up just the one event. */
-    private static Discipline aggregateNaming(Discipline aggregate, String event) {
-        Discipline single = new Discipline();
-        single.setCategory(aggregate.getCategory());
-        single.setType(aggregate.getType());
-        single.setAggregateOf(List.of(event));
-        return single;
-    }
-
     private static void applyCatalogFields(Discipline d, Map<String, Object> data) {
         if (data.containsKey("category")) d.setCategory((String) data.get("category"));
         if (data.containsKey("level")) d.setLevel((String) data.get("level"));
@@ -466,9 +508,8 @@ public class DisciplineService {
                 : null);
         }
         if (data.containsKey("aggregate_of")) {
-            d.setAggregateOf(data.get("aggregate_of") instanceof List<?> events
-                ? events.stream().filter(Objects::nonNull).map(e -> String.valueOf(e).trim())
-                    .filter(e -> !e.isEmpty()).distinct().toList()
+            d.setAggregateOf(data.get("aggregate_of") instanceof List<?> ids
+                ? ids.stream().filter(Objects::nonNull).map(id -> ((Number) id).intValue()).distinct().toList()
                 : null);
         }
         if (data.containsKey("combined_of")) {

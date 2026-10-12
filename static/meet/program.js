@@ -15,9 +15,13 @@ let showMessage = null;
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-// The event's original and reproduction discipline (one each); any other discipline of the
-// event, e.g. one added with type "combined", is listed under the event name with its own checkbox
-const typed = (event, type) => event.disciplines.find(d => d.type === type);
+// The event's original and reproduction discipline, when it has just one of that type; any other
+// discipline of the event, e.g. one added with type "combined" or the reproduction variants of
+// Meixner (RS, RU), is listed under the event name with its own checkbox
+const typed = (event, type) => {
+    const ofType = event.disciplines.filter(d => d.type === type);
+    return ofType.length === 1 ? ofType[0] : undefined;
+};
 const others = (event) => event.disciplines.filter(d => d !== typed(event, 'original') && d !== typed(event, 'reproduction'));
 
 function disciplineCheckbox(event, d, label = '') {

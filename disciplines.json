@@ -413,7 +413,7 @@
   "type" : "original",
   "event" : "38_Remington_O",
   "short_name" : "REMO",
-  "aggregate_of" : [ "Colt", "Donald Malson" ]
+  "aggregate_of" : [ 52, 53 ]
 }, {
   "id" : 75,
   "category" : "pistol",
@@ -421,7 +421,7 @@
   "type" : "reproduction",
   "event" : "38_Remington_R",
   "short_name" : "REMR",
-  "aggregate_of" : [ "Mariette", "Donald Malson" ]
+  "aggregate_of" : [ 57, 58 ]
 }, {
   "id" : 66,
   "category" : "pistol",

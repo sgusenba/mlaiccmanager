@@ -5,6 +5,7 @@ import com.competition.service.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,7 +94,10 @@ public class ApplicationBinder extends AbstractBinder {
                 if (previous.isObject() && previous.has("disciplines")) {
                     previous = previous.get("disciplines");
                 }
-                disciplines = mapper.convertValue(previous, new TypeReference<List<Discipline>>() {});
+                List<ObjectNode> entries = new ArrayList<>();
+                previous.forEach(entry -> entries.add((ObjectNode) entry));
+                DisciplineService.resolveAggregateNames(entries);
+                disciplines = mapper.convertValue(entries, new TypeReference<List<Discipline>>() {});
                 for (JsonNode entry : previous) {
                     activeKnown |= entry.has("active");
                 }
