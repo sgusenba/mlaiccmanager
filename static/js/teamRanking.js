@@ -7,14 +7,17 @@ export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c =
 /** "Miquelet (original)": the event alone is ambiguous, it exists once per type. */
 export const disciplineDisplayName = (event, type) => (type ? `${event} (${type})` : event);
 
-/** Whether a ranking ranks an event's original and reproduction discipline together. */
-export const isCombined = (discipline) => discipline?.type === 'combined';
+/** Whether a ranking ranks several disciplines together: an event's original and reproduction, or a combined ranking (KUC). */
+export const isCombined = (discipline) => discipline?.type === 'combined' || !!discipline?.combined_of?.length;
+
+/** Header of the column with the discipline shot: "O/R", or "Disc." in a combined ranking (KUCRS, KUCRU, ...). */
+export const typeHeader = (discipline) => (discipline?.combined_of?.length ? 'Disc.' : 'O/R');
 
 /** An aggregate ranking (Remington) adds up other disciplines' results: one column per component. */
 export const componentsOf = (discipline) => discipline?.components || [];
 
-/** In a combined ranking: "O" (original) or "R" (reproduction), the type the competitor shot. */
-export const typeTag = (row) => ({ original: 'O', reproduction: 'R' }[row.discipline_type] || '');
+/** In a combined ranking: the discipline the competitor shot (e.g. "KUCRS"), else "O" (original) or "R" (reproduction). */
+export const typeTag = (row) => row.discipline_tag || ({ original: 'O', reproduction: 'R' }[row.discipline_type] || '');
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 

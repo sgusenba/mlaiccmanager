@@ -274,7 +274,7 @@ public class DataService {
         List<ObjectNode> catalog = loadCatalog();
         JsonNode settings = loadCompetitionSettings();
         if (settings == null) {
-            return toDisciplines(catalog);
+            return withCatalogDefaults(toDisciplines(catalog));
         }
 
         Set<Integer> removed = new HashSet<>();
@@ -396,6 +396,16 @@ public class DataService {
         return competitionFile.exists() ? objectMapper.readTree(competitionFile) : null;
     }
 
+    /**
+     * The catalog as it applies without competition settings: everything active
+     * except the combined rankings, which a meet turns on (while one is on, its
+     * disciplines are ranked only through it).
+     */
+    private static List<Discipline> withCatalogDefaults(List<Discipline> catalog) {
+        catalog.forEach(d -> d.setActive(!DisciplineService.isCombinedRanking(d)));
+        return catalog;
+    }
+
     private static List<Discipline> toDisciplines(List<ObjectNode> nodes) {
         return objectMapper.convertValue(nodes,
             objectMapper.getTypeFactory().constructCollectionType(List.class, Discipline.class));
@@ -435,8 +445,8 @@ public class DataService {
     public Set<Integer> resetDisciplines() throws IOException {
         disciplinesLock.lock();
         try {
-            List<Discipline> catalog = toDisciplines(loadCatalog());
-            saveDisciplinesInternal(catalog, new LinkedHashSet<>());
+            List<Discipline> catalog = withCatalogDefaults(toDisciplines(loadCatalog()));
+            saveDisciplinesInternal(catalog, new LinkedHashSet<>(), new ProgramOptions());
             Set<Integer> ids = new HashSet<>();
             catalog.forEach(d -> ids.add(d.getId()));
             return ids;
@@ -481,16 +491,41 @@ public class DataService {
      * combined events together, so a meet's program changes in one step.
      */
     public <T> T updateProgram(ProgramFunction<T> fn) throws Exception {
+        return updateProgram((disciplines, combinedEvents, options) -> fn.apply(disciplines, combinedEvents));
+    }
+
+    /** {@link #updateProgram(ProgramFunction)}, also with the program's options. */
+    public <T> T updateProgram(ProgramOptionsFunction<T> fn) throws Exception {
         disciplinesLock.lock();
         try {
             List<Discipline> disciplines = loadDisciplinesInternal();
             Set<String> combinedEvents = loadCombinedEventsInternal();
-            T result = fn.apply(disciplines, combinedEvents);
-            saveDisciplinesInternal(disciplines, combinedEvents);
+            ProgramOptions options = loadProgramOptionsInternal();
+            T result = fn.apply(disciplines, combinedEvents, options);
+            saveDisciplinesInternal(disciplines, combinedEvents, options);
             return result;
         } finally {
             disciplinesLock.unlock();
         }
+    }
+
+    /** The meet program's options (competition.json). */
+    public ProgramOptions loadProgramOptions() throws IOException {
+        disciplinesLock.lock();
+        try {
+            return loadProgramOptionsInternal();
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    private ProgramOptions loadProgramOptionsInternal() throws IOException {
+        ProgramOptions options = new ProgramOptions();
+        JsonNode settings = loadCompetitionSettings();
+        if (settings != null) {
+            options.oneStartPerCombinedRanking = settings.path("one_start_per_combined_ranking").asBoolean(false);
+        }
+        return options;
     }
 
     private Set<String> loadCombinedEventsInternal() throws IOException {
@@ -507,6 +542,11 @@ public class DataService {
     }
 
     private void saveDisciplinesInternal(List<Discipline> disciplines, Set<String> combinedEvents) throws IOException {
+        saveDisciplinesInternal(disciplines, combinedEvents, loadProgramOptionsInternal());
+    }
+
+    private void saveDisciplinesInternal(List<Discipline> disciplines, Set<String> combinedEvents,
+            ProgramOptions options) throws IOException {
         Map<Integer, ObjectNode> catalogById = new LinkedHashMap<>();
         for (ObjectNode entry : loadCatalog()) {
             catalogById.put(entry.path("id").asInt(), entry);
@@ -558,6 +598,9 @@ public class DataService {
         settings.put("custom_disciplines", custom);
         settings.put("removed_disciplines", removed);
         settings.put("combined_events", combinedEvents);
+        if (options.oneStartPerCombinedRanking) {
+            settings.put("one_start_per_combined_ranking", true);
+        }
 
         File tempFile = new File(competitionFilePath + ".tmp");
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, settings);
@@ -574,6 +617,20 @@ public class DataService {
     @FunctionalInterface
     public interface ProgramFunction<T> {
         T apply(List<Discipline> disciplines, Set<String> combinedEvents) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface ProgramOptionsFunction<T> {
+        T apply(List<Discipline> disciplines, Set<String> combinedEvents, ProgramOptions options) throws Exception;
+    }
+
+    /** Options of the meet program, stored in competition.json. */
+    public static class ProgramOptions {
+        /**
+         * While a combined ranking (e.g. KUC) is ranked, a competitor may start in only one of its
+         * disciplines. Off: a competitor may start in several and is ranked on their best result.
+         */
+        public boolean oneStartPerCombinedRanking;
     }
 
     @FunctionalInterface

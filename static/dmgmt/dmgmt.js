@@ -52,8 +52,9 @@ async function loadData() {
     state.ranges = relayData.ranges;
 }
 
-// Individual disciplines a team can count: not team, not aggregate (Remington adds up others)
-const countable = (d) => d.level !== 'team' && !d.aggregate_of?.length;
+// Individual disciplines a team can count: not team, not aggregate (Remington adds up others),
+// not a combined ranking (KUCR ranks others together)
+const countable = (d) => d.level !== 'team' && !d.aggregate_of?.length && !d.combined_of?.length;
 
 /** A team's composition as short names (or names), e.g. "TANO + TANR". */
 function compositionText(team) {
@@ -106,7 +107,30 @@ function renderAggregateOfOptions(checkedEvents) {
 
 const checkedAggregateOf = () => [...document.querySelectorAll('.aggregate-of-option:checked')].map(input => input.value);
 
-function levelBadge(level, isAggregate) {
+/** The checkboxes of the disciplines a combined ranking of the form's category can rank together (any type). */
+function renderCombinedOfOptions(checkedIds) {
+    const category = document.getElementById('form-category').value;
+    const id = Number(document.getElementById('form-id').value);
+    const checked = new Set(checkedIds || []);
+    document.getElementById('form-combined-of').innerHTML = [...state.disciplines].sort((a, b) => a.id - b.id)
+        .filter(d => countable(d) && d.id !== id && d.category === category)
+        .map(d => `
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" class="combined-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
+                <span>${escapeHtml(d.short_name || d.event)} <span class="text-gray-400">${escapeHtml(d.event)} (${escapeHtml(d.type)})</span></span>
+            </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
+}
+
+const checkedCombinedOf = () => [...document.querySelectorAll('.combined-of-option:checked')].map(input => Number(input.value));
+
+/** A combined ranking's disciplines as short names (or names), e.g. "KUCRS + KUCRU". */
+const combinedOfText = (d) => d.combined_of
+    .map(id => state.disciplines.find(x => x.id === id))
+    .map(x => escapeHtml(x ? x.short_name || x.event : '?'))
+    .join(' + ');
+
+function levelBadge(level, isAggregate, isCombined) {
+    if (isCombined) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">Combined</span>';
     if (isAggregate) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Aggregate</span>';
     if (level === 'team') return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Team</span>';
     return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Individual</span>';
@@ -129,9 +153,11 @@ function renderTable() {
     tbody.innerHTML = sorted.map(d => {
         const isTeam = d.level === 'team';
         const isAggregate = !!d.aggregate_of?.length;
+        const isCombined = !!d.combined_of?.length;
         const teamInfo = isTeam
             ? `${compositionText(d)}${d.team_size ? ` (${d.team_size})` : ''}`
-            : isAggregate ? `Sum of ${escapeHtml(d.aggregate_of.join(' + '))}` : '';
+            : isAggregate ? `Sum of ${escapeHtml(d.aggregate_of.join(' + '))}`
+            : isCombined ? `Ranks ${combinedOfText(d)} together` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
         ).join('');
@@ -142,11 +168,11 @@ function renderTable() {
             <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.event)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(d.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${categoryBadge(d.category)}</td>
-            <td class="px-4 py-2 text-sm">${levelBadge(d.level, isAggregate)}</td>
+            <td class="px-4 py-2 text-sm">${levelBadge(d.level, isAggregate, isCombined)}</td>
             <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
             <td class="px-4 py-2 text-sm">
-                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines take no lane: their results come from other disciplines"' : ''}>
+                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate || isCombined ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines take no lane: their results come from other disciplines"' : isCombined ? 'disabled title="Combined rankings take no lane: competitors start in their disciplines"' : ''}>
                     <option value="">any distance</option>
                     ${distanceOptions}
                 </select>
@@ -159,17 +185,21 @@ function renderTable() {
     }).join('');
 }
 
-/** Team and aggregate fields for the chosen level; neither takes a lane. */
+/** Team, aggregate and combined ranking fields for the chosen level; none of them takes a lane. */
 function toggleLevelFields() {
     const level = document.getElementById('form-level').value;
     const isTeam = level === 'team';
     const isAggregate = level === 'aggregate';
+    const isCombined = level === 'combined';
     document.getElementById('team-of-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-size-group').classList.toggle('hidden', !isTeam);
     document.getElementById('aggregate-of-group').classList.toggle('hidden', !isAggregate);
+    document.getElementById('combined-of-group').classList.toggle('hidden', !isCombined);
+    // A combined ranking of originals and reproductions has the type "combined"
+    document.querySelector('#form-type option[value="combined"]').hidden = !isCombined;
     const sdSelect = document.getElementById('form-shooting-distance');
-    sdSelect.disabled = isTeam || isAggregate;
-    if (isTeam || isAggregate) sdSelect.value = '';
+    sdSelect.disabled = isTeam || isAggregate || isCombined;
+    if (isTeam || isAggregate || isCombined) sdSelect.value = '';
 }
 
 function populateDistanceOptions() {
@@ -194,8 +224,8 @@ function showForm(discipline) {
         // Disciplines added by this competition (ids from 1000) keep their short name to themselves
         document.getElementById('short-name-hint').classList.toggle('hidden', discipline.id >= 1000);
         document.getElementById('form-category').value = discipline.category || 'rifle';
-        document.getElementById('form-level').value = discipline.aggregate_of?.length
-            ? 'aggregate' : discipline.level || 'individual';
+        document.getElementById('form-level').value = discipline.aggregate_of?.length ? 'aggregate'
+            : discipline.combined_of?.length ? 'combined' : discipline.level || 'individual';
         // A type from older data (e.g. "combined") is kept as an option, so the form can still be saved
         const typeSelect = document.getElementById('form-type');
         typeSelect.querySelectorAll('option[data-legacy]').forEach(option => option.remove());
@@ -208,6 +238,7 @@ function showForm(discipline) {
         document.getElementById('form-shooting-distance').value = discipline.shooting_distance || '';
         renderTeamOfOptions(discipline.team_of);
         renderAggregateOfOptions(discipline.aggregate_of);
+        renderCombinedOfOptions(discipline.combined_of);
     } else {
         title.textContent = 'Add Discipline';
         document.getElementById('form-id').value = '';
@@ -215,6 +246,7 @@ function showForm(discipline) {
         document.getElementById('short-name-hint').classList.add('hidden');
         renderTeamOfOptions([]);
         renderAggregateOfOptions([]);
+        renderCombinedOfOptions([]);
     }
     toggleLevelFields();
     document.getElementById('form-event').focus();
@@ -229,14 +261,17 @@ function hideForm() {
 function formData() {
     const level = document.getElementById('form-level').value;
     const isAggregate = level === 'aggregate';
+    const isCombined = level === 'combined';
     const data = {
         event: document.getElementById('form-event').value.trim(),
         short_name: document.getElementById('form-short-name').value.trim() || null,
         category: document.getElementById('form-category').value,
-        // An aggregate is an individual discipline that adds up other events
-        level: isAggregate ? 'individual' : level,
+        // An aggregate adds up other events, a combined ranking ranks other disciplines together:
+        // both are individual disciplines
+        level: isAggregate || isCombined ? 'individual' : level,
         type: document.getElementById('form-type').value,
-        aggregate_of: isAggregate ? checkedAggregateOf() : null
+        aggregate_of: isAggregate ? checkedAggregateOf() : null,
+        combined_of: isCombined ? checkedCombinedOf() : null
     };
     if (level === 'team') {
         data.team_size = parseInt(document.getElementById('form-team-size').value, 10) || 3;
@@ -253,11 +288,19 @@ function formData() {
 function setupListeners() {
     document.getElementById('add-btn').addEventListener('click', () => showForm(null));
     document.getElementById('cancel-btn').addEventListener('click', hideForm);
-    document.getElementById('form-level').addEventListener('change', toggleLevelFields);
+    document.getElementById('form-level').addEventListener('change', () => {
+        // Only a combined ranking can have the type "combined"
+        const typeSelect = document.getElementById('form-type');
+        if (document.getElementById('form-level').value !== 'combined' && typeSelect.value === 'combined') {
+            typeSelect.value = 'original';
+        }
+        toggleLevelFields();
+    });
     // The disciplines a team can count depend on its category, the events an aggregate adds up also on its type
     document.getElementById('form-category').addEventListener('change', () => {
         renderTeamOfOptions([...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value)));
         renderAggregateOfOptions(checkedAggregateOf());
+        renderCombinedOfOptions(checkedCombinedOf());
     });
     document.getElementById('form-type').addEventListener('change', () => renderAggregateOfOptions(checkedAggregateOf()));
 
@@ -265,6 +308,10 @@ function setupListeners() {
         event.preventDefault();
         const id = document.getElementById('form-id').value;
         const data = formData();
+        if (data.combined_of && data.combined_of.length < 2) {
+            showMessage('Tick at least two disciplines to rank together');
+            return;
+        }
         if (data.aggregate_of && !data.aggregate_of.length) {
             showMessage('Tick at least one event that is added up');
             return;

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.model.Discipline;
 import com.competition.model.Start;
 
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ public class StartService {
         if (disciplineId == 0) {
             throw new IllegalArgumentException("discipline_id is required");
         }
+        checkTakesStarts(disciplineId);
         String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 
         return dataService.update(data -> {
@@ -95,6 +97,35 @@ public class StartService {
             throw new ConflictException(competitorData.get("name") + " already starts in " + pair.event()
                 + " (" + pair.typeOf(pair.partnerOf(disciplineId)) + "), which is ranked combined with "
                 + pair.typeOf(disciplineId), null);
+        }
+        // A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) takes a competitor's best result of its
+        // disciplines, so starting in several of them is fine - unless the meet allows one start each
+        if (!dataService.loadProgramOptions().oneStartPerCombinedRanking) {
+            return;
+        }
+        for (Discipline combined : disciplineService.getActiveCombinedRankingsByMember()
+                .getOrDefault(disciplineId, List.of())) {
+            for (int other : combined.getCombinedOf()) {
+                if (other != disciplineId && DisciplineService.startsIn(competitorData, other)) {
+                    Discipline otherDiscipline = disciplineService.getAvailableDisciplineById(other);
+                    throw new ConflictException(competitorData.get("name") + " already starts in "
+                        + (otherDiscipline != null ? otherDiscipline.getEvent() : String.valueOf(other))
+                        + ", which is ranked together with it in " + combined.getEvent()
+                        + " (one start per competitor)", null);
+                }
+            }
+        }
+    }
+
+    /** Competitors start in a combined ranking's disciplines, not in the combined ranking itself. */
+    private void checkTakesStarts(int disciplineId) throws Exception {
+        if (disciplineService == null) {
+            return;
+        }
+        Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
+        if (DisciplineService.isCombinedRanking(discipline)) {
+            throw new IllegalArgumentException(discipline.getEvent()
+                + " is a combined ranking: competitors start in its disciplines");
         }
     }
 

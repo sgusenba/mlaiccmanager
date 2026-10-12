@@ -13,8 +13,9 @@ import java.util.Set;
 /**
  * The meet's program, set on the Meet page: which disciplines of each event
  * are shot (original and/or reproduction), whether an event's original and
- * reproduction are ranked combined, and which team rankings there are. Stored
- * as the active disciplines and combined events in competition.json.
+ * reproduction are ranked combined, which combined rankings (e.g. KUC = KUCO +
+ * KUCRS + KUCRU) and which team rankings there are. Stored as the active
+ * disciplines and combined events in competition.json.
  */
 public class ProgramService {
     private final DataService dataService;
@@ -38,7 +39,7 @@ public class ProgramService {
         return dataService.read(data -> {
             List<Discipline> disciplines = dataService.loadDisciplines();
             Set<String> combined = dataService.loadCombinedEvents();
-            return program(disciplines, combined, startCounts(data), teamCounts);
+            return program(disciplines, combined, dataService.loadProgramOptions(), startCounts(data), teamCounts);
         });
     }
 
@@ -46,7 +47,11 @@ public class ProgramService {
      * Sets the program: request "events" maps event keys to
      * {"active": [discipline ids shot], "combined": true/false} (events left out
      * stay as they are; combined needs both original and reproduction shot),
-     * "teams" lists the team disciplines to rank. "base" is the program the
+     * "teams" lists the team disciplines to rank, "combined_rankings" the combined
+     * rankings (each needs all its disciplines shot; while it is ranked, its
+     * disciplines are ranked only through it, each competitor once on their best
+     * result), "one_start_per_combined_ranking" whether a competitor may then start
+     * in only one of its disciplines (left out: unchanged). "base" is the program the
      * client started from; if it was changed meanwhile, a ConflictException
      * carries the current one.
      */
@@ -56,17 +61,23 @@ public class ProgramService {
             ? (Map<String, Object>) m : Map.of();
         Set<Integer> teams = request != null && request.get("teams") instanceof List<?> list
             ? toIds(list) : null;
+        Set<Integer> combinedRankings = request != null && request.get("combined_rankings") instanceof List<?> list
+            ? toIds(list) : null;
+        Boolean oneStart = request != null && request.get("one_start_per_combined_ranking") instanceof Boolean flag
+            ? flag : null;
         Map<?, ?> base = request != null && request.get("base") instanceof Map<?, ?> b ? b : null;
         Map<Integer, Integer> teamCounts = teamService.teamCounts();
 
         // Lock order: data.json, then disciplines
-        return dataService.read(data -> dataService.updateProgram((disciplines, combined) -> {
+        return dataService.read(data -> dataService.updateProgram((disciplines, combined, options) -> {
             if (base != null) {
                 Set<Integer> baseActive = base.get("active_ids") instanceof List<?> ids ? toIds(ids) : Set.of();
                 Set<String> baseCombined = base.get("combined_keys") instanceof List<?> keys ? toKeys(keys) : Set.of();
-                if (!baseActive.equals(activeIds(disciplines)) || !baseCombined.equals(combined)) {
+                boolean baseOneStart = Boolean.TRUE.equals(base.get("one_start_per_combined_ranking"));
+                if (!baseActive.equals(activeIds(disciplines)) || !baseCombined.equals(combined)
+                        || baseOneStart != options.oneStartPerCombinedRanking) {
                     throw new ConflictException("The program was changed by someone else meanwhile",
-                        program(disciplines, combined, startCounts(data), teamCounts));
+                        program(disciplines, combined, options, startCounts(data), teamCounts));
                 }
             }
 
@@ -116,12 +127,68 @@ public class ProgramService {
                     }
                 }
             }
-            return program(disciplines, combined, startCounts(data), teamCounts);
+            Set<Integer> newlyRanked = setCombinedRankings(disciplines, combinedRankings);
+            boolean ruleTurnedOn = Boolean.TRUE.equals(oneStart) && !options.oneStartPerCombinedRanking;
+            if (oneStart != null) {
+                options.oneStartPerCombinedRanking = oneStart;
+            }
+            if (options.oneStartPerCombinedRanking) {
+                checkOneStartEach(data, disciplines, ruleTurnedOn ? null : newlyRanked);
+            }
+            return program(disciplines, combined, options, startCounts(data), teamCounts);
         }));
     }
 
+    /**
+     * Ranks the requested combined rankings (null: keeps which are ranked). One
+     * whose disciplines are no longer all shot stops being ranked. A competitor
+     * who starts in several of its disciplines is ranked once, on their best
+     * result, unless the meet allows only one start each (see checkOneStartEach).
+     *
+     * @return the ids of the combined rankings that were not ranked before
+     */
+    private static Set<Integer> setCombinedRankings(List<Discipline> disciplines, Set<Integer> requested) {
+        Set<Integer> newlyRanked = new HashSet<>();
+        Set<Integer> shot = activeIds(disciplines);
+        for (Discipline d : disciplines) {
+            if (!DisciplineService.isCombinedRanking(d)) {
+                continue;
+            }
+            boolean wanted = requested != null ? requested.contains(d.getId()) : d.isActive();
+            boolean allShot = shot.containsAll(d.getCombinedOf());
+            if (wanted && !allShot && requested != null) {
+                throw new IllegalArgumentException(d.getEvent()
+                    + " can only be ranked when all its disciplines are shot");
+            }
+            if (wanted && allShot && !d.isActive()) {
+                newlyRanked.add(d.getId());
+            }
+            d.setActive(wanted && allShot);
+        }
+        return newlyRanked;
+    }
+
+    /**
+     * With "one start per combined ranking" on, a ranked combined ranking may not
+     * have a competitor starting in more than one of its disciplines. Checks the
+     * given combined rankings (null: all ranked ones).
+     */
+    private static void checkOneStartEach(Map<String, Object> data, List<Discipline> disciplines, Set<Integer> ids) {
+        for (Discipline d : disciplines) {
+            if (!DisciplineService.isCombinedRanking(d) || !d.isActive() || (ids != null && !ids.contains(d.getId()))) {
+                continue;
+            }
+            List<String> inMoreThanOne = DisciplineService.competitorsStartingInMoreThanOne(data, d.getCombinedOf());
+            if (!inMoreThanOne.isEmpty()) {
+                throw new ConflictException("Cannot rank " + d.getEvent()
+                    + " with one start per competitor: these competitors start in more than one of its disciplines: "
+                    + String.join(", ", inMoreThanOne), inMoreThanOne);
+            }
+        }
+    }
+
     private Map<String, Object> program(List<Discipline> disciplines, Set<String> combined,
-            Map<Integer, Integer> starts, Map<Integer, Integer> teamCounts) {
+            DataService.ProgramOptions options, Map<Integer, Integer> starts, Map<Integer, Integer> teamCounts) {
         Set<String> combinable = new HashSet<>();
         DisciplineService.eventPairsOf(disciplines).forEach(p -> combinable.add(p.key()));
 
@@ -164,13 +231,44 @@ public class ProgramService {
             teams.add(team);
         }
 
+        Map<Integer, Discipline> byId = new HashMap<>();
+        disciplines.forEach(d -> byId.put(d.getId(), d));
+        List<Map<String, Object>> combinedRankings = new ArrayList<>();
+        for (Discipline d : disciplines) {
+            if (!DisciplineService.isCombinedRanking(d)) {
+                continue;
+            }
+            Map<String, Object> ranking = new LinkedHashMap<>();
+            ranking.put("id", d.getId());
+            ranking.put("category", d.getCategory());
+            ranking.put("name", d.getEvent());
+            ranking.put("short_name", d.getShortName());
+            ranking.put("type", d.getType());
+            ranking.put("active", d.isActive());
+            List<Map<String, Object>> members = new ArrayList<>();
+            for (int id : d.getCombinedOf()) {
+                Discipline member = byId.get(id);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", id);
+                entry.put("name", member != null ? member.getEvent() : String.valueOf(id));
+                entry.put("short_name", member != null ? member.getShortName() : null);
+                entry.put("active", member != null && member.isActive());
+                members.add(entry);
+            }
+            ranking.put("disciplines", members);
+            combinedRankings.add(ranking);
+        }
+
         Map<String, Object> base = new LinkedHashMap<>();
         base.put("active_ids", new ArrayList<>(activeIds(disciplines)));
         base.put("combined_keys", new ArrayList<>(combined));
+        base.put("one_start_per_combined_ranking", options.oneStartPerCombinedRanking);
 
         Map<String, Object> program = new LinkedHashMap<>();
         program.put("events", events);
         program.put("teams", teams);
+        program.put("combined_rankings", combinedRankings);
+        program.put("one_start_per_combined_ranking", options.oneStartPerCombinedRanking);
         program.put("base", base);
         return program;
     }
@@ -190,7 +288,7 @@ public class ProgramService {
     static Map<String, List<Discipline>> eventsOf(List<Discipline> disciplines) {
         Map<String, List<Discipline>> byEvent = new LinkedHashMap<>();
         for (Discipline d : disciplines) {
-            if (!TeamService.isTeamDiscipline(d) && d.getEvent() != null) {
+            if (!TeamService.isTeamDiscipline(d) && !DisciplineService.isCombinedRanking(d) && d.getEvent() != null) {
                 byEvent.computeIfAbsent(DisciplineService.eventKey(d.getCategory(), DisciplineService.matchKey(d.getEvent())),
                     k -> new ArrayList<>()).add(d);
             }

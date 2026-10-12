@@ -91,6 +91,33 @@ function render() {
                     ? ` · ${plural(team.teams, 'team')}` : ''}</span>
             </span>
         </label>`).join('') || '<p class="text-sm text-gray-500">No team disciplines.</p>';
+
+    document.getElementById('program-one-start').checked = !!program.one_start_per_combined_ranking;
+    document.getElementById('program-combined-rankings').innerHTML = (program.combined_rankings || []).map(ranking => {
+        const allShot = ranking.disciplines.every(d => d.active);
+        return `
+        <label class="flex items-start gap-2 px-3 py-2 border border-gray-200 rounded-md text-sm cursor-pointer hover:bg-gray-50">
+            <input type="checkbox" class="program-combined-ranking h-4 w-4 mt-0.5" value="${ranking.id}"
+                data-members="${ranking.disciplines.map(d => d.id).join(',')}"
+                ${ranking.active && allShot ? 'checked' : ''} ${allShot ? '' : 'disabled'}
+                title="Needs all its disciplines to be shot">
+            <span class="min-w-0">
+                <span class="font-medium">${escapeHtml(ranking.short_name || ranking.name)}</span>
+                <span class="text-xs text-gray-400">${escapeHtml(ranking.name)} · ${escapeHtml(CATEGORY_LABELS[ranking.category] || ranking.category)}</span>
+                <span class="block text-xs text-gray-500">${ranking.disciplines.map(d => escapeHtml(d.short_name || d.name)).join(' + ')}</span>
+            </span>
+        </label>`;
+    }).join('') || '<p class="text-sm text-gray-500">No combined rankings. They are set up on the Disciplines page.</p>';
+}
+
+/** A combined ranking is only possible while all its disciplines are ticked as shot. */
+function updateCombinedRankings() {
+    const shot = new Set([...document.querySelectorAll('.program-discipline:checked')].map(input => input.value));
+    document.querySelectorAll('.program-combined-ranking').forEach(input => {
+        const allShot = input.dataset.members.split(',').every(id => shot.has(id));
+        input.disabled = !allShot;
+        if (!allShot) input.checked = false;
+    });
 }
 
 /** Combined is only possible while both original and reproduction of the event are ticked. */
@@ -103,7 +130,7 @@ function updateCombined(key) {
     if (!bothShot) combined.checked = false;
 }
 
-/** What the page would save: per event the ticked disciplines and whether combined, and the ticked teams. */
+/** What the page would save: per event the ticked disciplines and whether combined, the ticked teams and combined rankings. */
 function chosen() {
     const events = {};
     for (const event of program.events) {
@@ -116,7 +143,11 @@ function chosen() {
         events[input.dataset.key].combined = true;
     });
     const teams = [...document.querySelectorAll('.program-team:checked')].map(input => Number(input.value));
-    return { events, teams };
+    const combinedRankings = [...document.querySelectorAll('.program-combined-ranking:checked')].map(input => Number(input.value));
+    return {
+        events, teams, combined_rankings: combinedRankings,
+        one_start_per_combined_ranking: document.getElementById('program-one-start').checked
+    };
 }
 
 /** Disciplines and teams the change stops while they have starts or teams, for the confirmation. */
@@ -156,7 +187,8 @@ async function save() {
         render();
         showMessage('Program saved.', 'success');
     } catch (error) {
-        if (error.status === 409 && !error.message.startsWith('Cannot combine')) {
+        // "Cannot combine/rank ...": competitors start in more than one of the disciplines; nothing to reload
+        if (error.status === 409 && !/^Cannot (combine|rank)/.test(error.message)) {
             await load();
             showMessage(`${error.message}. The latest program is shown now; please make your change again.`);
         } else {
@@ -171,7 +203,10 @@ export async function initProgram(options) {
     ({ api, showMessage } = options);
     document.getElementById('program-save-btn').addEventListener('click', save);
     document.getElementById('program-events').addEventListener('change', event => {
-        if (event.target.matches('.program-discipline')) updateCombined(event.target.dataset.key);
+        if (event.target.matches('.program-discipline')) {
+            updateCombined(event.target.dataset.key);
+            updateCombinedRankings();
+        }
     });
     await load();
 }

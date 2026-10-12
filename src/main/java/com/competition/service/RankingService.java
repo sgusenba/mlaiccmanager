@@ -36,6 +36,9 @@ public class RankingService {
         if (DisciplineService.isAggregate(discipline)) {
             return aggregateEntry(discipline);
         }
+        if (DisciplineService.isCombinedRanking(discipline)) {
+            return detailedEntry(combinedRankingScope(discipline));
+        }
         return detailedEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
     }
 
@@ -46,7 +49,7 @@ public class RankingService {
         response.put("kind", "individual");
         response.put("discipline", scope.info);
         response.put("rankings", disciplineResults.isEmpty()
-            ? new ArrayList<>() : buildRankings(disciplineResults, scope.typeById));
+            ? new ArrayList<>() : buildRankings(disciplineResults, scope.typeById, scope.tagById));
         return response;
     }
 
@@ -57,6 +60,7 @@ public class RankingService {
     public Map<Integer, Object> getAllRankings() throws Exception {
         List<Integer> activeDisciplines = disciplineService.getActiveDisciplines();
         Map<Integer, DisciplineService.EventPair> combinedPairs = disciplineService.getCombinedPairsByDiscipline();
+        Map<Integer, List<Discipline>> rankedThrough = disciplineService.getActiveCombinedRankingsByMember();
         Map<Integer, Object> allRankings = new LinkedHashMap<>();
         Set<Integer> done = new HashSet<>();
 
@@ -79,7 +83,11 @@ public class RankingService {
                 continue;
             }
 
-            Scope scope = scopeOf(discipline, combinedPairs);
+            if (rankedThrough.containsKey(disciplineId)) {
+                continue; // ranked only through its combined ranking(s)
+            }
+            Scope scope = DisciplineService.isCombinedRanking(discipline)
+                ? combinedRankingScope(discipline) : scopeOf(discipline, combinedPairs);
             if (!done.add(scope.id)) {
                 continue; // the other half of a combined pair, already ranked
             }
@@ -94,10 +102,12 @@ public class RankingService {
     }
 
     /**
-     * Ranking that counts just one result per competitor and discipline: the
-     * competitor's best result, ranked by its score, then its 10s, 9s, ... 1s,
-     * then its tie-break (lower wins). Ring counts and tie-break come from that
-     * result only. A team discipline gets the team ranking, which already has
+     * Ranking that lists each competitor once, on their best result: ranked by
+     * its score, then by their next result's score and so on (another start,
+     * or another discipline of a combined ranking; another result beats none),
+     * then the best result's 10s, 9s, ... 1s, then its tie-break (lower wins).
+     * The other results are listed below the best one ("components"). A team
+     * discipline gets the team ranking, which already has
      * one total per team. Returns null if the discipline does not exist.
      */
     public Map<String, Object> getBestResultRanking(int disciplineId) throws Exception {
@@ -111,12 +121,16 @@ public class RankingService {
         if (DisciplineService.isAggregate(discipline)) {
             return aggregateEntry(discipline);
         }
+        if (DisciplineService.isCombinedRanking(discipline)) {
+            return bestResultEntry(combinedRankingScope(discipline));
+        }
         return bestResultEntry(scopeOf(discipline, disciplineService.getCombinedPairsByDiscipline()));
     }
 
     /** {@link #getBestResultRanking} for every active discipline that has results or starts (team disciplines: teams). */
     public Map<Integer, Object> getAllBestResultRankings() throws Exception {
         Map<Integer, DisciplineService.EventPair> combinedPairs = disciplineService.getCombinedPairsByDiscipline();
+        Map<Integer, List<Discipline>> rankedThrough = disciplineService.getActiveCombinedRankingsByMember();
         Map<Integer, Object> allRankings = new LinkedHashMap<>();
         Set<Integer> done = new HashSet<>();
         for (int disciplineId : disciplineService.getActiveDisciplines()) {
@@ -137,7 +151,11 @@ public class RankingService {
                 }
                 continue;
             }
-            Scope scope = scopeOf(discipline, combinedPairs);
+            if (rankedThrough.containsKey(disciplineId)) {
+                continue; // ranked only through its combined ranking(s)
+            }
+            Scope scope = DisciplineService.isCombinedRanking(discipline)
+                ? combinedRankingScope(discipline) : scopeOf(discipline, combinedPairs);
             if (!done.add(scope.id)) {
                 continue; // the other half of a combined pair, already ranked
             }
@@ -155,27 +173,31 @@ public class RankingService {
         List<Map<String, Object>> competitorsData = dataService.read(
             data -> (List<Map<String, Object>>) data.get("competitors"));
 
-        // Keep each competitor's best result, preserving encounter order
-        Map<Integer, BestResult> bestByCompetitor = new LinkedHashMap<>();
+        // Each competitor's results, best first; the competitors in encounter order
+        Map<Integer, List<BestResult>> resultsByCompetitor = new LinkedHashMap<>();
         for (Map<String, Object> result : disciplineResults) {
             int competitorId = ((Number) result.get("competitor_id")).intValue();
-            BestResult candidate = new BestResult(result);
-            BestResult best = bestByCompetitor.get(competitorId);
-            if (best == null || compareKeys(candidate.key, best.key) > 0) {
-                bestByCompetitor.put(competitorId, candidate);
+            resultsByCompetitor.computeIfAbsent(competitorId, k -> new ArrayList<>()).add(new BestResult(result));
+        }
+        resultsByCompetitor.values().forEach(results -> results.sort((a, b) -> compareKeys(b.key, a.key)));
+        Map<Integer, Discipline> disciplinesById = new HashMap<>();
+        for (int id : scope.ids) {
+            Discipline d = disciplineService.getAvailableDisciplineById(id);
+            if (d != null) {
+                disciplinesById.put(id, d);
             }
         }
 
         List<Map<String, Object>> rows = new ArrayList<>();
-        List<double[]> keys = new ArrayList<>();
-        bestByCompetitor.entrySet().stream()
-            .sorted((a, b) -> compareKeys(b.getValue().key, a.getValue().key))
+        List<List<BestResult>> standings = new ArrayList<>();
+        resultsByCompetitor.entrySet().stream()
+            .sorted((a, b) -> compareStandings(b.getValue(), a.getValue()))
             .forEach(entry -> {
                 Map<String, Object> competitorData = findCompetitor(competitorsData, entry.getKey());
                 if (competitorData == null) {
                     return;
                 }
-                BestResult best = entry.getValue();
+                BestResult best = entry.getValue().get(0);
                 Map<String, Object> competitor = new LinkedHashMap<>();
                 competitor.put("id", entry.getKey());
                 competitor.put("name", competitorData.get("name"));
@@ -194,18 +216,39 @@ public class RankingService {
                 if (scope.typeById != null) {
                     row.put("discipline_type", scope.typeById.get(disciplineIdOf(best.result)));
                 }
+                if (scope.tagById != null) {
+                    row.put("discipline_tag", scope.tagById.get(disciplineIdOf(best.result)));
+                }
+                // The competitor's other results (another start, or another discipline of a combined
+                // ranking), shown below the best one
+                List<Map<String, Object>> others = new ArrayList<>();
+                for (BestResult other : entry.getValue().subList(1, entry.getValue().size())) {
+                    Discipline d = disciplinesById.get(disciplineIdOf(other.result));
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("discipline_id", disciplineIdOf(other.result));
+                    c.put("label", scope.ids.size() > 1 && d != null ? componentLabel(d) : "Further result");
+                    c.put("short_name", scope.ids.size() > 1 && d != null ? d.getShortName() : null);
+                    c.put("start_id", other.result.get("start_id"));
+                    c.put("score", other.score);
+                    c.put("freq_counts", other.freqCounts);
+                    c.put("override_value", other.overrideValue);
+                    others.add(c);
+                }
+                if (!others.isEmpty()) {
+                    row.put("components", others);
+                }
                 rows.add(row);
-                keys.add(best.key);
+                standings.add(entry.getValue());
             });
 
-        // Competitors with an identical key share the same rank
+        // Competitors who are equal on every count share the same rank
         for (int i = 0; i < rows.size(); i++) {
-            boolean tiedWithPrevious = i > 0 && compareKeys(keys.get(i), keys.get(i - 1)) == 0;
+            boolean tiedWithPrevious = i > 0 && compareStandings(standings.get(i), standings.get(i - 1)) == 0;
             rows.get(i).put("rank", tiedWithPrevious ? rows.get(i - 1).get("rank") : i + 1);
         }
 
         // Everyone else who started in this discipline follows without a rank
-        rows.addAll(startersWithoutResult(competitorsData, scope, bestByCompetitor.keySet()));
+        rows.addAll(startersWithoutResult(competitorsData, scope, resultsByCompetitor.keySet()));
 
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("kind", "individual");
@@ -417,6 +460,9 @@ public class RankingService {
             if (scope.typeById != null) {
                 row.put("discipline_type", scope.typeById.get(startDisciplineId));
             }
+            if (scope.tagById != null) {
+                row.put("discipline_tag", scope.tagById.get(startDisciplineId));
+            }
             rows.add(row);
         }
         rows.sort(Comparator.comparing(
@@ -445,6 +491,30 @@ public class RankingService {
         List<Integer> ids;
         Map<String, Object> info;
         Map<Integer, String> typeById; // null unless combined
+        Map<Integer, String> tagById;  // combined ranking only: the short name of the discipline shot
+    }
+
+    /**
+     * A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) ranks its disciplines'
+     * results together under its own id and name, tagging each row with the
+     * discipline shot.
+     */
+    private Scope combinedRankingScope(Discipline combined) throws Exception {
+        Scope scope = new Scope();
+        scope.id = combined.getId();
+        scope.ids = combined.getCombinedOf();
+        scope.info = buildDisciplineInfo(combined);
+        scope.info.put("combined_of", scope.ids);
+        scope.typeById = new HashMap<>();
+        scope.tagById = new HashMap<>();
+        for (int id : scope.ids) {
+            Discipline member = disciplineService.getAvailableDisciplineById(id);
+            if (member != null) {
+                scope.typeById.put(id, member.getType());
+                scope.tagById.put(id, member.getShortName() != null ? member.getShortName() : member.getEvent());
+            }
+        }
+        return scope;
     }
 
     private Scope scopeOf(Discipline discipline, Map<Integer, DisciplineService.EventPair> combinedPairs) {
@@ -481,8 +551,8 @@ public class RankingService {
         });
     }
 
-    private List<Ranking> buildRankings(List<Map<String, Object>> disciplineResults, Map<Integer, String> typeById)
-            throws Exception {
+    private List<Ranking> buildRankings(List<Map<String, Object>> disciplineResults, Map<Integer, String> typeById,
+            Map<Integer, String> tagById) throws Exception {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> competitorsData = dataService.read(
             data -> (List<Map<String, Object>>) data.get("competitors"));
@@ -502,8 +572,11 @@ public class RankingService {
             }
             CompetitorAggregate aggregate = aggregate(competitorData, entry.getValue());
             if (typeById != null) {
-                // A competitor starts in only one half of a combined pair
+                // A competitor starts in only one discipline of a combined pair or combined ranking
                 aggregate.disciplineType = typeById.get(disciplineIdOf(entry.getValue().get(0)));
+            }
+            if (tagById != null) {
+                aggregate.disciplineTag = tagById.get(disciplineIdOf(entry.getValue().get(0)));
             }
             aggregates.add(aggregate);
         }
@@ -599,6 +672,24 @@ public class RankingService {
         return key;
     }
 
+    /**
+     * Orders two competitors' results (each best first): the best result's
+     * score, then the next result's and so on (another result beats none), then
+     * the best result's 10s, 9s, ... 1s, then its tie-break (lower wins).
+     */
+    private int compareStandings(List<BestResult> a, List<BestResult> b) {
+        for (int i = 0; i < Math.max(a.size(), b.size()); i++) {
+            if (i >= a.size() || i >= b.size()) {
+                return Integer.compare(a.size(), b.size());
+            }
+            int cmp = Double.compare(a.get(i).score, b.get(i).score);
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+        return compareKeys(a.get(0).key, b.get(0).key);
+    }
+
     private int compareKeys(double[] a, double[] b) {
         for (int i = 0; i < a.length; i++) {
             int cmp = Double.compare(a[i], b[i]);
@@ -625,6 +716,7 @@ public class RankingService {
         ranking.setOverrideValue(aggregate.overrideValue);
         ranking.setNotes(aggregate.notes);
         ranking.setDisciplineType(aggregate.disciplineType);
+        ranking.setDisciplineTag(aggregate.disciplineTag);
 
         return ranking;
     }
@@ -664,6 +756,7 @@ public class RankingService {
         Double overrideValue;
         String notes;
         String disciplineType;
+        String disciplineTag;
         double[] key;
     }
 }

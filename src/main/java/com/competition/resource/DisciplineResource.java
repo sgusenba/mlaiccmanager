@@ -177,6 +177,8 @@ public class DisciplineResource {
         try {
             disciplineService.deleteCatalogDiscipline(id);
             return Response.noContent().build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409: a combined ranking still ranks it
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                 .entity("{\"error\": \"" + e.getMessage() + "\"}").build();

@@ -32,6 +32,11 @@ public class Ranking {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String disciplineType;
 
+    // Only set in a combined ranking (e.g. KUC): the short name of the discipline shot, e.g. "KUCRS"
+    @JsonProperty("discipline_tag")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String disciplineTag;
+
     // Nested class for competitor info
     public static class CompetitorInfo {
         @JsonProperty("id")
@@ -81,4 +86,7 @@ public class Ranking {
 
     public String getDisciplineType() { return disciplineType; }
     public void setDisciplineType(String disciplineType) { this.disciplineType = disciplineType; }
+
+    public String getDisciplineTag() { return disciplineTag; }
+    public void setDisciplineTag(String disciplineTag) { this.disciplineTag = disciplineTag; }
 }

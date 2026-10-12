@@ -81,6 +81,10 @@ public class ResultService {
             throw new IllegalArgumentException(discipline.getEvent() + " takes no result of its own: enter the "
                 + String.join(" and ", discipline.getAggregateOf()) + " results instead");
         }
+        if (DisciplineService.isCombinedRanking(discipline)) {
+            throw new IllegalArgumentException(discipline.getEvent()
+                + " is a combined ranking: enter the result in the discipline that was shot");
+        }
         return dataService.update(data -> {
             List<Map<String, Object>> resultsData = resultsOf(data);
 

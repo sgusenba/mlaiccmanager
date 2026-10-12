@@ -10,7 +10,10 @@ Steps, each safe to repeat (a second run updates instead of duplicating):
                   MLAIC number and type suffix), create the missing
                   ones and activate all of them; an O/R list goes into
                   the event's original and reproduction disciplines,
-                  ranked combined; a team discipline's
+                  ranked combined; a list with variants (Kuchenreuter R:
+                  S and U) into one discipline per variant, ranked through
+                  the catalog's combined ranking of them (KUCR) if there is
+                  one; a team discipline's
                   results that count (team_of) get the disciplines its
                   members start in
   2. competitors  matched by name and club, created if missing
@@ -109,7 +112,11 @@ class Feeder:
         self.data = data
         self.discipline_ids = {}   # JSON key -> discipline id (of an O/R list: the original's, which has the combined ranking)
         self.split = {}            # JSON key of an O/R list -> {"original": id, "reproduction": id}
+        self.variants = {}         # JSON key of a list with variants -> {marker: id}
+        self.variant_rankings = {} # JSON key of a list with variants -> id of the combined ranking of them (KUCR)
+        self.combined_rankings = []  # the catalog's combined rankings (KUCR = KUCRS + KUCRU)
         self.result_types = {(r["discipline"], r["bib"]): r.get("type") for r in data["results"]}
+        self.result_markers = {(r["discipline"], r["bib"]): r.get("marker") for r in data["results"]}
         self.competitor_ids = {}   # bib -> competitor id
         self.start_ids = {}        # (JSON discipline key, bib) -> start id
         self.stats = {}
@@ -123,11 +130,14 @@ class Feeder:
         print("Disciplines")
         catalog = {}
         for d in self.api.get("/available-disciplines"):
+            if d.get("combined_of"):
+                self.combined_rankings.append(d)   # ranks other disciplines, takes no starts
+                continue
             catalog.setdefault(discipline_key(d), d)   # first in catalog order wins
         # Individual disciplines first: a team discipline's team_of needs their ids
         specs = sorted(self.data["disciplines"], key=lambda s: s.get("level") == "team")
         for spec in specs:
-            if self.split_list(spec, catalog):
+            if self.split_list(spec, catalog) or self.split_variants(spec, catalog):
                 continue
             existing = catalog.get(discipline_key(spec))
             team_of = self.team_of(spec) if spec.get("level") == "team" else None
@@ -152,12 +162,30 @@ class Feeder:
             self.count("disciplines created")
             print(f"  created {spec['category']} {spec['level']} {spec['type']} '{spec['event']}' -> id {created['id']}")
 
-        ids = set(self.discipline_ids.values()) | {i for pair in self.split.values() for i in pair.values()}
+        ids = (set(self.discipline_ids.values()) | {i for pair in self.split.values() for i in pair.values()}
+               | {i for by_marker in self.variants.values() for i in by_marker.values()})
         active = self.api.get("/active-disciplines")
         wanted = sorted(set(active) | ids)
         if set(wanted) != set(active):
             self.api.post("/active-disciplines", {"discipline_ids": wanted, "base_ids": active})
             print(f"  activated {len(set(wanted) - set(active))} disciplines")
+        self.rank_variants_combined()
+
+    def rank_variants_combined(self):
+        """Ranks the combined rankings of the lists with variants (KUCR for Kuchenreuter R),
+        as the PDF ranks each such list as one."""
+        wanted = set(self.variant_rankings.values())
+        if not wanted:
+            return
+        program = self.api.get("/meet/program")
+        current = {r["id"] for r in program.get("combined_rankings", []) if r.get("active")}
+        if wanted <= current:
+            return
+        self.api.put("/meet/program", {"combined_rankings": sorted(current | wanted), "base": program.get("base")})
+        for key, ranking_id in self.variant_rankings.items():
+            if ranking_id not in current:
+                self.count("combined rankings ranked")
+                print(f"  ranking {key} through combined ranking {ranking_id}")
 
     def split_list(self, spec, catalog):
         """An O/R list whose results carry their type goes into the catalog's original and
@@ -183,10 +211,45 @@ class Feeder:
             print(f"  ranking {event['event']} combined (original + reproduction)")
         return True
 
+    def split_variants(self, spec, catalog):
+        """A list whose rows are marked with a variant goes into one discipline per variant
+        (Kuchenreuter R: the catalog's Kuchenreuter_RS and _RU), found in the catalog or created."""
+        events = spec.get("variants")
+        if not events:
+            return False
+        rows = [r for r in self.data["results"] if r["discipline"] == spec["key"]]
+        unknown = sorted({str(r.get("marker")) for r in rows if r.get("marker") not in events})
+        if unknown:
+            raise ValueError(f"{spec['key']}: rows marked {unknown}, but only {sorted(events)} have a discipline")
+        self.variants[spec["key"]] = {}
+        for marker, event in events.items():
+            variant = {**spec, "event": event}
+            existing = catalog.get(discipline_key(variant))
+            if existing:
+                discipline_id = existing["id"]
+                self.count("disciplines found")
+            else:
+                body = {k: v for k, v in variant.items() if k not in ("key", "variants") and v is not None}
+                discipline_id = self.api.post("/available-disciplines", body)["id"]
+                self.count("disciplines created")
+                print(f"  created {spec['category']} individual {spec['type']} '{event}' -> id {discipline_id}")
+            self.variants[spec["key"]][marker] = discipline_id
+            if self.api.verbose:
+                print(f"  {spec['key']} {marker} -> {discipline_id}")
+        ids = set(self.variants[spec["key"]].values())
+        ranking = next((d for d in self.combined_rankings if set(d["combined_of"]) == ids), None)
+        if ranking:
+            self.variant_rankings[spec["key"]] = ranking["id"]
+            if self.api.verbose:
+                print(f"  {spec['key']} ranked through {ranking['id']} '{ranking['event']}'")
+        return True
+
     def discipline_of(self, key, bib):
         """The discipline id a competitor's result in a JSON list goes into."""
         if key in self.split:
             return self.split[key][self.result_types[(key, bib)]]
+        if key in self.variants:
+            return self.variants[key][self.result_markers[(key, bib)]]
         return self.discipline_ids[key]
 
     def team_of(self, spec):
@@ -290,13 +353,21 @@ class Feeder:
         print("Verify")
         bib_of = {cid: bib for bib, cid in self.competitor_ids.items()}
         problems = 0
-        for key, discipline_id in self.discipline_ids.items():
-            expected_individual = [r for r in self.data["results"] if r["discipline"] == key and not r.get("dns")]
+        # A list with variants is checked as a whole through its combined ranking (KUCR), else
+        # per variant: its rows keep their order from the PDF
+        targets = [(key, key, discipline_id, None) for key, discipline_id in self.discipline_ids.items()]
+        targets += [(key, key, ranking_id, None) for key, ranking_id in self.variant_rankings.items()]
+        targets += [(f"{key} {marker}", key, discipline_id, marker)
+                    for key, by_marker in self.variants.items() if key not in self.variant_rankings
+                    for marker, discipline_id in by_marker.items()]
+        for label, key, discipline_id, marker in targets:
+            expected_individual = [r for r in self.data["results"] if r["discipline"] == key and not r.get("dns")
+                                   and (marker is None or r.get("marker") == marker)]
             expected_teams = [t for t in self.data["teams"] if t["discipline"] == key]
             try:
                 ranking = self.api.get(f"/ranking/{discipline_id}")
             except ApiError as e:
-                print(f"  ! {key}: {e}")
+                print(f"  ! {label}: {e}")
                 problems += 1
                 continue
             rows = ranking.get("rankings", [])
@@ -314,9 +385,9 @@ class Feeder:
             mismatch = self.compare(got, want_groups)
             if mismatch:
                 problems += 1
-                print(f"  ✗ {key}: {mismatch}")
+                print(f"  ✗ {label}: {mismatch}")
             else:
-                print(f"  ✓ {key} ({len(got)} ranked)")
+                print(f"  ✓ {label} ({len(got)} ranked)")
         print(f"  {problems} discipline(s) differ from the PDF" if problems else "  all rankings match the PDF")
         return problems
 
@@ -377,7 +448,7 @@ def main():
         feeder.results()
         if not args.skip_teams:
             feeder.teams()
-    except ApiError as e:
+    except (ApiError, ValueError) as e:
         print(f"Aborted: {e}", file=sys.stderr)
         return 1
 

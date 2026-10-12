@@ -364,7 +364,7 @@
   "level" : "individual",
   "type" : "reproduction",
   "event" : "6_Kuchenreuter_RU",
-  "short_name" : "KUCR",
+  "short_name" : "KUCRU",
   "shooting_distance" : "m25"
 }, {
   "id" : 57,
@@ -511,4 +511,36 @@
   "short_name" : "SPRING",
   "team_size" : 3,
   "team_of" : [ 60, 61, 63 ]
+}, {
+  "id" : 77,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "6_Kuchenreuter_R",
+  "short_name" : "KUCR",
+  "combined_of" : [ 62, 56 ]
+}, {
+  "id" : 78,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "6_Kuchenreuter_O/R",
+  "short_name" : "KUC",
+  "combined_of" : [ 51, 62, 56 ]
+}, {
+  "id" : 79,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "reproduction",
+  "event" : "91_Meixner_R",
+  "short_name" : "MEIXR",
+  "combined_of" : [ 60, 61 ]
+}, {
+  "id" : 80,
+  "category" : "pistol",
+  "level" : "individual",
+  "type" : "combined",
+  "event" : "91_Meixner_O/R",
+  "short_name" : "MEIX",
+  "combined_of" : [ 63, 60, 61 ]
 } ]

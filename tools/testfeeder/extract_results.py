@@ -36,6 +36,12 @@ def ind(category, type_, event, distance):
             "event": event, "shooting_distance": distance}
 
 
+def variants(spec, **events):
+    """A list whose rows are marked with a variant (S/U next to the bib) and go
+    into one discipline per variant, e.g. Kuchenreuter R: smooth and rifled."""
+    return {**spec, "variants": events}
+
+
 def team(category, type_, event, size=3):
     # The results that count (team_of) are the disciplines the members start in; feed.py sets them
     return {"category": category, "level": "team", "type": type_,
@@ -45,20 +51,22 @@ def team(category, type_, event, size=3):
 # PDF list title -> discipline in the app's catalog (disciplines.json). The
 # feeder finds a discipline by category, level, type and event (without the
 # catalog's MLAIC number and type suffix, so "Kuchenreuter" finds
-# "6_Kuchenreuter_O") and creates the ones the catalog lacks (Meixner, junior
-# lists). A "combined" O/R list goes into the catalog's original and
-# reproduction disciplines (each result carries its "type"), ranked combined.
+# "6_Kuchenreuter_O") and creates the ones the catalog lacks (junior lists).
+# A "combined" O/R list goes into the catalog's original and reproduction
+# disciplines (each result carries its "type"), ranked combined. A list with
+# "variants" goes into one discipline per row marker (S/U).
 INDIVIDUAL = {
     "Kuchenreuter/O": ind("pistol", "original", "Kuchenreuter", "m25"),
-    "Kuchenreuter/R": ind("pistol", "reproduction", "Kuchenreuter", "m25"),
+    "Kuchenreuter/R": variants(ind("pistol", "reproduction", "Kuchenreuter", "m25"),
+                               S="Kuchenreuter_RS", U="Kuchenreuter_RU"),
     "Cominazzo(O/R)": ind("pistol", "combined", "Cominazzo", "m25"),
     "Tanzutsu(O/R)": ind("pistol", "combined", "Tanzutsu", "m25"),
     "Colt/O": ind("pistol", "original", "Colt", "m25"),
     "Mariette/R": ind("pistol", "reproduction", "Mariette", "m25"),
     "Donald Malson/O": ind("pistol", "original", "Donald Malson", "m50"),
     "Donald Malson/R": ind("pistol", "reproduction", "Donald Malson", "m50"),
-    "Meixner/RS": ind("pistol", "reproduction", "Meixner RS", "m50"),
-    "Meixner/RU": ind("pistol", "reproduction", "Meixner RU", "m50"),
+    "Meixner/RS": ind("pistol", "reproduction", "Meixner_RS", "m25"),
+    "Meixner/RU": ind("pistol", "reproduction", "Meixner_RU", "m25"),
     "Tanegashima(O/R)": ind("rifle", "combined", "Tanegashima", "m50"),
     "Hizadai(O/R)": ind("rifle", "combined", "Hizadai", "m50"),
     "Miquelet(O/R)": ind("rifle", "combined", "Miquelet", "m50"),

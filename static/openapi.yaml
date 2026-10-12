@@ -1121,7 +1121,9 @@ paths:
         `events`: the individual disciplines grouped by category and event (key e.g.
         `rifle|Vetterli`), each with its disciplines (`active`, number of `starts`),
         whether it can be combined and whether it is. `teams`: the team disciplines with
-        `active`, their composition and number of teams. `base`: send it back when saving.
+        `active`, their composition and number of teams. `combined_rankings`: the combined
+        rankings (e.g. KUC) with `active` and their `disciplines` (each with `active`).
+        `base`: send it back when saving.
       operationId: getProgram
       responses:
         "200":
@@ -1137,9 +1139,15 @@ paths:
         `events` maps event keys to the ids of their disciplines that are shot and whether
         original and reproduction are ranked combined (only with both shot); events left
         out stay as they are. `teams` lists the team
-        disciplines to rank (left out: unchanged). Saved as the active disciplines and the
-        combined events. `409` if the program changed since `base`, or when combining while
-        a competitor starts in both original and reproduction.
+        disciplines to rank (left out: unchanged). `combined_rankings` lists the combined
+        rankings to rank (left out: unchanged); each needs all its disciplines shot, and
+        one whose disciplines are no longer all shot stops being ranked. Saved as the
+        active disciplines and the combined events. `409` if the program changed since
+        `base`, or when combining an event's original and reproduction while a competitor
+        starts in both. A combined ranking ranks a competitor who starts in several of its
+        disciplines once, on their best result, unless `one_start_per_combined_ranking` is
+        on: then ranking one (or turning the option on) is refused with `409` while a
+        competitor starts in more than one of its disciplines.
       operationId: setProgram
       requestBody:
         required: true
@@ -1156,6 +1164,10 @@ paths:
                       active: { type: array, items: { type: integer } }
                       combined: { type: boolean }
                 teams: { type: array, items: { type: integer } }
+                combined_rankings: { type: array, items: { type: integer } }
+                one_start_per_combined_ranking:
+                  type: boolean
+                  description: "While a combined ranking is ranked, a competitor may start in only one of its disciplines (409 if one already starts in several). Off (default): several starts, the best result counts. Left out: unchanged"
                 base:
                   type: object
                   properties:
@@ -1558,6 +1570,10 @@ components:
           type: array
           items: { type: string }
           description: Aggregate discipline (e.g. Remington) only. Events of the same category and type whose best results are added up; it has no starts of its own
+        combined_of:
+          type: array
+          items: { type: integer }
+          description: Combined ranking (e.g. KUCR = KUCRS + KUCRU) only. The individual disciplines of its category ranked together, each competitor once on their best result; competitors start in those, it has no starts or lane of its own. While it is active, its disciplines are ranked only through it
         active: { type: boolean }
     DisciplineInput:
       type: object
@@ -1576,6 +1592,10 @@ components:
           type: array
           items: { type: string }
           description: "Individual discipline only: makes it an aggregate (e.g. Remington) that adds up these events' best results. Each event needs an individual discipline of the same category and type; an aggregate takes no lane. Empty or null makes it a plain discipline again"
+        combined_of:
+          type: array
+          items: { type: integer }
+          description: "Individual discipline only: makes it a combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) of these discipline ids, at least two individual disciplines of its category (not aggregates or combined rankings). It takes no starts or lane. Empty or null makes it a plain discipline again. A discipline a combined ranking uses cannot be deleted"
         shooting_distance: { type: string }
         active: { type: boolean }
 

@@ -70,6 +70,22 @@
                 <h4 class="text-sm font-semibold text-gray-700 mt-6 mb-1">Team rankings</h4>
                 <p class="text-sm text-gray-600 mb-2">Which results count for a team is set on the Disciplines page.</p>
                 <div id="program-teams" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+                <h4 class="text-sm font-semibold text-gray-700 mt-6 mb-1">Combined rankings</h4>
+                <p class="text-sm text-gray-600 mb-2">
+                    Ranks several disciplines together, e.g. KUC for KUCO, KUCRS and KUCRU. Competitors still start in
+                    the disciplines; while a combined ranking is ranked, they are ranked only through it, each competitor once
+                    on their best result (their other results are listed below it).
+                    It needs all its disciplines to be shot. Combined rankings are set up on the Disciplines page.
+                </p>
+                <label class="flex items-start gap-2 mb-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="program-one-start" class="h-4 w-4 mt-0.5">
+                    <span>
+                        <span class="font-medium">One start per competitor</span>
+                        <span class="block text-xs text-gray-500">A competitor may start in only one discipline of a ranked
+                            combined ranking (e.g. KUCO or KUCRS, not both). Off: several starts are allowed and the best result counts.</span>
+                    </span>
+                </label>
+                <div id="program-combined-rankings" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
                 <div class="flex justify-end mt-4">
                     <button type="button" id="program-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
                         Save Program
