@@ -78,34 +78,22 @@ function renderTeamOfOptions(checkedIds) {
             </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
 }
 
-// The event name matched on, as DisciplineService.matchKey: without type suffix and MLAIC number,
-// so "38_Colt_O" and "Colt" name the same event
-const matchKey = (event) => String(event ?? '').trim()
-    .replace(/[_ ](?:O\/R|O|R)$/, '').trim()
-    .replace(/^(?:No\.?\s*)?(?:\d+|XX)[_ ]\s*/, '').trim();
-
-/** The checkboxes of the events an aggregate of the form's category and type can add up, ticked from checkedEvents. */
-function renderAggregateOfOptions(checkedEvents) {
+/** The checkboxes of the disciplines an aggregate of the form's category and type can add up, ticked from checkedIds. */
+function renderAggregateOfOptions(checkedIds) {
     const category = document.getElementById('form-category').value;
     const type = document.getElementById('form-type').value;
     const id = Number(document.getElementById('form-id').value);
-    const checked = new Set((checkedEvents || []).map(e => matchKey(e).toLowerCase()));
-    const events = new Map(); // match key -> discipline, first in id order
-    [...state.disciplines].sort((a, b) => a.id - b.id)
-        .filter(d => countable(d) && d.id !== id && d.category === category && d.type === type && d.event)
-        .forEach(d => {
-            const key = matchKey(d.event).toLowerCase();
-            if (!events.has(key)) events.set(key, d);
-        });
-    document.getElementById('form-aggregate-of').innerHTML = [...events.entries()]
-        .map(([key, d]) => `
+    const checked = new Set(checkedIds || []);
+    document.getElementById('form-aggregate-of').innerHTML = [...state.disciplines].sort((a, b) => a.id - b.id)
+        .filter(d => countable(d) && d.id !== id && d.category === category && d.type === type)
+        .map(d => `
             <label class="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" class="aggregate-of-option h-4 w-4" value="${escapeHtml(matchKey(d.event))}" ${checked.has(key) ? 'checked' : ''}>
-                <span>${escapeHtml(matchKey(d.event))} <span class="text-gray-400">${escapeHtml(d.event)}</span></span>
+                <input type="checkbox" class="aggregate-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
+                <span>${escapeHtml(d.short_name || d.event)} <span class="text-gray-400">${escapeHtml(d.event)}</span></span>
             </label>`).join('') || `<p class="text-sm text-gray-500">No individual ${escapeHtml(type)} ${escapeHtml(category)} disciplines.</p>`;
 }
 
-const checkedAggregateOf = () => [...document.querySelectorAll('.aggregate-of-option:checked')].map(input => input.value);
+const checkedAggregateOf = () => [...document.querySelectorAll('.aggregate-of-option:checked')].map(input => Number(input.value));
 
 /** The checkboxes of the disciplines a combined ranking of the form's category can rank together (any type). */
 function renderCombinedOfOptions(checkedIds) {
@@ -123,11 +111,17 @@ function renderCombinedOfOptions(checkedIds) {
 
 const checkedCombinedOf = () => [...document.querySelectorAll('.combined-of-option:checked')].map(input => Number(input.value));
 
-/** A combined ranking's disciplines as short names (or names), e.g. "KUCRS + KUCRU". */
-const combinedOfText = (d) => d.combined_of
+/** Disciplines by id as short names (or names), e.g. "KUCRS + KUCRU". */
+const disciplinesText = (ids) => ids
     .map(id => state.disciplines.find(x => x.id === id))
     .map(x => escapeHtml(x ? x.short_name || x.event : '?'))
     .join(' + ');
+
+/** A combined ranking's disciplines, e.g. "KUCRS + KUCRU". */
+const combinedOfText = (d) => disciplinesText(d.combined_of);
+
+/** The disciplines an aggregate adds up, e.g. "COLT + MALO". */
+const aggregateOfText = (d) => disciplinesText(d.aggregate_of);
 
 function levelBadge(level, isAggregate, isCombined) {
     if (isCombined) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">Combined</span>';
@@ -156,7 +150,7 @@ function renderTable() {
         const isCombined = !!d.combined_of?.length;
         const teamInfo = isTeam
             ? `${compositionText(d)}${d.team_size ? ` (${d.team_size})` : ''}`
-            : isAggregate ? `Sum of ${escapeHtml(d.aggregate_of.join(' + '))}`
+            : isAggregate ? `Sum of ${aggregateOfText(d)}`
             : isCombined ? `Ranks ${combinedOfText(d)} together` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
@@ -313,7 +307,7 @@ function setupListeners() {
             return;
         }
         if (data.aggregate_of && !data.aggregate_of.length) {
-            showMessage('Tick at least one event that is added up');
+            showMessage('Tick at least one discipline that is added up');
             return;
         }
         try {

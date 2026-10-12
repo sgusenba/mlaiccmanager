@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ResultService {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -79,7 +80,8 @@ public class ResultService {
             ? disciplineService.getAvailableDisciplineById(result.getDisciplineId()) : null;
         if (DisciplineService.isAggregate(discipline)) {
             throw new IllegalArgumentException(discipline.getEvent() + " takes no result of its own: enter the "
-                + String.join(" and ", discipline.getAggregateOf()) + " results instead");
+                + disciplineService.getComponents(discipline).stream().map(Discipline::getEvent)
+                    .collect(Collectors.joining(" and ")) + " results instead");
         }
         if (DisciplineService.isCombinedRanking(discipline)) {
             throw new IllegalArgumentException(discipline.getEvent()

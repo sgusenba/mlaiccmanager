@@ -37,41 +37,41 @@ class DisciplineCatalogAggregateTest {
         disciplineService = new DisciplineService(dataService);
     }
 
-    private static Map<String, Object> remington(String type, String... events) {
+    private static Map<String, Object> remington(String type, Integer... ids) {
         Map<String, Object> data = new HashMap<>();
         data.put("event", "Remington");
         data.put("category", "pistol");
         data.put("level", "individual");
         data.put("type", type);
-        data.put("aggregate_of", Arrays.asList(events));
+        data.put("aggregate_of", Arrays.asList(ids));
         data.put("shooting_distance", "m25");
         return data;
     }
 
     @Test
-    void createsAnAggregateThatAddsUpTheNamedEvents() throws Exception {
-        Discipline created = disciplineService.createCatalogDiscipline(remington("original", "Colt", " Donald Malson ", "Colt"));
+    void createsAnAggregateThatAddsUpTheTickedDisciplines() throws Exception {
+        Discipline created = disciplineService.createCatalogDiscipline(remington("original", 52, 53, 52));
 
         Discipline stored = disciplineService.getAvailableDisciplineById(created.getId());
-        assertEquals(List.of("Colt", "Donald Malson"), stored.getAggregateOf());
+        assertEquals(List.of(52, 53), stored.getAggregateOf());
         assertTrue(DisciplineService.isAggregate(stored));
         assertEquals(List.of(52, 53), disciplineService.getComponents(stored).stream().map(Discipline::getId).toList());
         assertNull(stored.getShootingDistance(), "an aggregate takes no lane");
     }
 
     @Test
-    void refusesEventsWithoutADisciplineOfItsType() throws Exception {
+    void refusesDisciplinesThatDoNotExistOrAreOfAnotherType() throws Exception {
         assertThrows(IllegalArgumentException.class,
-            () -> disciplineService.createCatalogDiscipline(remington("original", "Colt", "Nonexistent")));
-        // Mariette exists only as a reproduction
+            () -> disciplineService.createCatalogDiscipline(remington("original", 52, 999)));
+        // Mariette is a reproduction
         assertThrows(IllegalArgumentException.class,
-            () -> disciplineService.createCatalogDiscipline(remington("original", "Mariette")));
+            () -> disciplineService.createCatalogDiscipline(remington("original", 57)));
         assertEquals(4, disciplineService.getAvailableDisciplines().size(), "nothing was added");
     }
 
     @Test
     void aTeamAddsUpNoEvents() throws Exception {
-        Map<String, Object> data = remington("original", "Colt");
+        Map<String, Object> data = remington("original", 52);
         data.put("level", "team");
         data.put("team_of", List.of(52));
         data.put("team_size", 3);
@@ -81,7 +81,7 @@ class DisciplineCatalogAggregateTest {
 
     @Test
     void anEmptyListMakesItAPlainDisciplineAgain() throws Exception {
-        Discipline created = disciplineService.createCatalogDiscipline(remington("reproduction", "Mariette", "Donald Malson"));
+        Discipline created = disciplineService.createCatalogDiscipline(remington("reproduction", 57, 58));
         assertEquals(List.of(57, 58), disciplineService.getComponents(created).stream().map(Discipline::getId).toList());
 
         Map<String, Object> update = new HashMap<>();
@@ -96,10 +96,41 @@ class DisciplineCatalogAggregateTest {
     }
 
     @Test
-    void changingTheTypeIsCheckedAgainstTheEvents() throws Exception {
-        Discipline created = disciplineService.createCatalogDiscipline(remington("original", "Colt"));
+    void changingTheTypeIsCheckedAgainstTheDisciplines() throws Exception {
+        Discipline created = disciplineService.createCatalogDiscipline(remington("original", 52));
 
         assertThrows(IllegalArgumentException.class,
             () -> disciplineService.updateCatalogDiscipline(created.getId(), Map.of("type", "reproduction")));
+    }
+
+    @Test
+    void changingOrDeletingADisciplineThatIsAddedUpIsChecked() throws Exception {
+        Discipline created = disciplineService.createCatalogDiscipline(remington("original", 52, 53));
+
+        assertThrows(IllegalArgumentException.class,
+            () -> disciplineService.updateCatalogDiscipline(53, Map.of("type", "reproduction")));
+        assertThrows(ConflictException.class, () -> disciplineService.deleteCatalogDiscipline(52));
+        assertEquals(List.of(52, 53), disciplineService.getAvailableDisciplineById(created.getId()).getAggregateOf());
+    }
+
+    @Test
+    void eventNamesOfOlderDataBecomeDisciplineIds() throws Exception {
+        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG.replace("]", ","
+            + "{\"id\":74,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\","
+            + "\"event\":\"38_Remington_O\",\"aggregate_of\":[\"Colt\",\"Donald Malson\"]}]"));
+        // This competition changed the reproduction Remington, still by event name
+        Files.writeString(tempDir.resolve("competition.json"), "{\"active_disciplines\":[52,53,57,58,74,1000],"
+            + "\"discipline_overrides\":{},\"removed_disciplines\":[],\"combined_events\":[],"
+            + "\"custom_disciplines\":[{\"id\":1000,\"category\":\"pistol\",\"level\":\"individual\","
+            + "\"type\":\"reproduction\",\"event\":\"38_Remington_R\",\"aggregate_of\":[\"Mariette\",\"Donald Malson\",\"Nonexistent\"]}]}");
+
+        assertEquals(List.of(52, 53), disciplineService.getAvailableDisciplineById(74).getAggregateOf());
+        assertEquals(List.of(57, 58), disciplineService.getAvailableDisciplineById(1000).getAggregateOf());
+
+        // The next save stores ids, and the shipped aggregate is not stored as changed
+        disciplineService.updateCatalogDiscipline(1000, Map.of("short_name", "REMR"));
+        String saved = Files.readString(tempDir.resolve("competition.json"));
+        assertTrue(saved.replaceAll("\\s", "").contains("\"aggregate_of\":[57,58]"), saved);
+        assertFalse(saved.contains("\"74\""), saved);
     }
 }

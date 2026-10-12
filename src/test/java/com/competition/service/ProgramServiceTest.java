@@ -22,8 +22,8 @@ class ProgramServiceTest {
         + individual(7, "original", "15_Vetterli_O") + ","
         + individual(17, "reproduction", "15_Vetterli_R") + ","
         + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"7_Colt\"},"
-        + "{\"id\":74,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"38_Remington_O\",\"aggregate_of\":[\"Colt\"]},"
-        + "{\"id\":75,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"38_Remington_R\",\"aggregate_of\":[\"Mariette\"]},"
+        + "{\"id\":74,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"38_Remington_O\",\"aggregate_of\":[52]},"
+        + "{\"id\":75,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"38_Remington_R\",\"aggregate_of\":[57]},"
         + "{\"id\":34,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"open\",\"event\":\"19_Nagashino\",\"team_of\":[6,16]},"
         + "{\"id\":38,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"event\":\"27_Nobunaga\",\"team_of\":[6]}"
         + "]";

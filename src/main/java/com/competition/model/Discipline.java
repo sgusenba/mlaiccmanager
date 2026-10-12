@@ -50,10 +50,10 @@ public class Discipline {
     @JsonProperty("shooting_distance")
     private String shootingDistance;
 
-    // Set on an aggregate discipline (e.g. Remington): the events, of the same
-    // category and type, whose results are added up. It has no starts of its own.
+    // Set on an aggregate discipline (e.g. Remington): the individual disciplines, of the
+    // same category and type, whose results are added up. It takes no lane or result of its own.
     @JsonProperty("aggregate_of")
-    private List<String> aggregateOf;
+    private List<Integer> aggregateOf;
 
     // Set on a combined ranking (e.g. KUCR = KUCRS + KUCRU): the individual disciplines,
     // of the same category, ranked together. Competitors start in those, not in it.
@@ -114,8 +114,8 @@ public class Discipline {
     public String getShootingDistance() { return shootingDistance; }
     public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }
 
-    public List<String> getAggregateOf() { return aggregateOf; }
-    public void setAggregateOf(List<String> aggregateOf) { this.aggregateOf = aggregateOf; }
+    public List<Integer> getAggregateOf() { return aggregateOf; }
+    public void setAggregateOf(List<Integer> aggregateOf) { this.aggregateOf = aggregateOf; }
 
     public List<Integer> getCombinedOf() { return combinedOf; }
     public void setCombinedOf(List<Integer> combinedOf) { this.combinedOf = combinedOf; }
