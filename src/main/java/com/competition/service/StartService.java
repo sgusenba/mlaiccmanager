@@ -98,7 +98,11 @@ public class StartService {
                 + " (" + pair.typeOf(pair.partnerOf(disciplineId)) + "), which is ranked combined with "
                 + pair.typeOf(disciplineId), null);
         }
-        // The same for the disciplines of an active combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU)
+        // A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) takes a competitor's best result of its
+        // disciplines, so starting in several of them is fine - unless the meet allows one start each
+        if (!dataService.loadProgramOptions().oneStartPerCombinedRanking) {
+            return;
+        }
         for (Discipline combined : disciplineService.getActiveCombinedRankingsByMember()
                 .getOrDefault(disciplineId, List.of())) {
             for (int other : combined.getCombinedOf()) {
@@ -106,7 +110,8 @@ public class StartService {
                     Discipline otherDiscipline = disciplineService.getAvailableDisciplineById(other);
                     throw new ConflictException(competitorData.get("name") + " already starts in "
                         + (otherDiscipline != null ? otherDiscipline.getEvent() : String.valueOf(other))
-                        + ", which is ranked together with it in " + combined.getEvent(), null);
+                        + ", which is ranked together with it in " + combined.getEvent()
+                        + " (one start per competitor)", null);
                 }
             }
         }

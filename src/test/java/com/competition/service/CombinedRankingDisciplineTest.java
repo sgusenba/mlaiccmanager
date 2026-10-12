@@ -108,10 +108,49 @@ class CombinedRankingDisciplineTest {
 
     @Test
     void ranksOriginalsAndReproductionsInOneList() throws Exception {
-        assertEquals(List.of("Ben", "Anna", "Cara", "Dan", "Eva"), names(rowsOf(78)),
+        List<Map<String, Object>> rows = rowsOf(78);
+        assertEquals(List.of("Ben", "Anna", "Cara", "Dan", "Eva"), names(rows),
             "Dan once, on his better result (KUCRS 27, not KUCO 24)");
         assertEquals(List.of("reproduction", "reproduction", "original", "reproduction", "reproduction"),
-            rowsOf(78).stream().map(r -> r.get("discipline_type")).toList());
+            rows.stream().map(r -> r.get("discipline_type")).toList());
+
+        // Dan's other result is listed below his best one
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> others = (List<Map<String, Object>>) rows.get(3).get("components");
+        assertEquals(1, others.size());
+        assertEquals("KUCO", others.get(0).get("short_name"));
+        assertEquals("4-51-1", others.get(0).get("start_id"));
+        assertEquals(24.0, others.get(0).get("score"));
+        assertNull(rows.get(0).get("components"), "Ben has just one result");
+    }
+
+    @Test
+    void equalBestResultsGoToTheNextResultThenTheRingsThenTheTieBreak() throws Exception {
+        // Fay: KUCRS 29 and a second KUCRS start 20; Gus: KUCRS 29 only, same rings as Anna's 29;
+        // Anna: KUCRS 29 (10,10,9). Fay is ahead of both on her next result; Anna and Gus tie
+        dataService.update(data -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+            competitors.add(new HashMap<>(Map.of("id", 6, "name", "Fay", "starts", new HashMap<>())));
+            competitors.add(new HashMap<>(Map.of("id", 7, "name", "Gus", "starts", new HashMap<>())));
+            results.add(new HashMap<>(Map.of("id", 6, "start_id", "6-62-1", "discipline_id", 62, "competitor_id", 6,
+                "entries", List.of(10, 9, 10))));
+            results.add(new HashMap<>(Map.of("id", 7, "start_id", "6-62-2", "discipline_id", 62, "competitor_id", 6,
+                "entries", List.of(10, 5, 5))));
+            results.add(new HashMap<>(Map.of("id", 8, "start_id", "7-62-1", "discipline_id", 62, "competitor_id", 7,
+                "entries", List.of(9, 10, 10))));
+            return null;
+        });
+
+        List<Map<String, Object>> rows = rowsOf(62);
+        assertEquals(List.of("Fay", "Anna", "Gus", "Dan"), names(rows).subList(0, 4));
+        assertEquals(List.of(1, 2, 2, 4), rows.subList(0, 4).stream().map(r -> r.get("rank")).toList());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> others = (List<Map<String, Object>>) rows.get(0).get("components");
+        assertEquals("Further result", others.get(0).get("label"), "a second start in the same discipline");
+        assertEquals("6-62-2", others.get(0).get("start_id"));
     }
 
     @Test
@@ -145,8 +184,23 @@ class CombinedRankingDisciplineTest {
     }
 
     @Test
-    void whileRankedTogetherACompetitorStartsInOnlyOneOfTheDisciplines() throws Exception {
+    void aCompetitorMayStartInSeveralOfItsDisciplinesUnlessTheMeetAllowsOneStart() throws Exception {
         disciplineService.setActiveDisciplines(List.of(51, 56, 62, 77), null);
+        assertNotNull(startService.createStart(1, 56), "by default the best result counts");
+
+        programService.setProgram(Map.of("one_start_per_combined_ranking", false));
+        disciplineService.setActiveDisciplines(List.of(51, 56, 62), null);
+        programService.setProgram(Map.of("combined_rankings", List.of(78)));
+        assertTrue(disciplineService.getActiveDisciplines().contains(78), "Dan starts in KUCO and KUCRS, that is fine");
+    }
+
+    @Test
+    void withOneStartPerCompetitorASecondStartIsRefused() throws Exception {
+        disciplineService.setActiveDisciplines(List.of(51, 56, 62, 77), null);
+        Map<String, Object> program = programService.setProgram(Map.of("one_start_per_combined_ranking", true));
+        assertEquals(true, program.get("one_start_per_combined_ranking"));
+        assertEquals(true, programService.getProgram().get("one_start_per_combined_ranking"), "kept");
+
         ConflictException e = assertThrows(ConflictException.class, () -> startService.createStart(1, 56));
         assertTrue(e.getMessage().contains("6_Kuchenreuter_R"), e.getMessage());
         // KUCO is not part of KUCR
@@ -176,12 +230,19 @@ class CombinedRankingDisciplineTest {
     }
 
     @Test
-    void rankingItIsRefusedWhileACompetitorStartsInTwoOfItsDisciplines() throws Exception {
+    void withOneStartPerCompetitorRankingItIsRefusedWhileACompetitorStartsInTwoOfItsDisciplines() throws Exception {
         disciplineService.setActiveDisciplines(List.of(51, 56, 62), null);
+        programService.setProgram(Map.of("one_start_per_combined_ranking", true));
         ConflictException e = assertThrows(ConflictException.class,
             () -> programService.setProgram(Map.of("combined_rankings", List.of(78))));
         assertTrue(e.getMessage().contains("Dan"), e.getMessage());
         assertFalse(disciplineService.getActiveDisciplines().contains(78));
+
+        // The same when the option is turned on while KUC is ranked
+        programService.setProgram(Map.of("one_start_per_combined_ranking", false, "combined_rankings", List.of(78)));
+        assertThrows(ConflictException.class,
+            () -> programService.setProgram(Map.of("one_start_per_combined_ranking", true)));
+        assertEquals(false, programService.getProgram().get("one_start_per_combined_ranking"), "nothing saved");
     }
 
     @Test

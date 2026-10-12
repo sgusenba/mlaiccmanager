@@ -102,10 +102,12 @@ public class RankingService {
     }
 
     /**
-     * Ranking that counts just one result per competitor and discipline: the
-     * competitor's best result, ranked by its score, then its 10s, 9s, ... 1s,
-     * then its tie-break (lower wins). Ring counts and tie-break come from that
-     * result only. A team discipline gets the team ranking, which already has
+     * Ranking that lists each competitor once, on their best result: ranked by
+     * its score, then by their next result's score and so on (another start,
+     * or another discipline of a combined ranking; another result beats none),
+     * then the best result's 10s, 9s, ... 1s, then its tie-break (lower wins).
+     * The other results are listed below the best one ("components"). A team
+     * discipline gets the team ranking, which already has
      * one total per team. Returns null if the discipline does not exist.
      */
     public Map<String, Object> getBestResultRanking(int disciplineId) throws Exception {
@@ -171,27 +173,31 @@ public class RankingService {
         List<Map<String, Object>> competitorsData = dataService.read(
             data -> (List<Map<String, Object>>) data.get("competitors"));
 
-        // Keep each competitor's best result, preserving encounter order
-        Map<Integer, BestResult> bestByCompetitor = new LinkedHashMap<>();
+        // Each competitor's results, best first; the competitors in encounter order
+        Map<Integer, List<BestResult>> resultsByCompetitor = new LinkedHashMap<>();
         for (Map<String, Object> result : disciplineResults) {
             int competitorId = ((Number) result.get("competitor_id")).intValue();
-            BestResult candidate = new BestResult(result);
-            BestResult best = bestByCompetitor.get(competitorId);
-            if (best == null || compareKeys(candidate.key, best.key) > 0) {
-                bestByCompetitor.put(competitorId, candidate);
+            resultsByCompetitor.computeIfAbsent(competitorId, k -> new ArrayList<>()).add(new BestResult(result));
+        }
+        resultsByCompetitor.values().forEach(results -> results.sort((a, b) -> compareKeys(b.key, a.key)));
+        Map<Integer, Discipline> disciplinesById = new HashMap<>();
+        for (int id : scope.ids) {
+            Discipline d = disciplineService.getAvailableDisciplineById(id);
+            if (d != null) {
+                disciplinesById.put(id, d);
             }
         }
 
         List<Map<String, Object>> rows = new ArrayList<>();
-        List<double[]> keys = new ArrayList<>();
-        bestByCompetitor.entrySet().stream()
-            .sorted((a, b) -> compareKeys(b.getValue().key, a.getValue().key))
+        List<List<BestResult>> standings = new ArrayList<>();
+        resultsByCompetitor.entrySet().stream()
+            .sorted((a, b) -> compareStandings(b.getValue(), a.getValue()))
             .forEach(entry -> {
                 Map<String, Object> competitorData = findCompetitor(competitorsData, entry.getKey());
                 if (competitorData == null) {
                     return;
                 }
-                BestResult best = entry.getValue();
+                BestResult best = entry.getValue().get(0);
                 Map<String, Object> competitor = new LinkedHashMap<>();
                 competitor.put("id", entry.getKey());
                 competitor.put("name", competitorData.get("name"));
@@ -213,18 +219,36 @@ public class RankingService {
                 if (scope.tagById != null) {
                     row.put("discipline_tag", scope.tagById.get(disciplineIdOf(best.result)));
                 }
+                // The competitor's other results (another start, or another discipline of a combined
+                // ranking), shown below the best one
+                List<Map<String, Object>> others = new ArrayList<>();
+                for (BestResult other : entry.getValue().subList(1, entry.getValue().size())) {
+                    Discipline d = disciplinesById.get(disciplineIdOf(other.result));
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("discipline_id", disciplineIdOf(other.result));
+                    c.put("label", scope.ids.size() > 1 && d != null ? componentLabel(d) : "Further result");
+                    c.put("short_name", scope.ids.size() > 1 && d != null ? d.getShortName() : null);
+                    c.put("start_id", other.result.get("start_id"));
+                    c.put("score", other.score);
+                    c.put("freq_counts", other.freqCounts);
+                    c.put("override_value", other.overrideValue);
+                    others.add(c);
+                }
+                if (!others.isEmpty()) {
+                    row.put("components", others);
+                }
                 rows.add(row);
-                keys.add(best.key);
+                standings.add(entry.getValue());
             });
 
-        // Competitors with an identical key share the same rank
+        // Competitors who are equal on every count share the same rank
         for (int i = 0; i < rows.size(); i++) {
-            boolean tiedWithPrevious = i > 0 && compareKeys(keys.get(i), keys.get(i - 1)) == 0;
+            boolean tiedWithPrevious = i > 0 && compareStandings(standings.get(i), standings.get(i - 1)) == 0;
             rows.get(i).put("rank", tiedWithPrevious ? rows.get(i - 1).get("rank") : i + 1);
         }
 
         // Everyone else who started in this discipline follows without a rank
-        rows.addAll(startersWithoutResult(competitorsData, scope, bestByCompetitor.keySet()));
+        rows.addAll(startersWithoutResult(competitorsData, scope, resultsByCompetitor.keySet()));
 
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("kind", "individual");
@@ -646,6 +670,24 @@ public class RankingService {
         // Tie-break (distance of the furthest shot): the lower value wins
         key[14] = Scoring.tieBreakKey(overrideValue);
         return key;
+    }
+
+    /**
+     * Orders two competitors' results (each best first): the best result's
+     * score, then the next result's and so on (another result beats none), then
+     * the best result's 10s, 9s, ... 1s, then its tie-break (lower wins).
+     */
+    private int compareStandings(List<BestResult> a, List<BestResult> b) {
+        for (int i = 0; i < Math.max(a.size(), b.size()); i++) {
+            if (i >= a.size() || i >= b.size()) {
+                return Integer.compare(a.size(), b.size());
+            }
+            int cmp = Double.compare(a.get(i).score, b.get(i).score);
+            if (cmp != 0) {
+                return cmp;
+            }
+        }
+        return compareKeys(a.get(0).key, b.get(0).key);
     }
 
     private int compareKeys(double[] a, double[] b) {

@@ -51,7 +51,8 @@ class RankingServiceTest {
     void bestResultRankingKeepsOneResultPerCompetitor() throws Exception {
         Files.writeString(tempDir.resolve("disciplines.json"),
             "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"Miquelet\"}]");
-        // Anna shot twice: only her better start (19) counts, with its own rings and tie-break
+        // Anna shot twice: her better start (19) gives her score, rings and tie-break; her other
+        // start (18) is listed below it and puts her ahead of Ben, who has the same best result
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":["
             + "{\"id\":1,\"name\":\"Anna\",\"club\":\"SV\",\"starts\":{\"1\":["
             + "{\"generated_id\":\"1-1-1\",\"start_number\":1},{\"generated_id\":\"1-1-2\",\"start_number\":2}]}},"
@@ -71,12 +72,15 @@ class RankingServiceTest {
         assertEquals(3, rows.size(), "one row per competitor");
         assertEquals(List.of("Cara", "Anna", "Ben"),
             rows.stream().map(r -> ((Map<String, Object>) r.get("competitor")).get("name")).toList());
-        assertEquals(List.of(1, 2, 2), rows.stream().map(r -> r.get("rank")).toList(), "identical results share the rank");
+        assertEquals(List.of(1, 2, 3), rows.stream().map(r -> r.get("rank")).toList(), "Anna's next result breaks the tie");
         Map<String, Object> anna = rows.get(1);
         assertEquals("1-1-2", anna.get("start_id"));
         assertEquals(19.0, anna.get("score"));
         assertEquals(0, ((Map<String, Integer>) anna.get("freq_counts")).get("8"), "rings come from the best result only");
         assertEquals("SV", ((Map<String, Object>) anna.get("competitor")).get("club"));
+        List<Map<String, Object>> others = (List<Map<String, Object>>) anna.get("components");
+        assertEquals(List.of("1-1-1"), others.stream().map(c -> c.get("start_id")).toList());
+        assertEquals(18.0, others.get(0).get("score"));
         assertNull(rankingService.getBestResultRanking(99));
     }
 

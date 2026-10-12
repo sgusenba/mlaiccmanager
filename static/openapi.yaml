@@ -1143,8 +1143,11 @@ paths:
         rankings to rank (left out: unchanged); each needs all its disciplines shot, and
         one whose disciplines are no longer all shot stops being ranked. Saved as the
         active disciplines and the combined events. `409` if the program changed since
-        `base`, or when combining (or ranking a combined ranking) while a competitor
-        starts in more than one of the disciplines.
+        `base`, or when combining an event's original and reproduction while a competitor
+        starts in both. A combined ranking ranks a competitor who starts in several of its
+        disciplines once, on their best result, unless `one_start_per_combined_ranking` is
+        on: then ranking one (or turning the option on) is refused with `409` while a
+        competitor starts in more than one of its disciplines.
       operationId: setProgram
       requestBody:
         required: true
@@ -1162,6 +1165,9 @@ paths:
                       combined: { type: boolean }
                 teams: { type: array, items: { type: integer } }
                 combined_rankings: { type: array, items: { type: integer } }
+                one_start_per_combined_ranking:
+                  type: boolean
+                  description: "While a combined ranking is ranked, a competitor may start in only one of its disciplines (409 if one already starts in several). Off (default): several starts, the best result counts. Left out: unchanged"
                 base:
                   type: object
                   properties:
@@ -1567,7 +1573,7 @@ components:
         combined_of:
           type: array
           items: { type: integer }
-          description: Combined ranking (e.g. KUCR = KUCRS + KUCRU) only. The individual disciplines of its category ranked together, each competitor once; competitors start in those, it has no starts or lane of its own. While it is active, its disciplines are ranked only through it
+          description: Combined ranking (e.g. KUCR = KUCRS + KUCRU) only. The individual disciplines of its category ranked together, each competitor once on their best result; competitors start in those, it has no starts or lane of its own. While it is active, its disciplines are ranked only through it
         active: { type: boolean }
     DisciplineInput:
       type: object

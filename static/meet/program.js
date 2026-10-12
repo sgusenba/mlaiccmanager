@@ -92,6 +92,7 @@ function render() {
             </span>
         </label>`).join('') || '<p class="text-sm text-gray-500">No team disciplines.</p>';
 
+    document.getElementById('program-one-start').checked = !!program.one_start_per_combined_ranking;
     document.getElementById('program-combined-rankings').innerHTML = (program.combined_rankings || []).map(ranking => {
         const allShot = ranking.disciplines.every(d => d.active);
         return `
@@ -143,7 +144,10 @@ function chosen() {
     });
     const teams = [...document.querySelectorAll('.program-team:checked')].map(input => Number(input.value));
     const combinedRankings = [...document.querySelectorAll('.program-combined-ranking:checked')].map(input => Number(input.value));
-    return { events, teams, combined_rankings: combinedRankings };
+    return {
+        events, teams, combined_rankings: combinedRankings,
+        one_start_per_combined_ranking: document.getElementById('program-one-start').checked
+    };
 }
 
 /** Disciplines and teams the change stops while they have starts or teams, for the confirmation. */

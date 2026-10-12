@@ -129,8 +129,9 @@ function individualTable(data) {
         cells: [
             '',
             `\u00a0\u00a0\u00a0\u00a0${c.label}`, // indented; non-breaking spaces are kept by Word
-            ...(combined ? [''] : []),
-            { text: c.short_name || '', mono: true },
+            // In a combined ranking the discipline shot goes into its column
+            ...(combined ? [center(c.short_name || '')] : []),
+            { text: combined ? '' : c.short_name || '', mono: true },
             '',
             center(c.score === null ? '-' : formatScore(c.score)),
             ...RINGS.map(ring => center(c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
@@ -263,7 +264,7 @@ function individualSheet(data) {
     const type = (row) => (combined ? [typeTag(row)] : []);
     // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
     const componentRows = (row) => (row.components || []).map(c => [
-        '', c.start_id || '', `  ${c.label}`, ...(combined ? [''] : []), c.short_name || '', '',
+        '', c.start_id || '', `  ${c.label}`, ...(combined ? [c.short_name || ''] : []), combined ? '' : c.short_name || '', '',
         c.score === null ? '' : number(c.score), ...RINGS.map(ring => (c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
         number(c.override_value), ...(hasNotes ? [''] : [])
     ]);

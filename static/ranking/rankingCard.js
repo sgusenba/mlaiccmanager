@@ -24,13 +24,15 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(discipline);
     const aggregate = componentsOf(discipline).length > 0;
-    // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
+    // Below each competitor: an aggregate's (Remington) disciplines' results, or the competitor's other
+    // results that did not count (another start, another discipline of a combined ranking)
     const componentRows = (row, i) => (row.components || []).map(c => `
                                 <tr class="text-xs font-normal text-gray-500 ${rowClass(row, i)}" style="border-top-width: 0">
                                     ${showRank ? '<td></td>' : ''}
-                                    <td class="pl-8 pr-4 pb-2 whitespace-nowrap">${escapeHtml(c.label)}</td>
-                                    ${combined ? '<td></td>' : ''}
-                                    <td class="px-4 pb-2 font-mono">${escapeHtml(c.short_name || '')}</td>
+                                    <td class="pl-8 pr-4 pb-2 whitespace-nowrap">${escapeHtml(c.label)}${c.start_id
+                                        ? `<div class="font-mono text-gray-400" style="font-size: 0.65rem">${escapeHtml(c.start_id)}</div>` : ''}</td>
+                                    ${combined ? `<td class="px-2 pb-2 text-center">${escapeHtml(c.short_name || '')}</td>` : ''}
+                                    <td class="px-4 pb-2 font-mono">${combined ? '' : escapeHtml(c.short_name || '')}</td>
                                     <td></td>
                                     <td class="px-4 pb-2 text-center">${c.score === null ? '-' : formatScore(c.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 pb-2 text-center">${c.freq_counts ? (c.freq_counts[ring] ?? 0) : ''}</td>`).join('')}
