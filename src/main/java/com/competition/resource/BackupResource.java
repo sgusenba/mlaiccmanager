@@ -63,7 +63,7 @@ public class BackupResource {
             logger.warn("Invalid backup: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage()))
+                .entity(ErrorBody.of(e.getMessage()))
                 .build();
         } catch (Exception e) {
             logger.error("Failed to restore backup", e);
@@ -114,7 +114,7 @@ public class BackupResource {
             return badRequest(e.getMessage());
         } catch (IllegalStateException e) {
             return Response.status(Response.Status.BAD_GATEWAY).type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage())).build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         }
     }
 
@@ -128,7 +128,7 @@ public class BackupResource {
             return Response.ok(externalState(settingsService.getExternalBackup())).build();
         } catch (IllegalStateException e) {
             return Response.status(Response.Status.BAD_GATEWAY).type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", String.valueOf(e.getMessage()))).build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         }
     }
 

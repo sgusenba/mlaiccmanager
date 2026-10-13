@@ -7,8 +7,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class CompetitorService {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -37,7 +39,7 @@ public class CompetitorService {
         return dataService.update(data -> {
             List<Map<String, Object>> competitorsData = competitorsOf(data);
 
-            competitor.setId(dataService.getNextId(competitorsData));
+            competitor.setId(DataService.nextId(data, "competitor", competitorsData));
             competitor.setCreatedAt(LocalDateTime.now().format(formatter));
             competitor.setStarts(new HashMap<>());
             competitor.setVersion(1);
@@ -75,8 +77,14 @@ public class CompetitorService {
         });
     }
 
-    public void deleteCompetitor(int id, Integer expectedVersion) throws Exception {
-        dataService.update(data -> {
+    /**
+     * Deletes the competitor with their starts and results. Lanes and team
+     * memberships naming the starts are left to the caller, see CascadingDeletes.
+     *
+     * @return the ids of the deleted starts
+     */
+    public Set<String> deleteCompetitor(int id, Integer expectedVersion) throws Exception {
+        return dataService.update(data -> {
             List<Map<String, Object>> competitorsData = competitorsOf(data);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> resultsData = (List<Map<String, Object>>) data.get("results");
@@ -88,10 +96,24 @@ public class CompetitorService {
             DataService.checkVersion(existingData, expectedVersion,
                 "Competitor was changed by someone else", mapToCompetitor(existingData));
 
+            Set<String> startIds = new HashSet<>();
+            if (existingData.get("starts") instanceof Map<?, ?> starts) {
+                for (Object list : starts.values()) {
+                    if (list instanceof List<?> startList) {
+                        for (Object start : startList) {
+                            if (start instanceof Map<?, ?> s && s.get("generated_id") != null) {
+                                startIds.add(s.get("generated_id").toString());
+                            }
+                        }
+                    }
+                }
+            }
+
             // Remove competitor and associated results
             competitorsData.remove(existingData);
-            resultsData.removeIf(result -> ((Number) result.get("competitor_id")).intValue() == id);
-            return null;
+            resultsData.removeIf(result -> startIds.contains(String.valueOf(result.get("start_id")))
+                || (result.get("competitor_id") instanceof Number c && c.intValue() == id));
+            return startIds;
         });
     }
 

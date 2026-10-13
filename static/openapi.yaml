@@ -94,6 +94,7 @@ paths:
     delete:
       tags: [Competitors]
       summary: Delete a competitor
+      description: Also deletes their starts and results, and clears their starts' lanes and team memberships.
       operationId: deleteCompetitor
       parameters:
         - $ref: "#/components/parameters/Version"
@@ -149,10 +150,11 @@ paths:
     delete:
       tags: [Starts]
       summary: Delete a start
+      description: Also deletes its result and clears its lane and team memberships. Its id is never handed out again.
       operationId: deleteStart
       responses:
         "204": { description: Deleted }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   # ---------------------------------------------------------------- Disciplines
@@ -316,10 +318,12 @@ paths:
     delete:
       tags: [Disciplines]
       summary: Delete a catalog discipline
+      description: Refused while a combined ranking, aggregate or team discipline counts it, or it has starts or teams.
       operationId: deleteCatalogDiscipline
       responses:
         "204": { description: Deleted }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   /available-disciplines/shooting-distances:
@@ -1603,9 +1607,9 @@ components:
       type: object
       properties:
         id: { type: integer, description: "0 or absent to create" }
-        competitor_id: { type: integer }
-        discipline_id: { type: integer }
-        start_id: { type: string }
+        competitor_id: { type: integer, description: Taken from the start on create }
+        discipline_id: { type: integer, description: Taken from the start on create }
+        start_id: { type: string, description: Required on create; must be an existing start }
         value: { type: number }
         entries:
           type: array

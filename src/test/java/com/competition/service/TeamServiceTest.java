@@ -293,11 +293,11 @@ class TeamServiceTest {
             () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(50))));
 
         // Dropping the reproduction would leave Eve's start out of her team: refused, nothing saved
-        assertThrows(ConflictException.class, () -> teamService.changeComposition(39, List.of(1),
+        assertThrows(ConflictException.class, () -> teamService.changeComposition(39, Map.of("team_of", List.of(1)),
             () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1)))));
         assertEquals(List.of(1, 11), eligibleIds(teamService.getTeamDisciplines(), 39));
         // Adding one is fine
-        teamService.changeComposition(39, List.of(1, 11, 3),
+        teamService.changeComposition(39, Map.of("team_of", List.of(1, 11, 3)),
             () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11, 3))));
         assertEquals(List.of(1, 11, 3), eligibleIds(teamService.getTeamDisciplines(), 39));
     }

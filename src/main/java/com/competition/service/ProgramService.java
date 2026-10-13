@@ -147,7 +147,7 @@ public class ProgramService {
      *
      * @return the ids of the combined rankings that were not ranked before
      */
-    private static Set<Integer> setCombinedRankings(List<Discipline> disciplines, Set<Integer> requested) {
+    static Set<Integer> setCombinedRankings(List<Discipline> disciplines, Set<Integer> requested) {
         Set<Integer> newlyRanked = new HashSet<>();
         Set<Integer> shot = activeIds(disciplines);
         for (Discipline d : disciplines) {
@@ -173,7 +173,7 @@ public class ProgramService {
      * have a competitor starting in more than one of its disciplines. Checks the
      * given combined rankings (null: all ranked ones).
      */
-    private static void checkOneStartEach(Map<String, Object> data, List<Discipline> disciplines, Set<Integer> ids) {
+    static void checkOneStartEach(Map<String, Object> data, List<Discipline> disciplines, Set<Integer> ids) {
         for (Discipline d : disciplines) {
             if (!DisciplineService.isCombinedRanking(d) || !d.isActive() || (ids != null && !ids.contains(d.getId()))) {
                 continue;

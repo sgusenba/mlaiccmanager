@@ -86,7 +86,7 @@ public class DataService {
     /**
      * Runs action while holding both the data.json and the competition.json
      * lock, so the files can be copied or replaced as a whole (backup/restore).
-     * Lock order: data.json, then disciplines, as ResultService does.
+     * Lock order: data.json, then disciplines, as StartService and ProgramService do.
      */
     public <T> T exclusive(Callable<T> action) throws Exception {
         lock.lock();
@@ -113,63 +113,98 @@ public class DataService {
             return defaultData;
         }
 
+        // A broken file is never replaced: that would silently delete every
+        // competitor, start and result. Fail loudly and keep it for repair or restore.
+        JsonNode rootNode;
         try {
-            JsonNode rootNode = objectMapper.readTree(dataFile);
-            if (!rootNode.isObject() || rootNode.size() == 0) {
-                logger.warn("Data file is empty or corrupted, creating default structure");
-                Map<String, Object> defaultData = createDefaultData();
-                saveData(defaultData);
-                return defaultData;
-            }
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = objectMapper.convertValue(rootNode, Map.class);
-
-            // Ensure all required keys exist
-            String[] requiredKeys = {"competitors", "results"};
-            for (String key : requiredKeys) {
-                if (!data.containsKey(key)) {
-                    data.put(key, new ArrayList<>());
-                }
-            }
-            // Leftovers of removed features; dropped on the next save
-            for (String key : OBSOLETE_KEYS) {
-                data.remove(key);
-            }
-
-            // Add override_value and version to existing results if missing
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
-            if (results != null) {
-                for (Map<String, Object> result : results) {
-                    if (!result.containsKey("override_value")) {
-                        result.put("override_value", null);
-                    }
-                    result.putIfAbsent("version", 0);
-                }
-            }
-
-            // Add version to existing competitors if missing
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
-            if (competitors != null) {
-                for (Map<String, Object> competitor : competitors) {
-                    competitor.putIfAbsent("version", 0);
-                    for (String key : OBSOLETE_COMPETITOR_KEYS) {
-                        competitor.remove(key);
-                    }
-                }
-            }
-
-            restoreDerivedIds(data);
-            return data;
+            rootNode = objectMapper.readTree(dataFile);
         } catch (IOException e) {
-            logger.error("Error reading data file, creating default structure", e);
-            Map<String, Object> defaultData = createDefaultData();
-            saveData(defaultData);
-            return defaultData;
+            throw new IOException(dataFilePath + " is not valid JSON; repair it or restore a backup", e);
+        }
+        if (rootNode == null || !rootNode.isObject()) {
+            throw new IOException(dataFilePath + " does not hold a JSON object; repair it or restore a backup");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = objectMapper.convertValue(rootNode, Map.class);
+
+        // Ensure all required keys exist
+        String[] requiredKeys = {"competitors", "results"};
+        for (String key : requiredKeys) {
+            if (!(data.get(key) instanceof List)) {
+                data.put(key, new ArrayList<>());
+            }
+        }
+        // Leftovers of removed features; dropped on the next save
+        for (String key : OBSOLETE_KEYS) {
+            data.remove(key);
+        }
+
+        // Add override_value and version to existing results if missing
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        for (Map<String, Object> result : results) {
+            if (!result.containsKey("override_value")) {
+                result.put("override_value", null);
+            }
+            result.putIfAbsent("version", 0);
+        }
+
+        // Add version to existing competitors if missing
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
+        for (Map<String, Object> competitor : competitors) {
+            competitor.putIfAbsent("version", 0);
+            for (String key : OBSOLETE_COMPETITOR_KEYS) {
+                competitor.remove(key);
+            }
+        }
+
+        restoreDerivedIds(data);
+        recordHighestIds(data);
+        return data;
+    }
+
+    /**
+     * Raises the id counters to above every id in the file, so an id stays
+     * taken even after its record is deleted - also in a file written before
+     * the counters existed, where the first change may be a delete.
+     */
+    @SuppressWarnings("unchecked")
+    private static void recordHighestIds(Map<String, Object> data) {
+        Map<String, Object> counters = data.get(NEXT_IDS) instanceof Map<?, ?> m
+            ? (Map<String, Object>) m : new LinkedHashMap<>();
+        data.put(NEXT_IDS, counters);
+        raise(counters, "competitor", maxId((List<?>) data.get("competitors")) + 1);
+        raise(counters, "result", maxId((List<?>) data.get("results")) + 1);
+        for (Map<String, Object> competitor : (List<Map<String, Object>>) data.get("competitors")) {
+            if (!(competitor.get("starts") instanceof Map<?, ?> starts) || starts.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> startCounters = competitor.get(NEXT_START_NUMBERS) instanceof Map<?, ?> m
+                ? (Map<String, Object>) m : new LinkedHashMap<>();
+            competitor.put(NEXT_START_NUMBERS, startCounters);
+            starts.forEach((disciplineId, list) -> {
+                if (list instanceof List<?> startList) {
+                    for (Object start : startList) {
+                        if (start instanceof Map<?, ?> st && st.get("start_number") instanceof Number n) {
+                            raise(startCounters, String.valueOf(disciplineId), n.intValue() + 1);
+                        }
+                    }
+                }
+            });
         }
     }
+
+    /** Sets counters[key] to at least value. */
+    static void raise(Map<String, Object> counters, String key, int value) {
+        if (!(counters.get(key) instanceof Number n) || n.intValue() < value) {
+            counters.put(key, value);
+        }
+    }
+
+    /** Per competitor and discipline: the next start number, see StartService. */
+    static final String NEXT_START_NUMBERS = "next_start_numbers";
 
     private void saveData(Map<String, Object> data) throws IOException {
         // Create a temporary file and write to it, then rename to original
@@ -458,6 +493,33 @@ public class DataService {
         }
     }
 
+    /**
+     * The id for a discipline this competition adds: never one an added
+     * discipline had before, even a deleted one, since starts or a client's
+     * old copy may still name it. Call within updateDisciplines().
+     */
+    public int nextCustomDisciplineId(List<Discipline> disciplines) throws IOException {
+        disciplinesLock.lock();
+        try {
+            int next = Math.max(storedNextCustomId(), DisciplineService.FIRST_CUSTOM_ID);
+            for (Discipline d : disciplines) {
+                if (d.getId() >= DisciplineService.FIRST_CUSTOM_ID) {
+                    next = Math.max(next, d.getId() + 1);
+                }
+            }
+            return next;
+        } finally {
+            disciplinesLock.unlock();
+        }
+    }
+
+    private static final String NEXT_CUSTOM_ID = "next_custom_discipline_id";
+
+    private int storedNextCustomId() throws IOException {
+        JsonNode settings = loadCompetitionSettings();
+        return settings != null ? settings.path(NEXT_CUSTOM_ID).asInt(0) : 0;
+    }
+
     /** Whether the competition file exists yet; see ApplicationBinder for the one-time migration. */
     public boolean hasCompetitionSettings() {
         return new File(competitionFilePath).exists();
@@ -604,6 +666,18 @@ public class DataService {
         if (options.oneStartPerCombinedRanking) {
             settings.put("one_start_per_combined_ranking", true);
         }
+        int nextCustomId = Math.max(storedNextCustomId(), DisciplineService.FIRST_CUSTOM_ID);
+        for (ObjectNode entry : custom) {
+            nextCustomId = Math.max(nextCustomId, entry.path("id").asInt() + 1);
+        }
+        // Also above the added disciplines this save deletes, in a file written before the counter existed
+        JsonNode previous = loadCompetitionSettings();
+        if (previous != null) {
+            for (JsonNode entry : previous.path("custom_disciplines")) {
+                nextCustomId = Math.max(nextCustomId, entry.path("id").asInt() + 1);
+            }
+        }
+        settings.put(NEXT_CUSTOM_ID, nextCustomId);
 
         File tempFile = new File(competitionFilePath + ".tmp");
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, settings);
@@ -648,22 +722,35 @@ public class DataService {
         return defaultData;
     }
 
-    public int getNextId(List<?> items) {
-        if (items == null || items.isEmpty()) {
-            return 1;
-        }
+    /**
+     * The next id for a new record of the given kind (e.g. "competitor"),
+     * counted in data's "next_ids" so an id is never handed out twice: a
+     * deleted record's id could still be named by a team, a lane or a client
+     * holding an old copy. Older files without the counter continue after the
+     * highest id in items. Call within update() so the counter is saved.
+     */
+    public static int nextId(Map<String, Object> data, String kind, List<?> items) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> counters = data.get(NEXT_IDS) instanceof Map<?, ?> m
+            ? (Map<String, Object>) m : new LinkedHashMap<>();
+        data.put(NEXT_IDS, counters);
+        int next = Math.max(counters.get(kind) instanceof Number n ? n.intValue() : 1, maxId(items) + 1);
+        counters.put(kind, next + 1);
+        return next;
+    }
+
+    static final String NEXT_IDS = "next_ids";
+
+    private static int maxId(List<?> items) {
         int maxId = 0;
-        for (Object item : items) {
-            if (item instanceof Map) {
-                Object id = ((Map<?, ?>) item).get("id");
-                if (id instanceof Integer) {
-                    maxId = Math.max(maxId, (Integer) id);
+        if (items != null) {
+            for (Object item : items) {
+                if (item instanceof Map<?, ?> map && map.get("id") instanceof Number id) {
+                    maxId = Math.max(maxId, id.intValue());
                 }
-            } else if (item instanceof Integer) {
-                maxId = Math.max(maxId, (Integer) item);
             }
         }
-        return maxId + 1;
+        return maxId;
     }
 
     public static int getVersion(Map<String, Object> record) {

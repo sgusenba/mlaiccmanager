@@ -58,6 +58,8 @@ public class DisciplineResource {
             return Response.ok(activeDisciplines).build();
         } catch (ConflictException e) {
             throw e; // mapped to 409
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error setting active disciplines", e);
             return Response.serverError().entity("{\"error\": \"Failed to set active disciplines\"}").build();
@@ -70,6 +72,8 @@ public class DisciplineResource {
         try {
             List<Integer> activeDisciplines = disciplineService.deactivateDiscipline(id);
             return Response.ok(activeDisciplines).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
         } catch (Exception e) {
             logger.error("Error deactivating discipline", e);
             return Response.serverError().entity("{\"error\": \"Failed to deactivate discipline\"}").build();
@@ -114,7 +118,7 @@ public class DisciplineResource {
             throw e; // mapped to 409
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity(Map.of("error", e.getMessage())).build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error setting combined event", e);
             return Response.serverError().entity("{\"error\": \"Failed to set combined event\"}").build();
@@ -139,6 +143,11 @@ public class DisciplineResource {
         try {
             Discipline created = disciplineService.createCatalogDiscipline(requestData);
             return Response.status(Response.Status.CREATED).entity(created).build();
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
+        } catch (IllegalArgumentException | ClassCastException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating catalog discipline", e);
             return Response.serverError().entity("{\"error\": \"Failed to create discipline\"}").build();
@@ -149,22 +158,16 @@ public class DisciplineResource {
     @Path("/available-disciplines/{id}")
     public Response updateCatalogDiscipline(@PathParam("id") int id, Map<String, Object> requestData) {
         try {
-            Discipline updated;
-            if (requestData.get("team_of") instanceof List<?> ids) {
-                // A new team composition must not leave a stored team member's start out
-                List<Integer> teamOf = ids.stream().map(i -> ((Number) i).intValue()).toList();
-                updated = teamService.changeComposition(id, teamOf,
-                    () -> disciplineService.updateCatalogDiscipline(id, requestData));
-            } else {
-                updated = disciplineService.updateCatalogDiscipline(id, requestData);
-            }
+            // A new team composition or level must not leave a stored team or member's start out
+            Discipline updated = teamService.changeComposition(id, requestData,
+                () -> disciplineService.updateCatalogDiscipline(id, requestData));
             return Response.ok(updated).build();
         } catch (ConflictException | RecordNotFoundException e) {
             throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage())).build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating catalog discipline", e);
             return Response.serverError().entity("{\"error\": \"Failed to update discipline\"}").build();
@@ -175,13 +178,14 @@ public class DisciplineResource {
     @Path("/available-disciplines/{id}")
     public Response deleteCatalogDiscipline(@PathParam("id") int id) {
         try {
-            disciplineService.deleteCatalogDiscipline(id);
+            // Teams, then data.json and disciplines: nothing may refer to the discipline once it is gone
+            teamService.withoutTeams(id, () -> {
+                disciplineService.deleteCatalogDiscipline(id);
+                return null;
+            });
             return Response.noContent().build();
-        } catch (ConflictException e) {
-            throw e; // mapped to 409: a combined ranking still ranks it
-        } catch (IllegalArgumentException e) {
-            return Response.status(Response.Status.NOT_FOUND)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 (still in use) / 404
         } catch (Exception e) {
             logger.error("Error deleting catalog discipline", e);
             return Response.serverError().entity("{\"error\": \"Failed to delete discipline\"}").build();

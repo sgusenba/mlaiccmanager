@@ -1,10 +1,13 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+// Unknown fields (e.g. the dropped scoring_type, unit, description) are ignored, so older files still load
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Discipline {
     @JsonProperty("id")
@@ -24,15 +27,6 @@ public class Discipline {
 
     @JsonProperty("short_name")
     private String shortName;
-    
-    @JsonProperty("scoring_type")
-    private String scoringType;
-    
-    @JsonProperty("unit")
-    private String unit;
-    
-    @JsonProperty("description")
-    private String description;
     
     @JsonProperty("created_at")
     private String createdAt;
@@ -90,14 +84,8 @@ public class Discipline {
     public String getShortName() { return shortName; }
     public void setShortName(String shortName) { this.shortName = shortName; }
 
-    public String getScoringType() { return scoringType; }
-    public void setScoringType(String scoringType) { this.scoringType = scoringType; }
 
-    public String getUnit() { return unit; }
-    public void setUnit(String unit) { this.unit = unit; }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

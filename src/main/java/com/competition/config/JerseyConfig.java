@@ -33,8 +33,5 @@ public class JerseyConfig extends ResourceConfig {
         
         // Register dependency injection binder
         register(new ApplicationBinder());
-        
-        // Package scanning for components
-        packages("com.competition");
     }
 }

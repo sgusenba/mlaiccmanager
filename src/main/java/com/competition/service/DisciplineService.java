@@ -36,28 +36,96 @@ public class DisciplineService {
      */
     public List<Integer> setActiveDisciplines(List<Integer> disciplineIds, List<Integer> baseIds) throws Exception {
         Set<Integer> desired = new HashSet<>(disciplineIds);
-        return dataService.updateDisciplines(disciplines -> {
+        // Lock order: data.json, then disciplines; the program rules look at the starts
+        return dataService.read(data -> dataService.updateProgram((disciplines, combined, options) -> {
             List<Integer> current = activeIdsOf(disciplines);
             if (baseIds != null && !new HashSet<>(baseIds).equals(new HashSet<>(current))) {
                 throw new ConflictException("Active disciplines were changed by someone else", current);
             }
+            Set<Integer> rankedBefore = rankedCombinedRankings(disciplines);
             for (Discipline d : disciplines) {
                 d.setActive(desired.contains(d.getId()));
             }
+            applyProgramRules(data, disciplines, options, rankedBefore);
             return activeIdsOf(disciplines);
-        });
+        }));
     }
 
     /** Deactivates a single discipline, leaving everyone else's changes intact. */
     public List<Integer> deactivateDiscipline(int disciplineId) throws Exception {
-        return dataService.updateDisciplines(disciplines -> {
+        return dataService.read(data -> dataService.updateProgram((disciplines, combined, options) -> {
+            Set<Integer> rankedBefore = rankedCombinedRankings(disciplines);
             for (Discipline d : disciplines) {
                 if (d.getId() == disciplineId) {
                     d.setActive(false);
                 }
             }
+            applyProgramRules(data, disciplines, options, rankedBefore);
             return activeIdsOf(disciplines);
-        });
+        }));
+    }
+
+    /**
+     * The rules the Meet page's program keeps (see ProgramService), for every
+     * other way the disciplines change: a combined ranking is ranked only while
+     * all its disciplines are shot, and with "one start per combined ranking"
+     * a combined ranking that is newly ranked (or has new disciplines) may not
+     * have a competitor starting in more than one of them. Caller holds the
+     * data.json lock, so no start can be added meanwhile.
+     */
+    static void applyProgramRules(Map<String, Object> data, List<Discipline> disciplines,
+            DataService.ProgramOptions options, Set<Integer> unchangedRankings) {
+        ProgramService.setCombinedRankings(disciplines, null);
+        if (options.oneStartPerCombinedRanking) {
+            Set<Integer> toCheck = rankedCombinedRankings(disciplines);
+            toCheck.removeAll(unchangedRankings);
+            ProgramService.checkOneStartEach(data, disciplines, toCheck);
+        }
+    }
+
+    /** The ids of the combined rankings that are ranked (active). */
+    static Set<Integer> rankedCombinedRankings(List<Discipline> disciplines) {
+        Set<Integer> ids = new HashSet<>();
+        for (Discipline d : disciplines) {
+            if (d.isActive() && isCombinedRanking(d)) {
+                ids.add(d.getId());
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * The disciplines and combined events as read once, for work that looks
+     * many of them up (rankings): each lookup through this service re-reads
+     * the catalog and competition files.
+     */
+    public record Snapshot(List<Discipline> all, Map<Integer, Discipline> byId, Set<String> combinedEvents) {
+        public Discipline get(int id) {
+            return byId.get(id);
+        }
+
+        public List<Integer> activeIds() {
+            return activeIdsOf(all);
+        }
+
+        public Map<Integer, EventPair> combinedPairs() {
+            return combinedPairsOf(all, combinedEvents);
+        }
+
+        public Map<Integer, List<Discipline>> activeCombinedRankingsByMember() {
+            return DisciplineService.activeCombinedRankingsByMember(all);
+        }
+
+        public List<Discipline> components(Discipline aggregate) {
+            return componentsOf(aggregate, all);
+        }
+    }
+
+    public Snapshot snapshot() throws Exception {
+        List<Discipline> all = dataService.loadDisciplines();
+        Map<Integer, Discipline> byId = new HashMap<>();
+        all.forEach(d -> byId.put(d.getId(), d));
+        return new Snapshot(all, byId, dataService.loadCombinedEvents());
     }
 
     public List<Discipline> getAvailableDisciplines() throws Exception {
@@ -76,10 +144,10 @@ public class DisciplineService {
 
     public Discipline createCatalogDiscipline(Map<String, Object> data) throws Exception {
         return dataService.updateDisciplines(disciplines -> {
-            int maxId = disciplines.stream().mapToInt(Discipline::getId).max().orElse(0);
             Discipline d = new Discipline();
-            // Added disciplines start at 1000 so a later catalog release cannot reuse their ids
-            d.setId(Math.max(maxId + 1, FIRST_CUSTOM_ID));
+            // Added disciplines start at 1000 so a later catalog release cannot reuse their ids,
+            // and never get the id of one deleted earlier
+            d.setId(dataService.nextCustomDisciplineId(disciplines));
             applyCatalogFields(d, data);
             checkTeamOf(d, disciplines);
             checkAggregateOf(d, disciplines);
@@ -90,10 +158,15 @@ public class DisciplineService {
     }
 
     public Discipline updateCatalogDiscipline(int id, Map<String, Object> data) throws Exception {
-        return dataService.updateDisciplines(disciplines -> {
+        // Lock order: data.json, then disciplines; the program rules look at the starts
+        return dataService.read(stored -> dataService.updateProgram((disciplines, combined, options) -> {
             Discipline target = disciplines.stream()
                 .filter(d -> d.getId() == id).findFirst()
                 .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
+            // The combined rankings this edit touches are checked again below
+            Set<Integer> unchanged = rankedCombinedRankings(disciplines);
+            unchanged.removeIf(r -> r == id || disciplines.stream()
+                .anyMatch(d -> d.getId() == r && d.getCombinedOf().contains(id)));
             applyCatalogFields(target, data);
             if (data.containsKey("team_of") || data.containsKey("level")) {
                 checkTeamOf(target, disciplines);
@@ -113,30 +186,45 @@ public class DisciplineService {
                     checkAggregateOf(d, disciplines);
                 }
             }
+            applyProgramRules(stored, disciplines, options, unchanged);
             // A catalog discipline's short name goes into the catalog for every competition;
             // the competition file then no longer differs from it there
             if (data.containsKey("short_name")) {
                 dataService.setCatalogShortName(id, target.getShortName());
             }
             return target;
-        });
+        }));
     }
 
+    /**
+     * Deletes a discipline of this competition. Refused while anything still
+     * refers to it: a combined ranking, aggregate or team discipline that counts
+     * it, or a competitor's start (which would otherwise be left behind and
+     * count for nothing). Teams are checked by the caller, see TeamService.withoutTeams.
+     */
     public void deleteCatalogDiscipline(int id) throws Exception {
-        dataService.updateDisciplines(disciplines -> {
+        // Lock order: data.json, then disciplines
+        dataService.read(data -> dataService.updateDisciplines(disciplines -> {
+            if (disciplines.stream().noneMatch(d -> d.getId() == id)) {
+                throw new RecordNotFoundException("Discipline not found: " + id);
+            }
             List<String> usedBy = disciplines.stream()
                 .filter(d -> (isCombinedRanking(d) && d.getCombinedOf().contains(id))
-                    || (isAggregate(d) && d.getAggregateOf().contains(id)))
+                    || (isAggregate(d) && d.getAggregateOf().contains(id))
+                    || (TeamService.isTeamDiscipline(d) && d.getTeamOf() != null && d.getTeamOf().contains(id)))
                 .map(Discipline::getEvent).toList();
             if (!usedBy.isEmpty()) {
                 throw new ConflictException("Discipline " + id + " is ranked in "
                     + String.join(", ", usedBy) + "; remove it there first", usedBy);
             }
-            if (!disciplines.removeIf(d -> d.getId() == id)) {
-                throw new IllegalArgumentException("Discipline not found: " + id);
+            List<String> starting = competitorsStartingIn(data, id);
+            if (!starting.isEmpty()) {
+                throw new ConflictException("Discipline " + id + " still has starts of "
+                    + String.join(", ", starting) + "; delete them first", starting);
             }
+            disciplines.removeIf(d -> d.getId() == id);
             return null;
-        });
+        }));
     }
 
     public List<Discipline> updateShootingDistances(Map<String, String> mapping) throws Exception {
@@ -342,11 +430,12 @@ public class DisciplineService {
     /** The combined pairs, looked up by either of their discipline ids. */
     public Map<Integer, EventPair> getCombinedPairsByDiscipline() throws Exception {
         Set<String> combined = dataService.loadCombinedEvents();
+        return combined.isEmpty() ? new HashMap<>() : combinedPairsOf(dataService.loadDisciplines(), combined);
+    }
+
+    private static Map<Integer, EventPair> combinedPairsOf(List<Discipline> disciplines, Set<String> combined) {
         Map<Integer, EventPair> byDiscipline = new HashMap<>();
-        if (combined.isEmpty()) {
-            return byDiscipline;
-        }
-        for (EventPair pair : eventPairsOf(dataService.loadDisciplines())) {
+        for (EventPair pair : eventPairsOf(disciplines)) {
             if (combined.contains(pair.key())) {
                 byDiscipline.put(pair.originalId(), pair);
                 byDiscipline.put(pair.reproductionId(), pair);
@@ -399,6 +488,20 @@ public class DisciplineService {
         for (Map<String, Object> competitor : competitors) {
             if (disciplineIds.stream().filter(id -> startsIn(competitor, id)).count() > 1) {
                 names.add(String.valueOf(competitor.get("name")));
+            }
+        }
+        return names;
+    }
+
+    /** Names of the competitors who start in the discipline. */
+    @SuppressWarnings("unchecked")
+    static List<String> competitorsStartingIn(Map<String, Object> data, int disciplineId) {
+        List<String> names = new ArrayList<>();
+        if (data.get("competitors") instanceof List<?> competitors) {
+            for (Object competitor : competitors) {
+                if (competitor instanceof Map<?, ?> c && startsIn((Map<String, Object>) c, disciplineId)) {
+                    names.add(String.valueOf(c.get("name")));
+                }
             }
         }
         return names;

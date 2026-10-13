@@ -44,6 +44,8 @@ public class ApplicationBinder extends AbstractBinder {
         migrateTeamCompositions(teamService);
         RankingService rankingService = new RankingService(dataService, disciplineService, teamService);
         RelayService relayService = new RelayService(basePath + "/relays.json", dataService);
+        CascadingDeletes cascadingDeletes = new CascadingDeletes(startService, competitorService, teamService,
+                                                                 relayService);
         MeetService meetService = new MeetService(basePath + "/meet.json");
         ProgramService programService = new ProgramService(dataService, disciplineService, teamService);
         BackupService backupService = new BackupService(Paths.get(basePath), dataService, teamService, relayService,
@@ -62,6 +64,7 @@ public class ApplicationBinder extends AbstractBinder {
         bind(resultService).to(ResultService.class);
         bind(rankingService).to(RankingService.class);
         bind(relayService).to(RelayService.class);
+        bind(cascadingDeletes).to(CascadingDeletes.class);
         bind(teamService).to(TeamService.class);
         bind(meetService).to(MeetService.class);
         bind(programService).to(ProgramService.class);
@@ -130,7 +133,6 @@ public class ApplicationBinder extends AbstractBinder {
         }
     }
 
-    @SuppressWarnings("unchecked")
     /** Starts still filed under the removed combined disciplines (21-30, 60-65) count again. */
     private static void migrateLegacyCombinedStarts(DataService dataService) {
         try {
@@ -155,6 +157,7 @@ public class ApplicationBinder extends AbstractBinder {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static void migrateDisciplineRanges(String basePath, DataService dataService) {
         try {
             File relaysFile = new File(basePath + "/relays.json");

@@ -22,11 +22,12 @@ class StartIdTest {
     private ResultService resultService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        ConcurrencyAndVersionTest.writeCatalog(tempDir);
         DataService dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
             tempDir.resolve("competition.json").toString());
         competitorService = new CompetitorService(dataService);
-        startService = new StartService(dataService);
+        startService = new StartService(dataService, new DisciplineService(dataService));
         resultService = new ResultService(dataService, new DisciplineService(dataService));
     }
 

@@ -55,7 +55,7 @@ public class ResultResource {
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid result data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating/updating result", e);
             return Response.serverError().entity("{\"error\": \"Failed to create/update result\"}").build();
@@ -73,7 +73,7 @@ public class ResultResource {
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid result data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating result", e);
             return Response.serverError().entity("{\"error\": \"Failed to update result\"}").build();

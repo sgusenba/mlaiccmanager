@@ -1,6 +1,7 @@
 package com.competition.resource;
 
 import com.competition.model.Competitor;
+import com.competition.service.CascadingDeletes;
 import com.competition.service.CompetitorService;
 import com.competition.service.ConflictException;
 import com.competition.service.RecordNotFoundException;
@@ -21,6 +22,9 @@ public class CompetitorResource {
     
     @Inject
     private CompetitorService competitorService;
+
+    @Inject
+    private CascadingDeletes cascadingDeletes;
 
     public CompetitorResource() {
         // Default constructor for Jersey
@@ -54,7 +58,7 @@ public class CompetitorResource {
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid competitor data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating/updating competitor", e);
             return Response.serverError().entity("{\"error\": \"Failed to create/update competitor\"}").build();
@@ -72,7 +76,7 @@ public class CompetitorResource {
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid competitor data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating competitor", e);
             return Response.serverError().entity("{\"error\": \"Failed to update competitor\"}").build();
@@ -83,7 +87,7 @@ public class CompetitorResource {
     @Path("/{id}")
     public Response deleteCompetitor(@PathParam("id") int id, @QueryParam("version") Integer version) {
         try {
-            competitorService.deleteCompetitor(id, version);
+            cascadingDeletes.deleteCompetitor(id, version);
             return Response.noContent().build();
         } catch (ConflictException | RecordNotFoundException e) {
             throw e; // mapped to 409 / 404
