@@ -101,7 +101,7 @@ public class TeamResource {
             logger.warn("Invalid request ({}): {}", what, e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage()))
+                .entity(ErrorBody.of(e.getMessage()))
                 .build();
         } catch (Exception e) {
             logger.error("Failed to {}", what, e);

@@ -2,6 +2,8 @@ package com.competition.resource;
 
 import com.competition.model.Start;
 import com.competition.service.ConflictException;
+import com.competition.service.CascadingDeletes;
+import com.competition.service.RecordNotFoundException;
 import com.competition.service.StartService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -21,6 +23,9 @@ public class StartResource {
     @Inject
     private StartService startService;
 
+    @Inject
+    private CascadingDeletes cascadingDeletes;
+
     public StartResource() {
         // Default constructor for Jersey
     }
@@ -39,12 +44,12 @@ public class StartResource {
             String caliber = caliberObj != null ? caliberObj.toString() : null;
             Start created = startService.createStart(competitorId, disciplineId, caliber);
             return Response.ok(created).build();
-        } catch (ConflictException e) {
-            throw e; // mapped to 409
+        } catch (ConflictException | RecordNotFoundException e) {
+            throw e; // mapped to 409 / 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid start data: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating start", e);
             return Response.serverError().entity("{\"error\": \"Failed to create start\"}").build();
@@ -55,12 +60,14 @@ public class StartResource {
     @Path("/{generatedId}")
     public Response deleteStart(@PathParam("competitorId") int competitorId, @PathParam("generatedId") String generatedId) {
         try {
-            startService.deleteStart(competitorId, generatedId);
+            cascadingDeletes.deleteStart(competitorId, generatedId);
             return Response.noContent().build();
+        } catch (RecordNotFoundException e) {
+            throw e; // mapped to 404
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid start deletion: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity("{\"error\": \"" + e.getMessage() + "\"}").build();
+                .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error deleting start", e);
             return Response.serverError().entity("{\"error\": \"Failed to delete start\"}").build();

@@ -30,14 +30,6 @@ export function showElement(elementId) {
     }
 }
 
-// Toggle element visibility
-export function toggleElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.classList.toggle('hidden');
-    }
-}
-
 // Set element content
 export function setElementContent(elementId, content) {
     const element = document.getElementById(elementId);

@@ -39,7 +39,7 @@ public class DangerZoneResource {
         try {
             return Response.ok(dangerZoneService.clear(target)).build();
         } catch (IllegalArgumentException e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("error", e.getMessage())).build();
+            return Response.status(Response.Status.BAD_REQUEST).entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Failed to clear {}", target, e);
             return Response.serverError().entity(Map.of("error", "Failed to clear " + target)).build();

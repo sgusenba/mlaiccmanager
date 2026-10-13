@@ -172,7 +172,7 @@ class DataSeparationTest {
             new TeamService(tempDir.resolve("teams.json").toString(), dataService)).getRanking(2);
         assertEquals(1, ((List<?>) ranking.get("rankings")).size());
 
-        StartService startService = new StartService(dataService);
+        StartService startService = new StartService(dataService, new DisciplineService(dataService));
         assertEquals("1-2-2", startService.createStart(1, 2).getGeneratedId());
     }
 
