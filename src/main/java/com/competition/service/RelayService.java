@@ -89,9 +89,7 @@ public class RelayService {
     /** Everything the relay page needs at once: config, ranges, days, relays, assignments. */
     public Map<String, Object> getAll() throws Exception {
         return read(relays -> {
-            Map<String, Object> result = new LinkedHashMap<>(relays);
-            result.remove("discipline_ranges");
-            return result;
+            return new LinkedHashMap<>(relays);
         });
     }
 
@@ -1183,19 +1181,16 @@ public class RelayService {
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
         configOf(relays).putIfAbsent("locked", true);
         configOf(relays).putIfAbsent("auto_assign_enabled", false);
+        configOf(relays).putIfAbsent("break_min", DEFAULT_BREAK_MIN);
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }
-        // Older files have no first lane number: their lanes start at 1
-        listOf(relays, "ranges").forEach(range -> range.putIfAbsent("first_lane_no", 1));
         for (String key : new String[] {"days", "relays", "assignments"}) {
             if (!(relays.get(key) instanceof List)) {
                 relays.put(key, new ArrayList<>());
             }
         }
-        migrateRangeLocks(relays);
-        migrateDayBreaks(relays);
-        // Above every stored id, so a record deleted next keeps its id taken (also in older files)
+        // Above every stored id, so a record deleted next keeps its id taken
         for (String[] kind : ID_KINDS) {
             nextIdAtLeast(relays, listOf(relays, kind[0]), kind[1]);
         }
@@ -1204,47 +1199,6 @@ public class RelayService {
     /** The lists of relays.json with the prefix of their generated ids. */
     private static final String[][] ID_KINDS = {
         {"assignments", "a"}, {"relays", "r"}, {"days", "day"}, {"ranges", "range"}};
-
-    /**
-     * Older files kept a break per day. The break is meet-wide now: it takes
-     * the first day's break (15 if there was none), and every day's relay
-     * times follow from it.
-     */
-    private void migrateDayBreaks(Map<String, Object> relays) {
-        if (configOf(relays).containsKey("break_min")) {
-            return;
-        }
-        List<Map<String, Object>> days = listOf(relays, "days");
-        Set<Integer> dayBreaks = new TreeSet<>();
-        days.forEach(day -> {
-            if (day.get("break_min") != null) {
-                dayBreaks.add(RelayRules.intOf(day.get("break_min")));
-            }
-        });
-        int breakMin = days.stream().map(day -> day.get("break_min")).filter(Objects::nonNull)
-            .findFirst().map(RelayRules::intOf).orElse(DEFAULT_BREAK_MIN);
-        if (dayBreaks.size() > 1) {
-            logger.warn("Meet days had different breaks between relays {}; using {} min for all days", dayBreaks, breakMin);
-        }
-        configOf(relays).put("break_min", breakMin);
-        days.forEach(day -> day.remove("break_min"));
-        days.forEach(day -> recompute(relays, day));
-    }
-
-    /** Older files locked day/distance pairs; a day with any such lock becomes a locked day. */
-    private static void migrateRangeLocks(Map<String, Object> relays) {
-        if (!(relays.remove("locks") instanceof List<?> locks)) {
-            return;
-        }
-        for (Object lock : locks) {
-            if (lock instanceof Map<?, ?> l) {
-                Map<String, Object> day = find(listOf(relays, "days"), l.get("day_id"));
-                if (day != null) {
-                    day.put("locked", true);
-                }
-            }
-        }
-    }
 
     private static List<Map<String, Object>> defaultRanges() {
         List<Map<String, Object>> ranges = new ArrayList<>();

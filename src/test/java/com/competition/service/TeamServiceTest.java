@@ -28,11 +28,11 @@ class TeamServiceTest {
         + individual(21, "combined", "No 1 Miquelet") + ","
         + individual(3, "original", "No 3 Minie") + ","
         + "{\"id\":50,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 5 Cominazzo\"},"
-        + team(31, "original", "No 9 Gustav Adolph", "No 1 Miquelet", 3) + ","
-        + team(39, "original", "No 31 Halikko", "No 1 Miquelet", 3) + ","
-        + team(42, "reproduction", "No 29 Lucca", "No 1 Miquelet", 3) + ","
-        + team(47, "open", "Open Miquelet", "No 1 Miquelet", 3) + ","
-        + team(46, "open", "No 11 Versailles", "Nos. 9 + 10 (aggregate)", 6)
+        + team(31, "original", "No 9 Gustav Adolph", "No 1 Miquelet", 3, "[1]") + ","
+        + team(39, "original", "No 31 Halikko", "No 1 Miquelet", 3, "[1]") + ","
+        + team(42, "reproduction", "No 29 Lucca", "No 1 Miquelet", 3, "[11]") + ","
+        + team(47, "open", "Open Miquelet", "No 1 Miquelet", 3, "[1,11,21]") + ","
+        + team(46, "open", "No 11 Versailles", "Nos. 9 + 10 (aggregate)", 6, null)
         + "]";
 
     private static String individual(int id, String type, String event) {
@@ -40,9 +40,10 @@ class TeamServiceTest {
             + "\",\"event\":\"" + event + "\"}";
     }
 
-    private static String team(int id, String type, String event, String basedOn, int size) {
+    private static String team(int id, String type, String event, String basedOn, int size, String teamOf) {
         return "{\"id\":" + id + ",\"category\":\"rifle\",\"level\":\"team\",\"type\":\"" + type
-            + "\",\"event\":\"" + event + "\",\"based_on\":\"" + basedOn + "\",\"team_size\":" + size + "}";
+            + "\",\"event\":\"" + event + "\",\"based_on\":\"" + basedOn + "\",\"team_size\":" + size
+            + (teamOf != null ? ",\"team_of\":" + teamOf : "") + "}";
     }
 
     private static String competitor(int id, String name, String club, String country, String... startIds) {
@@ -102,8 +103,6 @@ class TeamServiceTest {
         dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
             tempDir.resolve("competition.json").toString());
         teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
-        // The catalog above still has based_on only, as before "results that count" existed
-        assertEquals(List.of(31, 39, 42, 47), teamService.migrateCompositions());
     }
 
     private Map<String, Object> create(int disciplineId, String name, String... members) throws Exception {
@@ -120,19 +119,6 @@ class TeamServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> eligible = (List<Map<String, Object>>) discipline.get("eligible_disciplines");
         return eligible.stream().map(e -> e.get("id")).toList();
-    }
-
-    @Test
-    void oldTeamDisciplinesGetTheirResultsThatCountFromBasedOnOnce() throws Exception {
-        List<Map<String, Object>> disciplines = teamService.getTeamDisciplines();
-        assertEquals(5, disciplines.size());
-        assertEquals(List.of(1), eligibleIds(disciplines, 31), "original team: the original");
-        assertEquals(List.of(11), eligibleIds(disciplines, 42), "reproduction team: the reproduction");
-        assertEquals(List.of(1, 11, 21), eligibleIds(disciplines, 47), "open team: all of them");
-        // based_on names no event: nothing counts until results that count are ticked
-        assertEquals(List.of(), eligibleIds(disciplines, 46));
-        // Done once: a second start changes nothing
-        assertEquals(List.of(), teamService.migrateCompositions());
     }
 
     @Test
@@ -265,15 +251,6 @@ class TeamServiceTest {
 
     private static List<Object> names(List<Map<String, Object>> ranking) {
         return ranking.stream().map(r -> r.get("name")).toList();
-    }
-
-    @Test
-    void storedTeamMembersKeepCountingAfterTheMigration() throws Exception {
-        // Versailles' based_on names no event, but a stored team has a Minie start: that discipline counts from now on
-        Files.writeString(tempDir.resolve("teams.json"),
-            "{\"teams\":[{\"id\":1,\"discipline_id\":46,\"name\":\"Old\",\"members\":[\"1-3-1\"]}]}");
-        assertEquals(List.of(46), teamService.migrateCompositions());
-        assertEquals(List.of(3), eligibleIds(teamService.getTeamDisciplines(), 46));
     }
 
     @Test

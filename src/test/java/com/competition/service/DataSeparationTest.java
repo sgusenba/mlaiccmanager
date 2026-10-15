@@ -1,6 +1,5 @@
 package com.competition.service;
 
-import com.competition.config.ApplicationBinder;
 import com.competition.model.Discipline;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,36 +107,6 @@ class DataSeparationTest {
         assertEquals("B v2", byId(disciplines, 2).getEvent());
         assertEquals("m50", byId(disciplines, 2).getShootingDistance());
         assertNotNull(byId(disciplines, 4));
-    }
-
-    @Test
-    void migrationTakesTheActiveListFromOldDataJson() throws Exception {
-        Files.writeString(tempDir.resolve("data.json"),
-            "{\"competitors\":[],\"results\":[],\"disciplines\":[],\"teams\":[],\"active_disciplines\":[3]}");
-
-        ApplicationBinder.migrateCompetitionSettings(tempDir.toString(), dataService);
-
-        assertEquals(List.of(3), disciplineService.getActiveDisciplines());
-        assertTrue(dataService.hasCompetitionSettings());
-    }
-
-    @Test
-    void migrationKeepsEditsFromThePreviousRuntimeCatalog() throws Exception {
-        Files.writeString(tempDir.resolve("data.json"),
-            "{\"competitors\":[],\"results\":[],\"active_disciplines\":[1,2,3]}");
-        // What the deploy script saved aside: discipline 1 inactive and moved, discipline 3 deleted
-        Files.writeString(tempDir.resolve("disciplines.previous.json"),
-            "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"A\",\"shooting_distance\":\"m100\",\"active\":false},"
-                + "{\"id\":2,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"B\",\"shooting_distance\":\"m100\",\"active\":true}]");
-
-        ApplicationBinder.migrateCompetitionSettings(tempDir.toString(), dataService);
-
-        List<Discipline> disciplines = dataService.loadDisciplines();
-        assertEquals(List.of(2), disciplineService.getActiveDisciplines(), "flags of the previous file win over data.json");
-        assertEquals("m100", byId(disciplines, 1).getShootingDistance());
-        assertNull(byId(disciplines, 3));
-        assertFalse(Files.exists(tempDir.resolve("disciplines.previous.json")));
-        assertTrue(Files.exists(tempDir.resolve("disciplines.previous.json.migrated")));
     }
 
     @Test
