@@ -5,6 +5,7 @@
 // (/api/meet/program).
 
 import { escapeHtml } from '../js/meet.js';
+import { withButtonFeedback } from '../js/buttonFeedback.js';
 
 const CATEGORY_LABELS = { rifle: 'Rifle', pistol: 'Pistol' };
 const TYPE_TAGS = { original: 'O', reproduction: 'R' };
@@ -185,11 +186,9 @@ async function save() {
             + 'Their starts and teams are kept, but they are no longer ranked. Save anyway?')) {
         return;
     }
-    button.disabled = true;
     try {
-        program = await api('/meet/program', 'PUT', { ...request, base: program.base });
+        program = await withButtonFeedback(button, () => api('/meet/program', 'PUT', { ...request, base: program.base }));
         render();
-        showMessage('Program saved.', 'success');
     } catch (error) {
         // "Cannot combine/rank ...": competitors start in more than one of the disciplines; nothing to reload
         if (error.status === 409 && !/^Cannot (combine|rank)/.test(error.message)) {
@@ -198,8 +197,6 @@ async function save() {
         } else {
             showMessage(`Could not save the program: ${error.message}`);
         }
-    } finally {
-        button.disabled = false;
     }
 }
 

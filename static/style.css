@@ -246,3 +246,52 @@ input:focus:invalid {
         height: 16px !important;
     }
 }
+
+/* Save/delete feedback on the button itself (js/buttonFeedback.js) */
+.btn-feedback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-feedback:disabled {
+    opacity: 1 !important;
+}
+
+.btn-feedback-icon {
+    width: 1.1em;
+    height: 1.1em;
+}
+
+/* Read by screen readers only */
+.btn-feedback-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.btn-feedback-spinner {
+    animation: btn-feedback-spin 0.8s linear infinite;
+}
+
+.btn-feedback-done {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #fff !important;
+    border-radius: 0.375rem;
+}
+
+@keyframes btn-feedback-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-feedback-spinner {
+        animation-duration: 2s;
+    }
+}

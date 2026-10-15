@@ -4,6 +4,7 @@ import { getState, setState } from '../config.js';
 import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
 import { escapeHtml } from '../teamRanking.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue } from '../utils.js';
+import { withButtonFeedback } from '../buttonFeedback.js';
 
 // Display competitor information
 export function displayCompetitorInfo(competitor) {
@@ -143,7 +144,7 @@ function handleStartAction(event) {
     
     switch (action) {
         case 'delete-start':
-            deleteStart(disciplineId, generatedId);
+            deleteStart(disciplineId, generatedId, button);
             break;
     }
 }
@@ -177,10 +178,10 @@ export async function saveStart() {
     
     try {
         const caliber = getElementValue('start-caliber').trim();
-        await addStart(selectedCompetitor.id, disciplineId, caliber);
+        await withButtonFeedback(document.getElementById('save-start-btn'),
+            () => addStart(selectedCompetitor.id, disciplineId, caliber));
         hideAddStartForm();
         await refreshSelectedCompetitor();
-        showMessage('Start added successfully', 'success');
     } catch (error) {
         console.error('Error adding start:', error);
         // Show the starts as stored on the server, including ones other users added
@@ -212,16 +213,15 @@ async function refreshSelectedCompetitor() {
 }
 
 // Delete start
-export async function deleteStart(disciplineId, generatedId) {
+export async function deleteStart(disciplineId, generatedId, button) {
     const selectedCompetitor = getState('selectedCompetitor');
     if (!selectedCompetitor || !confirm('Are you sure you want to delete this start?')) {
         return;
     }
     
     try {
-        await apiDeleteStart(selectedCompetitor.id, generatedId);
+        await withButtonFeedback(button, () => apiDeleteStart(selectedCompetitor.id, generatedId));
         await refreshSelectedCompetitor();
-        showMessage('Start deleted successfully', 'success');
     } catch (error) {
         console.error('Error deleting start:', error);
         if (!await refreshSelectedCompetitor()) return;
