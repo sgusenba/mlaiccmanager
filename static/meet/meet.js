@@ -10,6 +10,7 @@ import { laneRows, toCsv } from './laneExport.js';
 import { LABEL_PAGE_SIZE, labelSize, labelsPerSheet, targetLabels, targetLabelsDocx, targetLabelsHtml } from './labelExport.js';
 import { raceBibsDocx, startCardsDocx } from './wordExport.js';
 import { initProgram } from './program.js';
+import { withButtonFeedback } from '../js/buttonFeedback.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
@@ -90,19 +91,16 @@ async function refreshMeet() {
 
 async function saveMeet(event) {
     event.preventDefault();
-    const button = document.getElementById('meet-save-btn');
-    button.disabled = true;
     try {
-        await api('/meet', 'PUT', {
+        await withButtonFeedback(document.getElementById('meet-save-btn'), () => api('/meet', 'PUT', {
             name: document.getElementById('meet-name').value,
             location: document.getElementById('meet-location').value,
             host: document.getElementById('meet-host').value,
             date_from: document.getElementById('meet-date-from').value || null,
             date_to: document.getElementById('meet-date-to').value || null,
             version: meet.version
-        });
+        }));
         await refreshMeet();
-        showMessage('Meet details saved.', 'success');
     } catch (error) {
         if (error.status === 409) {
             await refreshMeet();
@@ -110,8 +108,6 @@ async function saveMeet(event) {
         } else {
             showMessage(`Could not save the meet details: ${error.message}`);
         }
-    } finally {
-        button.disabled = false;
     }
 }
 
@@ -313,8 +309,6 @@ async function exportWord(kind) {
         ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay })
         : raceBibsDocx(meet, chosen);
     downloadBlob(file, exportFileName(FILE_PREFIXES[kind], 'docx'));
-    const what = kind === 'cards' ? 'start card' : 'race bib';
-    showMessage(`Exported ${chosen.length} ${what}${chosen.length === 1 ? '' : 's'} as a Word document.`, 'success');
 }
 
 // The Export buttons open one dialog; it remembers which printout it is for
@@ -336,7 +330,7 @@ async function exportFromDialog() {
     button.disabled = true;
     try {
         if (format === 'word') {
-            await exportWord(kind);
+            await withButtonFeedback(button, () => exportWord(kind));
         } else {
             await renderPrintout(kind);
             window.print();
@@ -371,13 +365,11 @@ async function exportLanes(button) {
     store(SEPARATOR_KEY, separator);
     button.disabled = true;
     try {
-        const rows = await loadLaneRows(document.getElementById('csv-unscheduled').checked);
-        if (rows.length === 0) throw new Error('There are no lane assignments yet.');
-        downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName('lane-assignments', 'csv'));
-        const lanes = rows.filter(row => row.scheduled).length;
-        showMessage(`Exported ${lanes} lane assignment${lanes === 1 ? '' : 's'}`
-            + (rows.length > lanes ? ` and ${rows.length - lanes} start${rows.length - lanes === 1 ? '' : 's'} without a lane` : '')
-            + '.', 'success');
+        await withButtonFeedback(button, async () => {
+            const rows = await loadLaneRows(document.getElementById('csv-unscheduled').checked);
+            if (rows.length === 0) throw new Error('There are no lane assignments yet.');
+            downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName('lane-assignments', 'csv'));
+        });
     } catch (error) {
         showMessage(`Could not export the lane assignments: ${error.message}`);
     } finally {
@@ -430,9 +422,10 @@ async function exportLabels(format, button) {
     button.disabled = true;
     try {
         if (format === 'word') {
-            const { labels, size } = await loadLabels();
-            downloadBlob(await targetLabelsDocx(labels, size), exportFileName('target-labels', 'docx'));
-            showMessage(`Exported ${labels.length} label${labels.length === 1 ? '' : 's'} as a Word document.`, 'success');
+            await withButtonFeedback(button, async () => {
+                const { labels, size } = await loadLabels();
+                downloadBlob(await targetLabelsDocx(labels, size), exportFileName('target-labels', 'docx'));
+            });
         } else {
             await renderLabels();
             window.print();

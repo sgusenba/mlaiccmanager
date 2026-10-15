@@ -4,6 +4,7 @@ import { getState, setState, updateState } from '../config.js';
 import { loadCompetitors, saveCompetitor as apiSaveCompetitor, deleteCompetitor as apiDeleteCompetitor } from '../api.js';
 import { getCountryNames } from '../countries.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, clearForm } from '../utils.js';
+import { withButtonFeedback } from '../buttonFeedback.js';
 
 const NOT_SPECIFIED = '__none__';
 const FILTER_IDS = ['competitors-search', 'competitors-filter-gender', 'competitors-filter-club', 'competitors-filter-country'];
@@ -174,7 +175,7 @@ function handleCompetitorAction(event) {
             editCompetitor(competitorId);
             break;
         case 'delete-competitor':
-            deleteCompetitor(competitorId);
+            deleteCompetitor(competitorId, button);
             break;
     }
 }
@@ -229,12 +230,12 @@ export async function saveCompetitor(event) {
         data.version = getState('currentEditingVersion');
     }
 
+    const submitButton = event.submitter ?? document.querySelector('#competitor-form button[type="submit"]');
     try {
-        await apiSaveCompetitor(data);
+        await withButtonFeedback(submitButton, () => apiSaveCompetitor(data));
         hideCompetitorForm();
         await loadCompetitors();
         renderCompetitors();
-        showMessage(currentEditingId ? 'Competitor updated successfully!' : 'Competitor created successfully!', 'success');
     } catch (error) {
         if (currentEditingId && (error.isConflict || error.isNotFound)) {
             await handleCompetitorSaveConflict(error);
@@ -301,16 +302,15 @@ export function editCompetitor(id) {
 }
 
 // Delete competitor
-export async function deleteCompetitor(id) {
+export async function deleteCompetitor(id, button) {
     if (!confirm('Are you sure you want to delete this competitor?')) return;
 
     const competitor = getState('competitors').find(c => c.id === id);
 
     try {
-        await apiDeleteCompetitor(id, competitor?.version);
+        await withButtonFeedback(button, () => apiDeleteCompetitor(id, competitor?.version));
         await loadCompetitors();
         renderCompetitors();
-        showMessage('Competitor deleted successfully!', 'success');
     } catch (error) {
         if (error.isConflict || error.isNotFound) {
             await loadCompetitors();

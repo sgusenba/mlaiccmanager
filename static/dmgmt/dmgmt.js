@@ -1,3 +1,5 @@
+import { withButtonFeedback } from '../js/buttonFeedback.js';
+
 const API = '/api';
 
 const state = {
@@ -311,13 +313,9 @@ function setupListeners() {
             return;
         }
         try {
-            if (id) {
-                await api(`/available-disciplines/${id}`, 'PUT', data);
-                showMessage('Discipline updated', 'success');
-            } else {
-                await api('/available-disciplines', 'POST', data);
-                showMessage('Discipline created', 'success');
-            }
+            await withButtonFeedback(event.submitter, () => id
+                ? api(`/available-disciplines/${id}`, 'PUT', data)
+                : api('/available-disciplines', 'POST', data));
             hideForm();
             await loadData();
             renderTable();
@@ -339,8 +337,7 @@ function setupListeners() {
         if (event.target.closest('.delete-btn')) {
             if (!confirm('Delete this discipline?')) return;
             try {
-                await api(`/available-disciplines/${id}`, 'DELETE');
-                showMessage('Discipline deleted', 'success');
+                await withButtonFeedback(event.target.closest('.delete-btn'), () => api(`/available-disciplines/${id}`, 'DELETE'));
                 await loadData();
                 renderTable();
             } catch (error) {
@@ -355,8 +352,8 @@ function setupListeners() {
             mapping[select.dataset.disciplineId] = select.value || null;
         });
         try {
-            await api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping });
-            showMessage('Shooting distances saved', 'success');
+            await withButtonFeedback(document.getElementById('save-distances-btn'),
+                () => api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping }));
             await loadData();
             renderTable();
         } catch (error) {

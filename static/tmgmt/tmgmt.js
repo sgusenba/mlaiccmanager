@@ -3,6 +3,7 @@
 // registered start in the individual discipline the team discipline is based on.
 
 import { escapeHtml } from '../js/teamRanking.js';
+import { withButtonFeedback } from '../js/buttonFeedback.js';
 
 const API = '/api/teams';
 const STORAGE_KEY = 'tmgmt.discipline';
@@ -153,11 +154,10 @@ function renderTeams() {
     }).join('');
 }
 
-async function deleteTeam(team) {
+async function deleteTeam(team, button) {
     if (!confirm(`Delete team "${team.name}"?`)) return;
     try {
-        await api(`/${team.id}?version=${team.version ?? 0}`, 'DELETE');
-        showMessage(`Team "${team.name}" deleted`, 'success');
+        await withButtonFeedback(button, () => api(`/${team.id}?version=${team.version ?? 0}`, 'DELETE'));
         if (state.editing?.id === team.id) closeEditor();
     } catch (error) {
         console.error(error);
@@ -328,14 +328,10 @@ async function saveTeam(event) {
         notes: document.getElementById('team-notes').value.trim()
     };
     try {
-        let saved;
-        if (state.editing) {
-            body.version = state.editing.version ?? 0;
-            saved = await api(`/${state.editing.id}`, 'PUT', body);
-        } else {
-            saved = await api('', 'POST', body);
-        }
-        showMessage(`Team "${saved.name}" saved`, 'success');
+        if (state.editing) body.version = state.editing.version ?? 0;
+        await withButtonFeedback(event.submitter, () => state.editing
+            ? api(`/${state.editing.id}`, 'PUT', body)
+            : api('', 'POST', body));
         closeEditor();
         await refreshTeams();
     } catch (error) {
@@ -428,7 +424,7 @@ function setupEventListeners() {
         const team = state.teams.find(t => t.id === Number(button.closest('[data-team-id]').dataset.teamId));
         if (!team) return;
         if (button.dataset.action === 'edit-team') openEditor(team);
-        if (button.dataset.action === 'delete-team') deleteTeam(team);
+        if (button.dataset.action === 'delete-team') deleteTeam(team, button);
     });
 
 }
