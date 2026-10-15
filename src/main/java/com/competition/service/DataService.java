@@ -474,9 +474,7 @@ public class DataService {
 
     /**
      * Drops this competition's discipline changes (active list, edits, added and
-     * removed disciplines), so the shipped catalog applies as is. The competition
-     * file is written rather than deleted, so the one-time migration in
-     * ApplicationBinder does not bring the old settings back on the next start.
+     * removed disciplines), so the shipped catalog applies as is.
      *
      * @return the ids of the disciplines there are now
      */
@@ -518,11 +516,6 @@ public class DataService {
     private int storedNextCustomId() throws IOException {
         JsonNode settings = loadCompetitionSettings();
         return settings != null ? settings.path(NEXT_CUSTOM_ID).asInt(0) : 0;
-    }
-
-    /** Whether the competition file exists yet; see ApplicationBinder for the one-time migration. */
-    public boolean hasCompetitionSettings() {
-        return new File(competitionFilePath).exists();
     }
 
     /**

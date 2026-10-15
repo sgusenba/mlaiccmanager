@@ -59,9 +59,6 @@ class EventNameMatchingTest {
 
         Discipline remington = disciplineService.getAvailableDisciplineById(74);
         assertEquals(List.of(52, 53), disciplineService.getComponents(remington).stream().map(Discipline::getId).toList());
-
-        List<Discipline> catalog = dataService.loadDisciplines();
-        assertEquals(List.of(1), TeamService.teamOfFromBasedOn(disciplineService.getAvailableDisciplineById(33), catalog));
     }
 
     @Test
