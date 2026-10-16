@@ -73,6 +73,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | | Disciplines | `/dmgmt/` |
 | | Ranges & Relays | `/rmgmt/#settings` |
 | | Meet Days | `/rmgmt/#schedule` |
+| | Registration (Demo) | `/register/` |
 | | Backup & Restore | `/backup/` |
 | | Danger Zone | `/danger/` |
 
@@ -87,6 +88,7 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
 - **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) the lane assignments CSV (`static/meet/laneExport.js`) and the target labels (`static/meet/labelExport.js`, QR codes by `static/js/qrCode.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
+- **`/register`** (`static/register/`) — a demo of an online registration form for starters: offers the meet's individual rankings (combined rankings such as Remington register for all their disciplines) in three layouts to compare (list, cards per firearm, step by step). It only reads the meet, its rankings and the discipline catalog and saves nothing
 - **`/backup`** (`static/backup/`) — backup download and restore
 - **`/danger`** (`static/danger/`) — the Danger Zone: clears one kind of data at a time
 
