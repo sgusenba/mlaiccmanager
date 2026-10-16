@@ -45,6 +45,7 @@ Every page and every button row should make clear what belongs together. Check:
   - import/export and print, which form a group of their own.
 - **Consistent order and placement across pages.** The same kind of action sits in the same place with the same label and style on every page. Compare with at least one sibling page before judging. If a page differs from the others, say which page you compared it with.
 - **Labels.** Use a verb plus an object ("Save result", "Export catalog", "Clear lanes"), never a bare "OK" or "Yes". The same action has the same word everywhere. Icons without text need an `aria-label` and a `title`.
+- **Translations.** The UI ships in English and German (`static/js/i18n.js`). Every visible text, including button labels, inline confirmations, errors, `title` and `aria-label`, comes from a message key in `static/i18n/en.js` and `static/i18n/de.js` (`data-i18n*` attributes in HTML, `t()` in scripts), never a hard-coded string. Button rows must still fit when labels get longer: German labels are often 30–50% longer, so check that groups wrap cleanly and don't overflow.
 - **Disabled vs hidden.** If an action is unavailable, it is disabled and the page says why. It does not silently disappear while its siblings stay.
 - **Sidebar.** Navigation groups in `static/js/appNav.js` (`GROUPS`) follow the order a competition runs in, with one-off setup (Management) last. A new page belongs in the group that matches its purpose.
 
