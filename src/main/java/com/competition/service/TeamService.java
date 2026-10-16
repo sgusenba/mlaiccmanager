@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.RankingDefinition;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -205,8 +206,7 @@ public class TeamService {
             Registry registry = registry();
             Discipline discipline = requireTeamDiscipline(registry, disciplineId);
             if (registry.rankings().stream().noneMatch(r -> r.disciplineIds().contains(disciplineId))) {
-                throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings; "
-                    + "add it to a ranking first");
+                throw new IllegalArgumentException(Messages.get("team.notInProgram", discipline.getName()));
             }
             List<Map<String, Object>> list = listOf(teams);
 
@@ -226,7 +226,7 @@ public class TeamService {
             Registry registry = registry();
             Map<String, Object> team = requireTeam(teams, id);
             DataService.checkVersion(team, versionOf(request),
-                "Someone else changed this team in the meantime", enrich(team, registry));
+                Messages.get("team.changed"), enrich(team, registry));
             Discipline discipline = requireTeamDiscipline(registry, RelayRules.intOf(team.get("discipline_id")));
             applyRequest(teams, team, discipline, request, registry);
             DataService.bumpVersion(team);
@@ -238,7 +238,7 @@ public class TeamService {
         update(teams -> {
             Map<String, Object> team = requireTeam(teams, id);
             DataService.checkVersion(team, version,
-                "Someone else changed this team in the meantime", enrich(team, registry()));
+                Messages.get("team.changed"), enrich(team, registry()));
             listOf(teams).remove(team);
             return null;
         });
@@ -250,7 +250,7 @@ public class TeamService {
         List<String> members = requireMembers(request);
         int size = teamSize(discipline);
         if (members.size() > size) {
-            throw new IllegalArgumentException("A team of " + discipline.getName() + " has at most " + size + " members");
+            throw new IllegalArgumentException(Messages.get("team.tooManyMembers", discipline.getName(), size));
         }
 
         Set<Integer> eligible = eligibleIds(discipline, registry);
@@ -258,15 +258,15 @@ public class TeamService {
         for (String startId : members) {
             Map<String, Object> start = registry.starts().get(startId);
             if (start == null) {
-                throw new IllegalArgumentException("Start " + startId + " does not exist");
+                throw new IllegalArgumentException(Messages.get("start.doesNotExist", startId));
             }
             if (!eligible.contains(RelayRules.intOf(start.get("discipline_id")))) {
-                throw new IllegalArgumentException("Start " + startId + " is not a start of "
-                    + compositionText(discipline, registry) + " and cannot count for " + discipline.getName());
+                throw new IllegalArgumentException(Messages.get("team.startNotEligible", startId,
+                    compositionText(discipline, registry), discipline.getName()));
             }
             int competitorId = RelayRules.intOf(start.get("competitor_id"));
             if (!competitorsInTeam.add(competitorId)) {
-                throw new IllegalArgumentException(competitorName(registry, competitorId) + " is in this team twice");
+                throw new IllegalArgumentException(Messages.get("team.memberTwice", competitorName(registry, competitorId)));
             }
         }
 
@@ -287,9 +287,9 @@ public class TeamService {
                 Map<String, Object> start = registry.starts().get(startId);
                 if (start != null && competitorsInTeam.contains(RelayRules.intOf(start.get("competitor_id")))) {
                     Discipline otherDiscipline = registry.disciplines().get(RelayRules.intOf(other.get("discipline_id")));
-                    throw new ConflictException(competitorName(registry, RelayRules.intOf(start.get("competitor_id")))
-                        + " is already in team " + other.get("name") + " of "
-                        + (otherDiscipline != null ? otherDiscipline.getName() : discipline.getName()), null);
+                    throw new ConflictException(Messages.get("team.alreadyInTeam",
+                        competitorName(registry, RelayRules.intOf(start.get("competitor_id"))), other.get("name"),
+                        otherDiscipline != null ? otherDiscipline.getName() : discipline.getName()), null);
                 }
             }
         }
@@ -552,12 +552,12 @@ public class TeamService {
     }
 
     private static String disciplineName(Discipline discipline) {
-        return discipline.getType() != null ? discipline.getName() + " (" + discipline.getType() + ")" : discipline.getName();
+        return Messages.disciplineWithType(discipline.getName(), discipline.getType());
     }
 
     private static String competitorName(Registry registry, int competitorId) {
         Map<String, Object> competitor = registry.competitors().get(competitorId);
-        return competitor != null && competitor.get("name") != null ? competitor.get("name").toString() : "Competitor " + competitorId;
+        return competitor != null && competitor.get("name") != null ? competitor.get("name").toString() : Messages.get("competitor.fallbackName", competitorId);
     }
 
     // --- lookups -----------------------------------------------------------
@@ -565,10 +565,10 @@ public class TeamService {
     private static Discipline requireTeamDiscipline(Registry registry, int disciplineId) {
         Discipline discipline = registry.disciplines().get(disciplineId);
         if (discipline == null) {
-            throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
+            throw new IllegalArgumentException(Messages.get("discipline.doesNotExist", disciplineId));
         }
         if (!isTeamDiscipline(discipline)) {
-            throw new IllegalArgumentException(discipline.getName() + " is not a team discipline");
+            throw new IllegalArgumentException(Messages.get("team.notTeamDiscipline", discipline.getName()));
         }
         return discipline;
     }
@@ -595,8 +595,7 @@ public class TeamService {
             if (request != null && request.containsKey("level") && !"team".equalsIgnoreCase(String.valueOf(level))) {
                 List<String> names = teamNames(teams, disciplineId);
                 if (!names.isEmpty()) {
-                    throw new ConflictException("Discipline " + disciplineId + " has the teams "
-                        + String.join(", ", names) + "; delete them before it stops being a team discipline", names);
+                    throw new ConflictException(Messages.get("team.disciplineHasTeamsLevel", disciplineId, String.join(", ", names)), names);
                 }
             }
             if (request != null && request.get("team_of") instanceof List<?> ids) {
@@ -616,8 +615,7 @@ public class TeamService {
                     }
                 }
                 if (!outside.isEmpty()) {
-                    throw new ConflictException("These team members' starts would no longer count; "
-                        + "remove them from their teams first: " + String.join(", ", outside), outside);
+                    throw new ConflictException(Messages.get("team.membersWouldNotCount", String.join(", ", outside)), outside);
                 }
             }
             return save.call();
@@ -632,8 +630,7 @@ public class TeamService {
         return read(teams -> {
             List<String> names = teamNames(teams, disciplineId);
             if (!names.isEmpty()) {
-                throw new ConflictException("Discipline " + disciplineId + " has the teams "
-                    + String.join(", ", names) + "; delete them first", names);
+                throw new ConflictException(Messages.get("team.disciplineHasTeams", disciplineId, String.join(", ", names)), names);
             }
             return action.call();
         });
@@ -670,7 +667,7 @@ public class TeamService {
                 return team;
             }
         }
-        throw new RecordNotFoundException("Team " + id + " not found");
+        throw new RecordNotFoundException(Messages.get("team.notFound", id));
     }
 
     private static List<String> membersOf(Map<String, Object> team) {
@@ -689,7 +686,7 @@ public class TeamService {
     private static List<String> requireMembers(Map<String, Object> request) {
         Object raw = request != null ? request.get("members") : null;
         if (raw != null && !(raw instanceof List)) {
-            throw new IllegalArgumentException("members must be a list of start ids");
+            throw new IllegalArgumentException(Messages.get("team.membersList"));
         }
         List<String> members = new ArrayList<>();
         if (raw instanceof List<?> list) {
@@ -700,7 +697,7 @@ public class TeamService {
                     continue;
                 }
                 if (members.contains(startId)) {
-                    throw new IllegalArgumentException("Start " + startId + " is listed twice");
+                    throw new IllegalArgumentException(Messages.get("team.startTwice", startId));
                 }
                 members.add(startId);
             }
@@ -720,7 +717,7 @@ public class TeamService {
                 // fall through
             }
         }
-        throw new IllegalArgumentException(key + " is required");
+        throw new IllegalArgumentException(Messages.get("request.required", key));
     }
 
     private static Integer versionOf(Map<String, Object> request) {

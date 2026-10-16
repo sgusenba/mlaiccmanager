@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.DisciplineCatalog;
 import com.competition.model.RankingDefinition;
 import org.slf4j.Logger;
@@ -76,7 +77,7 @@ public class DangerZoneService {
      */
     public Map<String, Object> clear(String target) throws Exception {
         if (!TARGETS.contains(target)) {
-            throw new IllegalArgumentException("Unknown data to clear: " + target);
+            throw new IllegalArgumentException(Messages.get("danger.unknownTarget", target));
         }
         return backupService.locked(() -> {
             String safetyCopy = backupService.saveSafetyCopy("pre-clear-" + target);
@@ -167,7 +168,7 @@ public class DangerZoneService {
     private void resetDisciplines(Map<String, Integer> cleared) throws Exception {
         DisciplineCatalog defaults = dataService.defaultCatalog();
         if (defaults == null) {
-            throw new IllegalArgumentException("There is no shipped catalog (" + DataService.DEFAULT_CATALOG_FILE + ")");
+            throw new IllegalArgumentException(Messages.get("danger.noShippedCatalog", DataService.DEFAULT_CATALOG_FILE));
         }
         Set<Integer> remaining = new HashSet<>();
         defaults.getDisciplines().forEach(d -> remaining.add(d.getId()));

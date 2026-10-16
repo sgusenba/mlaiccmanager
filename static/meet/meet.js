@@ -10,6 +10,8 @@ import { laneRows, toCsv } from './laneExport.js';
 import { LABEL_PAGE_SIZE, labelSize, labelsPerSheet, targetLabels, targetLabelsDocx, targetLabelsHtml } from './labelExport.js';
 import { raceBibsDocx, startCardsDocx } from './wordExport.js';
 import { withButtonFeedback } from '../js/buttonFeedback.js';
+import { countryLabel } from '../js/countries.js';
+import { locale, t } from '../js/i18n.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
@@ -19,8 +21,8 @@ const PAGE_SIZES = {
 const SEPARATOR_KEY = 'meet.csvSeparator';
 const FORMAT_KEY = 'meet.exportFormat';
 const LABELS_KEY = 'meet.labels';
-const EXPORT_TITLES = { cards: 'Export Start Cards', bibs: 'Export Race Bibs' };
-const FILE_PREFIXES = { cards: 'start-cards', bibs: 'race-bibs' };
+const EXPORT_TITLES = { cards: 'meet.cards.export', bibs: 'meet.bibs.export' };
+const FILE_PREFIXES = { cards: 'meet.cards.fileName', bibs: 'meet.bibs.fileName' };
 
 let meet = null;
 
@@ -28,7 +30,7 @@ let meet = null;
 
 class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
     }
 }
@@ -63,7 +65,7 @@ function formatDay(isoDate) {
     if (!isoDate) return '';
     const [year, month, day] = isoDate.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    return isNaN(date) ? isoDate : date.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return isNaN(date) ? isoDate : date.toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 const startCount = competitor => Object.values(competitor.starts || {}).reduce((sum, list) => sum + (list?.length || 0), 0);
@@ -79,8 +81,8 @@ function fillForm() {
 
     const fromDays = formatDateRange(meet.days.from, meet.days.to);
     document.getElementById('meet-date-hint').textContent = fromDays
-        ? `Left empty, the Meet Days are printed: ${fromDays}.`
-        : 'Left empty, the first and last Meet Day are printed.';
+        ? t('meet.dateHintDays', { days: fromDays })
+        : t('meet.dateHint');
 }
 
 async function refreshMeet() {
@@ -103,9 +105,9 @@ async function saveMeet(event) {
     } catch (error) {
         if (error.status === 409) {
             await refreshMeet();
-            showMessage(`${error.message}. The latest details are shown now; please make your change again.`);
+            showMessage(t('meet.conflict', { error: error.message }));
         } else {
-            showMessage(`Could not save the meet details: ${error.message}`);
+            showMessage(t('meet.error.save', { error: error.message }));
         }
     }
 }
@@ -125,13 +127,13 @@ const normalize = (text) => String(text ?? '').normalize('NFD').replace(/\p{Diac
 function matchingStarters(starters, query) {
     const terms = normalize(query).split(/\s+/).filter(Boolean);
     return starters.filter(c => {
-        const text = normalize([c.id, c.name, c.club, c.country].join(' '));
+        const text = normalize([c.id, c.name, c.club, c.country, countryLabel(c.country)].join(' '));
         return terms.every(term => text.includes(term));
     });
 }
 
 const starterLabel = (c) => {
-    const from = [c.club, c.country].filter(Boolean).map(escapeHtml).join(', ');
+    const from = [c.club, countryLabel(c.country)].filter(Boolean).map(escapeHtml).join(', ');
     return `${c.id} · ${escapeHtml(c.name)}${from ? ` (${from})` : ''}`;
 };
 
@@ -143,7 +145,7 @@ function renderStarterSelect(search) {
     const filtered = search.value.trim() !== '';
     const matches = matchingStarters(starterList, search.value);
     const previous = select.value;
-    select.innerHTML = `<option value="">${filtered ? 'All matching starters' : 'All starters'} (${matches.length})</option>`
+    select.innerHTML = `<option value="">${t(filtered ? 'meet.allMatchingStarters' : 'meet.allStarters', { count: matches.length })}</option>`
         + matches.map(c => `<option value="${c.id}">${starterLabel(c)}</option>`).join('');
     select.value = [...select.options].some(o => o.value === previous) ? previous : '';
     // one match: pick it, so printing a single starter is search + print
@@ -162,12 +164,12 @@ async function refreshStarterSelects() {
 function compareText(a, b) {
     const x = String(a || '').trim();
     const y = String(b || '').trim();
-    return (!x) - (!y) || x.localeCompare(y, undefined, { sensitivity: 'base' });
+    return (!x) - (!y) || x.localeCompare(y, locale, { sensitivity: 'base' });
 }
 
 /** Print order of start cards and race bibs: by country, club, name, then starter ID. */
 function printOrder(a, b) {
-    return compareText(a.country, b.country)
+    return compareText(countryLabel(a.country), countryLabel(b.country))
         || compareText(a.club, b.club)
         || compareText(a.name, b.name)
         || a.id - b.id;
@@ -185,7 +187,7 @@ export const rankingNames = (rankingsByDiscipline, disciplineId) =>
 function disciplineCell(start, rankingsByDiscipline) {
     const rankings = rankingNames(rankingsByDiscipline, start.discipline_id);
     return `${escapeHtml(start.discipline_name ?? '')}${rankings
-        ? `<div class="card-rankings">Rankings: ${escapeHtml(rankings)}</div>` : ''}`;
+        ? `<div class="card-rankings">${escapeHtml(t('meet.card.rankings', { rankings }))}</div>` : ''}`;
 }
 
 function scheduledRow(entry, rankingsByDiscipline) {
@@ -201,10 +203,10 @@ function scheduledRow(entry, rankingsByDiscipline) {
         </tr>`;
 }
 
-function unscheduledRow(start, rankingsByDiscipline, note = 'not yet scheduled') {
+function unscheduledRow(start, rankingsByDiscipline, note = t('meet.card.notScheduled')) {
     return `
         <tr class="unscheduled">
-            <td colspan="5">${note}</td>
+            <td colspan="5">${escapeHtml(note)}</td>
             <td>${disciplineCell(start, rankingsByDiscipline)}</td>
             <td class="mono">${escapeHtml(start.start_id)}</td>
         </tr>`;
@@ -214,9 +216,9 @@ function unscheduledRow(start, rankingsByDiscipline, note = 'not yet scheduled')
 function teamsTable(teams, rankingsByDiscipline) {
     if (!teams.length) return '';
     return `
-            <h4>Teams (${teams.length})</h4>
+            <h4>${t('meet.card.teams', { count: teams.length })}</h4>
             <table>
-                <thead><tr><th>Team</th><th>Team discipline</th><th>Rankings</th></tr></thead>
+                <thead><tr><th>${t('ranking.col.team')}</th><th>${t('teams.discipline')}</th><th>${t('meet.card.rankingsHeader')}</th></tr></thead>
                 <tbody>
                     ${teams.map(team => `
                         <tr>
@@ -238,49 +240,49 @@ function startCard(competitor, row, printedAt, { rankingsByDiscipline, teamsByCo
         ? `
             <table>
                 <thead>
-                    <tr><th>Day</th><th>Relay</th><th>Time</th><th>Range</th><th>Lane</th><th>Discipline</th><th>Start ID</th></tr>
+                    <tr><th>${t('meet.card.day')}</th><th>${t('meet.card.relay')}</th><th>${t('meet.card.time')}</th><th>${t('meet.card.range')}</th><th>${t('meet.card.lane')}</th><th>${t('meet.card.discipline')}</th><th>${t('meet.card.startId')}</th></tr>
                 </thead>
                 <tbody>
                     ${scheduled.map(entry => scheduledRow(entry, rankingsByDiscipline)).join('')}
                     ${unscheduled.map(start => unscheduledRow(start, rankingsByDiscipline)).join('')}
-                    ${noLane.map(start => unscheduledRow(start, rankingsByDiscipline, 'no lane needed')).join('')}
+                    ${noLane.map(start => unscheduledRow(start, rankingsByDiscipline, t('meet.card.noLane'))).join('')}
                 </tbody>
             </table>`
-        : '<p class="card-empty">No starts registered.</p>';
+        : `<p class="card-empty">${t('stats.empty')}</p>`;
 
     return `
         <section class="print-page start-card">
             <header class="card-head">
-                <div class="card-meet">${escapeHtml(meet.name || 'Start Card')}</div>
+                <div class="card-meet">${escapeHtml(meet.name || t('meet.card.title'))}</div>
                 ${meetLine() ? `<div class="card-meet-sub">${meetLine()}</div>` : ''}
-                ${meet.host ? `<div class="card-meet-sub">Host: ${escapeHtml(meet.host)}</div>` : ''}
+                ${meet.host ? `<div class="card-meet-sub">${escapeHtml(t('meet.hostLine', { host: meet.host }))}</div>` : ''}
             </header>
             <div class="card-starter">
                 <div class="card-number">
-                    <span class="card-number-label">Starter ID</span>
+                    <span class="card-number-label">${t('meet.card.starterId')}</span>
                     <span class="card-number-value">${escapeHtml(competitor.id)}</span>
                 </div>
                 <div class="min-w-0">
                     <div class="card-name">${escapeHtml(competitor.name)}</div>
                     <dl>
-                        <dt>Club</dt><dd>${escapeHtml(competitor.club || '–')}</dd>
-                        <dt>Country</dt><dd>${escapeHtml(competitor.country || '–')}</dd>
+                        <dt>${t('competitors.club')}</dt><dd>${escapeHtml(competitor.club || '–')}</dd>
+                        <dt>${t('competitors.country')}</dt><dd>${escapeHtml(countryLabel(competitor.country) || '–')}</dd>
                     </dl>
                 </div>
             </div>
-            <h4>Starts (${count})</h4>
+            <h4>${t('meet.card.starts', { count })}</h4>
             ${starts}
             ${teamsTable(teams, rankingsByDiscipline)}
             <footer class="card-foot">
                 <span>${escapeHtml(competitor.name)} · ${escapeHtml(competitor.id)}</span>
-                <span>Printed ${escapeHtml(printedAt)}</span>
+                <span>${escapeHtml(t('meet.card.printed', { time: printedAt }))}</span>
             </footer>
         </section>`;
 }
 
 function bib(competitor) {
     const number = String(competitor.id);
-    const club = [competitor.club, competitor.country].filter(Boolean).map(escapeHtml).join(' · ');
+    const club = [competitor.club, countryLabel(competitor.country)].filter(Boolean).map(escapeHtml).join(' · ');
     const meetName = meet.name || '';
     return `
         <section class="print-page bib">
@@ -289,7 +291,7 @@ function bib(competitor) {
             <div class="bib-number${number.length >= 5 ? ' digits-5' : number.length === 4 ? ' digits-4' : ''}">${escapeHtml(number)}</div>
             <div class="bib-name${competitor.name.length > 26 ? ' long' : ''}">${escapeHtml(competitor.name)}</div>
             <div class="bib-club">${club || '&nbsp;'}</div>
-            <div class="bib-foot">${meet.host ? `Host: ${escapeHtml(meet.host)}` : '&nbsp;'}</div>
+            <div class="bib-foot">${meet.host ? escapeHtml(t('meet.hostLine', { host: meet.host })) : '&nbsp;'}</div>
         </section>`;
 }
 
@@ -310,7 +312,7 @@ async function loadPrintout(kind) {
     ]);
     const chosen = (selected ? starters.filter(c => String(c.id) === selected) : matchingStarters(starters, query))
         .sort(printOrder);
-    if (chosen.length === 0) throw new Error('There are no starters to export.');
+    if (chosen.length === 0) throw new Error(t('meet.noStarters'));
     const rows = new Map((overview?.rows || []).map(row => [row.competitor?.id, row]));
     // Each competitor's teams
     const teamsByCompetitor = new Map();
@@ -321,7 +323,7 @@ async function loadPrintout(kind) {
             teamsByCompetitor.get(member.competitor_id).push(team);
         }
     }
-    return { chosen, rows, printedAt: new Date().toLocaleString(), extras: { rankingsByDiscipline, teamsByCompetitor } };
+    return { chosen, rows, printedAt: new Date().toLocaleString(locale), extras: { rankingsByDiscipline, teamsByCompetitor } };
 }
 
 /** Fills the print area for 'cards' or 'bibs' with the selected starters' pages. */
@@ -340,7 +342,7 @@ async function exportWord(kind) {
     const file = kind === 'cards'
         ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay, ...extras })
         : raceBibsDocx(meet, chosen);
-    downloadBlob(file, exportFileName(FILE_PREFIXES[kind], 'docx'));
+    downloadBlob(file, exportFileName(t(FILE_PREFIXES[kind]), 'docx'));
 }
 
 // The Export buttons open one dialog; it remembers which printout it is for
@@ -348,7 +350,7 @@ let exportKind = null;
 
 function openExportDialog(kind) {
     exportKind = kind;
-    document.getElementById('export-title').textContent = EXPORT_TITLES[kind];
+    document.getElementById('export-title').textContent = t(EXPORT_TITLES[kind]);
     const format = readStored(FORMAT_KEY) === 'word' ? 'word' : 'print';
     document.querySelector(`#export-dialog input[name="export-format"][value="${format}"]`).checked = true;
     document.getElementById('export-dialog').showModal();
@@ -368,7 +370,7 @@ async function exportFromDialog() {
             window.print();
         }
     } catch (error) {
-        showMessage(`Could not export: ${error.message}`);
+        showMessage(t('meet.error.export', { error: error.message }));
     } finally {
         button.disabled = false;
     }
@@ -399,11 +401,11 @@ async function exportLanes(button) {
     try {
         await withButtonFeedback(button, async () => {
             const rows = await loadLaneRows(document.getElementById('csv-unscheduled').checked);
-            if (rows.length === 0) throw new Error('There are no lane assignments yet.');
-            downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName('lane-assignments', 'csv'));
+            if (rows.length === 0) throw new Error(t('meet.noLanes'));
+            downloadBlob(new Blob([toCsv(rows, separator)], { type: 'text/csv;charset=utf-8' }), exportFileName(t('meet.csv.fileName'), 'csv'));
         });
     } catch (error) {
-        showMessage(`Could not export the lane assignments: ${error.message}`);
+        showMessage(t('meet.error.exportLanes', { error: error.message }));
     } finally {
         button.disabled = false;
     }
@@ -419,7 +421,7 @@ function labelSettings() {
 
 function showLabelsPerSheet() {
     const { columns, lines } = labelsPerSheet(labelSettings().size);
-    document.getElementById('label-per-sheet').textContent = `${columns * lines} per A4 sheet (${columns} x ${lines})`;
+    document.getElementById('label-per-sheet').textContent = t('meet.labels.perSheet', { count: columns * lines, columns, lines });
 }
 
 function restoreLabelSettings() {
@@ -439,7 +441,7 @@ async function loadLabels() {
     document.getElementById('label-height').value = size.height;
     store(LABELS_KEY, JSON.stringify({ ...size, pairs }));
     const labels = targetLabels(await loadLaneRows(false), { pairs });
-    if (labels.length === 0) throw new Error('There are no lane assignments yet.');
+    if (labels.length === 0) throw new Error(t('meet.noLanes'));
     return { labels, size };
 }
 
@@ -456,14 +458,14 @@ async function exportLabels(format, button) {
         if (format === 'word') {
             await withButtonFeedback(button, async () => {
                 const { labels, size } = await loadLabels();
-                downloadBlob(await targetLabelsDocx(labels, size), exportFileName('target-labels', 'docx'));
+                downloadBlob(await targetLabelsDocx(labels, size), exportFileName(t('meet.labels.fileName'), 'docx'));
             });
         } else {
             await renderLabels();
             window.print();
         }
     } catch (error) {
-        showMessage(`Could not export the labels: ${error.message}`);
+        showMessage(t('meet.error.exportLabels', { error: error.message }));
     } finally {
         button.disabled = false;
     }
@@ -505,6 +507,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await Promise.all([refreshMeet(), refreshStarterSelects()]);
     } catch (error) {
-        showMessage(`Error loading the meet: ${error.message}`);
+        showMessage(t('meet.error.load', { error: error.message }));
     }
 });

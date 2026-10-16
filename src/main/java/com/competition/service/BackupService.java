@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -214,21 +215,21 @@ public class BackupService {
                     continue;
                 }
                 if (files.containsKey(name)) {
-                    throw new IllegalArgumentException("The backup contains " + name + " more than once");
+                    throw new IllegalArgumentException(Messages.get("backup.duplicate", name));
                 }
                 byte[] content = readLimited(zip, name);
                 JsonNode json;
                 try {
                     json = objectMapper.readTree(content);
                 } catch (IOException e) {
-                    throw new IllegalArgumentException(name + " in the backup is not valid JSON");
+                    throw new IllegalArgumentException(Messages.get("backup.invalidJson", name));
                 }
                 if (name.equals(CATALOG_FILE)) {
                     if (!DataService.isCatalog(json)) {
-                        throw new IllegalArgumentException(name + " in the backup is not a discipline catalog of this version");
+                        throw new IllegalArgumentException(Messages.get("backup.notCatalog", name));
                     }
                 } else if (json == null || !json.isObject()) {
-                    throw new IllegalArgumentException(name + " in the backup is not a JSON object");
+                    throw new IllegalArgumentException(Messages.get("backup.notObject", name));
                 }
                 files.put(name, content);
             }
@@ -237,10 +238,10 @@ public class BackupService {
         }
         // ZipInputStream reads anything that is not a zip as an empty zip
         if (empty) {
-            throw new IllegalArgumentException("The file is not a zip file");
+            throw new IllegalArgumentException(Messages.get("backup.notZip"));
         }
         if (!files.containsKey(REQUIRED_FILE)) {
-            throw new IllegalArgumentException("Not a backup: " + REQUIRED_FILE + " is missing");
+            throw new IllegalArgumentException(Messages.get("backup.missingData", REQUIRED_FILE));
         }
         return files;
     }
@@ -260,7 +261,7 @@ public class BackupService {
         for (int n; (n = in.read(buffer)) > 0; ) {
             total += n;
             if (total > MAX_FILE_BYTES) {
-                throw new IllegalArgumentException(name + " in the backup is too large");
+                throw new IllegalArgumentException(Messages.get("backup.tooLarge", name));
             }
             out.write(buffer, 0, n);
         }

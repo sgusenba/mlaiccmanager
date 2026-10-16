@@ -3,6 +3,8 @@
 // Exported and imported on their own, or loaded from the shipped defaults.
 
 import { withButtonFeedback } from '../js/buttonFeedback.js';
+import { categoryLabel } from '../js/teamRanking.js';
+import { t } from '../js/i18n.js';
 
 const API = '/api';
 
@@ -14,7 +16,7 @@ const state = {
 
 class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
         this.body = body;
     }
@@ -79,26 +81,25 @@ function renderTable() {
     const tbody = document.getElementById('ranking-table-body');
     const rankings = state.config.rankings;
     if (!rankings.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-sm text-gray-500 text-center">
-            No rankings yet: add one, or load the defaults (one ranking per discipline, plus Remington and Schulhof).</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-sm text-gray-500 text-center">${t('rankings.empty')}</td></tr>`;
         return;
     }
     tbody.innerHTML = rankings.map((r, i) => `
         <tr data-id="${r.id}">
             <td class="px-2 py-2 text-sm whitespace-nowrap text-gray-400">
-                <button class="up-btn px-1 hover:text-gray-800 disabled:opacity-30" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
-                <button class="down-btn px-1 hover:text-gray-800 disabled:opacity-30" ${i === rankings.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+                <button class="up-btn px-1 hover:text-gray-800 disabled:opacity-30" ${i === 0 ? 'disabled' : ''} title="${t('rankings.moveUp')}">▲</button>
+                <button class="down-btn px-1 hover:text-gray-800 disabled:opacity-30" ${i === rankings.length - 1 ? 'disabled' : ''} title="${t('rankings.moveDown')}">▼</button>
             </td>
             <td class="px-4 py-2 text-sm font-medium">${escapeHtml(r.name)}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(r.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${r.level === 'team'
-                ? '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Team</span>'
-                : '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Individual</span>'}</td>
+                ? `<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">${t('level.team')}</span>`
+                : `<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">${t('level.individual')}</span>`}</td>
             <td class="px-4 py-2 text-sm text-gray-700">${entriesText(r)}</td>
-            <td class="px-4 py-2 text-sm">${r.one_start_per_competitor ? 'yes' : ''}</td>
+            <td class="px-4 py-2 text-sm">${r.one_start_per_competitor ? t('common.yes') : ''}</td>
             <td class="px-4 py-2 text-sm whitespace-nowrap">
-                <button class="edit-btn text-blue-600 hover:text-blue-800 mr-3">Edit</button>
-                <button class="delete-btn text-red-600 hover:text-red-800">Delete</button>
+                <button class="edit-btn text-blue-600 hover:text-blue-800 mr-3">${t('common.edit')}</button>
+                <button class="delete-btn text-red-600 hover:text-red-800">${t('common.delete')}</button>
             </td>
         </tr>`).join('');
 }
@@ -119,16 +120,16 @@ function entryRow(entry = { label: '', discipline_ids: [] }) {
     const selected = new Set(entry.discipline_ids);
     const options = pickable(selected).map(d => `
         <option value="${d.id}" ${selected.has(d.id) ? 'selected' : ''}>${escapeHtml(d.name)}${d.short_name
-            ? ` (${escapeHtml(d.short_name)})` : ''} · ${escapeHtml(d.category)}</option>`).join('');
+            ? ` (${escapeHtml(d.short_name)})` : ''} · ${escapeHtml(categoryLabel(d.category))}</option>`).join('');
     return `
         <div class="entry flex flex-wrap items-start gap-3 p-3 border border-gray-200 rounded-md">
             <select multiple size="5" class="entry-disciplines flex-1 min-w-[16rem] px-2 py-1 border border-gray-300 rounded-md text-sm">${options}</select>
             <div class="w-56">
                 <input type="text" class="entry-label w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                       placeholder="Name of the sum" value="${escapeHtml(entry.label || '')}">
+                       placeholder="${t('rankings.sumName')}" value="${escapeHtml(entry.label || '')}">
                 <p class="entry-kind mt-1 text-xs text-gray-500"></p>
             </div>
-            <button type="button" class="remove-entry-btn text-red-600 hover:text-red-800 text-sm">Remove</button>
+            <button type="button" class="remove-entry-btn text-red-600 hover:text-red-800 text-sm">${t('common.remove')}</button>
         </div>`;
 }
 
@@ -147,27 +148,26 @@ function updateEntryHints() {
         const n = picked.length;
         const input = el.querySelector('.entry-label');
         input.classList.toggle('hidden', n < 2);
-        el.querySelector('.entry-kind').textContent = n === 0 ? 'Pick a discipline'
-            : n === 1 ? `One discipline: ${picked[0]}`
-            : team ? 'A team ranking cannot add up team disciplines'
-            : `Sum of ${picked.join(' + ')}: name it`;
+        el.querySelector('.entry-kind').textContent = n === 0 ? t('rankings.entry.pick')
+            : n === 1 ? t('rankings.entry.one', { discipline: picked[0] })
+            : team ? t('rankings.entry.noTeamSums')
+            : t('rankings.entry.sum', { disciplines: picked.join(' + ') });
     });
     const distinct = new Set(readEntries().flatMap(e => e.discipline_ids));
     const max = state.config.max_disciplines_per_ranking;
     const count = document.getElementById('discipline-count');
-    count.textContent = `${distinct.size} of at most ${max} disciplines`;
+    count.textContent = t('rankings.disciplineCount', { count: distinct.size, max });
     count.className = `text-xs ${distinct.size > max ? 'text-red-600 font-medium' : 'text-gray-500'}`;
 }
 
 function updateLevelHints() {
     const team = formLevel() === 'team';
     document.getElementById('one-start-hint').textContent = team
-        ? 'A competitor may be a member of only one team of this ranking. Off: of one team per team discipline.'
-        : 'A competitor may start in only one of this ranking\'s disciplines. Off: several starts are allowed and the best result counts.';
+        ? t('rankings.oneStartHintTeam')
+        : t('rankings.oneStartHintIndividual');
     document.getElementById('entries-hint').textContent = team
-        ? 'Each entry is one team discipline; several entries rank their teams together.'
-        : 'Each entry is one discipline, or several (Ctrl/Cmd-click) whose best results are added up. '
-          + 'Several entries are ranked together: each competitor once, on their best result.';
+        ? t('rankings.entriesHintTeam')
+        : t('rankings.entriesHintIndividual');
 }
 
 function renderEntries(entries) {
@@ -178,7 +178,7 @@ function renderEntries(entries) {
 function showForm(ranking) {
     state.editing = ranking;
     document.getElementById('form-container').classList.remove('hidden');
-    document.getElementById('form-title').textContent = ranking ? 'Edit Ranking' : 'Add Ranking';
+    document.getElementById('form-title').textContent = ranking ? t('rankings.edit') : t('rankings.add');
     document.getElementById('form-name').value = ranking?.name || '';
     document.getElementById('form-short-name').value = ranking?.short_name || '';
     document.getElementById('form-level').value = ranking?.level || 'individual';
@@ -264,7 +264,7 @@ function setupListeners() {
             if (event.target.closest('.edit-btn')) {
                 showForm(ranking);
             } else if (event.target.closest('.delete-btn')) {
-                if (!confirm(`Delete the ranking ${ranking.name}?`)) return;
+                if (!confirm(t('rankings.confirmDelete', { name: ranking.name }))) return;
                 await withButtonFeedback(event.target.closest('.delete-btn'),
                     () => api(`/rankings/${id}?version=${ranking.version}`, 'DELETE'));
                 await reload();
@@ -293,7 +293,7 @@ function setupListeners() {
     });
 
     document.getElementById('defaults-btn').addEventListener('click', async () => {
-        if (!confirm('Replace this meet\'s rankings with the default rankings?')) return;
+        if (!confirm(t('rankings.confirmDefaults'))) return;
         try {
             await withButtonFeedback(document.getElementById('defaults-btn'), () => api('/rankings/defaults', 'POST'));
             hideForm();
@@ -306,7 +306,7 @@ function setupListeners() {
     document.getElementById('export-btn').addEventListener('click', async () => {
         try {
             await withButtonFeedback(document.getElementById('export-btn'),
-                async () => download(await api('/rankings/export'), `rankings-${today()}.json`));
+                async () => download(await api('/rankings/export'), `${t('rankings.fileName')}-${today()}.json`));
         } catch (error) {
             showMessage(error.message);
         }
@@ -317,15 +317,15 @@ function setupListeners() {
         const file = event.target.files[0];
         event.target.value = '';
         if (!file) return;
-        if (!confirm('Replace this meet\'s rankings with those of the file?')) return;
+        if (!confirm(t('rankings.confirmImport'))) return;
         try {
             const content = JSON.parse(await file.text());
             const config = await api('/rankings/import', 'POST', content);
-            showMessage(`Imported ${config.rankings.length} rankings`, 'success');
+            showMessage(t('rankings.imported', { count: config.rankings.length }), 'success');
             hideForm();
             await reload();
         } catch (error) {
-            showMessage(error instanceof SyntaxError ? 'The file is not valid JSON' : error.message);
+            showMessage(error instanceof SyntaxError ? t('common.invalidJson') : error.message);
         }
     });
 }
@@ -336,6 +336,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupListeners();
     } catch (error) {
         console.error(error);
-        showMessage(`Could not load data: ${error.message}`);
+        showMessage(t('common.loadError', { error: error.message }));
     }
 });

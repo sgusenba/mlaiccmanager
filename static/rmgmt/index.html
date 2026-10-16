@@ -18,35 +18,35 @@
         <div id="schedule-section" class="section px-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 no-print">
                 <form id="day-form" class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-lg font-semibold mb-1">Add Meet Day</h3>
-                    <p class="text-sm text-gray-600 mb-4">Relays of a day run from its start time; duration and break are set under Ranges &amp; Relays.</p>
+                    <h3 class="text-lg font-semibold mb-1" data-i18n="relays.addDay">Add Meet Day</h3>
+                    <p class="text-sm text-gray-600 mb-4" data-i18n="relays.addDayIntro">Relays of a day run from its start time; duration and break are set under Ranges &amp; Relays.</p>
                     <div class="flex flex-wrap items-end gap-3">
                         <div>
-                            <label for="day-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <label for="day-date" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="cover.date">Date</label>
                             <input type="date" id="day-date" required class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label for="day-start" class="block text-sm font-medium text-gray-700 mb-1">Start time</label>
+                            <label for="day-start" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="relays.startTime">Start time</label>
                             <input type="time" id="day-start" required value="09:00" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Day</button>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="relays.addDayButton">Add Day</button>
                     </div>
                 </form>
 
                 <div id="auto-assign-card" class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex justify-between items-start gap-2 mb-1">
-                        <h3 class="text-lg font-semibold">Auto Lane Assignment</h3>
+                        <h3 class="text-lg font-semibold" data-i18n="relays.auto.title">Auto Lane Assignment</h3>
                         <label class="flex items-center gap-2 text-sm text-gray-700 shrink-0 cursor-pointer">
                             <input type="checkbox" id="auto-assign-toggle" class="h-4 w-4">
-                            <span id="auto-assign-toggle-label">Off</span>
+                            <span id="auto-assign-toggle-label" data-i18n="relays.auto.off">Off</span>
                         </label>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4">Fills the lanes of all unlocked days: every start gets one lane on its discipline's distance, a competitor never has two lanes in one relay. A discipline is kept in consecutive relays, and original, reproduction and combined of an event run back to back. Locked days are never changed.</p>
+                    <p class="text-sm text-gray-600 mb-4" data-i18n="relays.auto.intro">Fills the lanes of all unlocked days: every start gets one lane on its discipline's distance, a competitor never has two lanes in one relay. A discipline is kept in consecutive relays, and original, reproduction and combined of an event run back to back. Locked days are never changed.</p>
                     <div class="flex flex-wrap items-center gap-3">
-                        <button type="button" id="auto-assign-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Assign lanes automatically</button>
+                        <button type="button" id="auto-assign-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" data-i18n="relays.auto.assign">Assign lanes automatically</button>
                         <label class="flex items-center gap-2 text-sm text-gray-700">
                             <input type="checkbox" id="auto-assign-replace" class="h-4 w-4">
-                            Start over (clear the lanes of unlocked days first)
+                            <span data-i18n="relays.auto.replace">Start over (clear the lanes of unlocked days first)</span>
                         </label>
                     </div>
                     <div id="auto-assign-result" class="mt-4 text-sm hidden"></div>
@@ -54,45 +54,45 @@
             </div>
 
             <div id="days-list" class="space-y-6"></div>
-            <div id="no-days" class="text-center py-12 text-gray-500 hidden">No meet days yet. Add the first day above.</div>
+            <div id="no-days" class="text-center py-12 text-gray-500 hidden" data-i18n="relays.noDays">No meet days yet. Add the first day above.</div>
         </div>
 
         <!-- Settings Section -->
         <div id="settings-section" class="section hidden px-4">
             <form id="config-form" class="max-w-2xl bg-white rounded-lg shadow-md p-6 no-print">
                 <div class="flex justify-between items-start mb-1 gap-2">
-                    <h3 class="text-lg font-semibold">Relay Timing &amp; Distances</h3>
+                    <h3 class="text-lg font-semibold" data-i18n="relays.config.title">Relay Timing &amp; Distances</h3>
                     <button type="button" id="config-lock-btn" class="no-print shrink-0 text-sm px-2 py-1 border rounded-md"></button>
                 </div>
-                <p class="text-sm text-gray-600 mb-4">Fixed for the whole meet. Changing duration or break recalculates all start times. Locked by default to prevent accidental changes.</p>
+                <p class="text-sm text-gray-600 mb-4" data-i18n="relays.config.intro">Fixed for the whole meet. Changing duration or break recalculates all start times. Locked by default to prevent accidental changes.</p>
                 <div class="flex flex-wrap items-end gap-3 mb-4">
                     <div>
-                        <label for="relay-duration" class="block text-sm font-medium text-gray-700 mb-1">Minutes per relay</label>
+                        <label for="relay-duration" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="relays.config.duration">Minutes per relay</label>
                         <input type="number" id="relay-duration" min="1" max="1440" required class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="relay-break" class="block text-sm font-medium text-gray-700 mb-1">Break between relays (min)</label>
+                        <label for="relay-break" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="relays.config.break">Break between relays (min)</label>
                         <input type="number" id="relay-break" min="0" max="1440" required class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="common.save">Save</button>
                 </div>
 
-                <h4 class="text-sm font-semibold text-gray-700 mb-2">Lanes per relay</h4>
+                <h4 class="text-sm font-semibold text-gray-700 mb-2" data-i18n="relays.config.lanes">Lanes per relay</h4>
                 <div id="ranges-list" class="space-y-2 mb-3"></div>
                 <div class="flex flex-wrap items-end gap-2">
                     <div>
-                        <label for="range-name" class="block text-xs font-medium text-gray-700 mb-1">Distance name</label>
-                        <input type="text" id="range-name" placeholder="e.g. 200m" class="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm">
+                        <label for="range-name" class="block text-xs font-medium text-gray-700 mb-1" data-i18n="relays.config.distanceName">Distance name</label>
+                        <input type="text" id="range-name" placeholder="e.g. 200m" data-i18n-placeholder="relays.config.distancePlaceholder" class="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm">
                     </div>
                     <div>
-                        <label for="range-lane-count" class="block text-xs font-medium text-gray-700 mb-1">Lanes</label>
+                        <label for="range-lane-count" class="block text-xs font-medium text-gray-700 mb-1" data-i18n="relays.config.laneCount">Lanes</label>
                         <input type="number" id="range-lane-count" min="1" max="200" class="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm">
                     </div>
                     <div>
-                        <label for="range-first-lane" class="block text-xs font-medium text-gray-700 mb-1">First lane no.</label>
+                        <label for="range-first-lane" class="block text-xs font-medium text-gray-700 mb-1" data-i18n="relays.config.firstLane">First lane no.</label>
                         <input type="number" id="range-first-lane" min="1" max="9999" placeholder="1" class="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm">
                     </div>
-                    <button type="button" id="range-add-btn" class="bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700">Add distance</button>
+                    <button type="button" id="range-add-btn" class="bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700" data-i18n="relays.config.addDistance">Add distance</button>
                 </div>
             </form>
         </div>
@@ -100,21 +100,21 @@
         <!-- Lane Assignment Section -->
         <div id="assignment-section" class="section hidden px-4">
             <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-wrap items-center gap-3 no-print">
-                <button id="prev-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Previous relay">&larr;</button>
+                <button id="prev-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Previous relay" data-i18n-title="relays.prev">&larr;</button>
                 <select id="relay-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0 max-w-full"></select>
-                <button id="next-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Next relay">&rarr;</button>
-                <button id="print-relay-btn" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Print</button>
+                <button id="next-relay-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" title="Next relay" data-i18n-title="relays.next">&rarr;</button>
+                <button id="print-relay-btn" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="ranking.dialog.print">Print</button>
             </div>
             <div id="relay-detail"></div>
-            <div id="no-relays" class="text-center py-12 text-gray-500 hidden">No relays yet. Add a day and relays in the schedule first.</div>
+            <div id="no-relays" class="text-center py-12 text-gray-500 hidden" data-i18n="relays.noRelays">No relays yet. Add a day and relays in the schedule first.</div>
         </div>
 
         <!-- Competitor Overview Section -->
         <div id="overview-section" class="section hidden px-4">
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4 no-print">
-                <input type="search" id="overview-filter" placeholder="Filter by name or club..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-72 max-w-full">
+                <input type="search" id="overview-filter" placeholder="Filter by name or club..." data-i18n-placeholder="relays.overview.filter" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-72 max-w-full">
                 <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" id="overview-issues-only"> Only show problems
+                    <input type="checkbox" id="overview-issues-only"> <span data-i18n="relays.overview.issuesOnly">Only show problems</span>
                 </label>
             </div>
             <div id="overview-issues"></div>

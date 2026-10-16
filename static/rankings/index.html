@@ -10,11 +10,11 @@
 </head>
 <body class="bg-gray-50 has-sidebar">
     <main class="mx-auto py-6 sm:px-6 lg:px-8">
-        <h2 class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900">Rankings</h2>
+        <h2 class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900" data-i18n="rankings.title">Rankings</h2>
         <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden"></div>
 
         <div class="px-4 space-y-6">
-            <p class="px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm">
+            <p class="px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm" data-i18n-html="rankings.intro">
                 What this meet ranks. A ranking has its own name and ranks one or more entries together, each competitor
                 (or team) once, on their best result first. An entry is one discipline, or the sum of several
                 (e.g. Remington_O = Colt + Donald Malson_O). The disciplines the rankings cover are the meet's program:
@@ -25,19 +25,19 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex flex-wrap items-end gap-6">
                     <div>
-                        <label for="max-disciplines" class="block text-sm font-medium text-gray-700 mb-1">Disciplines per ranking, at most</label>
+                        <label for="max-disciplines" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="rankings.maxDisciplines">Disciplines per ranking, at most</label>
                         <div class="flex items-center gap-2">
                             <input type="number" id="max-disciplines" min="1" max="20" class="w-24 px-3 py-2 border border-gray-300 rounded-md">
-                            <button id="save-max-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Save</button>
+                            <button id="save-max-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" data-i18n="common.save">Save</button>
                         </div>
-                        <p class="mt-1 text-xs text-gray-500">Also limits the team disciplines a team ranking can rank.</p>
+                        <p class="mt-1 text-xs text-gray-500" data-i18n="rankings.maxDisciplinesHint">Also limits the team disciplines a team ranking can rank.</p>
                     </div>
                     <div class="flex flex-wrap items-end gap-2 ml-auto">
                         <button id="defaults-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                title="Replaces the rankings with the shipped default rankings">Load Defaults</button>
-                        <button id="export-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Export Rankings</button>
+                                title="Replaces the rankings with the shipped default rankings" data-i18n-title="rankings.defaultsHint" data-i18n="rankings.defaults">Load Defaults</button>
+                        <button id="export-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50" data-i18n="rankings.export">Export Rankings</button>
                         <button id="import-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                title="Replaces the rankings with those of a rankings file">Import Rankings…</button>
+                                title="Replaces the rankings with those of a rankings file" data-i18n-title="rankings.importHint" data-i18n="rankings.import">Import Rankings…</button>
                         <input type="file" id="import-file" accept=".json,application/json" class="hidden">
                     </div>
                 </div>
@@ -45,64 +45,64 @@
 
             <!-- Ranking form (hidden by default) -->
             <div id="form-container" class="bg-white rounded-lg shadow-md p-6 hidden">
-                <h3 class="text-lg font-semibold mb-4" id="form-title">Add Ranking</h3>
+                <h3 class="text-lg font-semibold mb-4" id="form-title" data-i18n="rankings.add">Add Ranking</h3>
                 <form id="ranking-form" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="lg:col-span-2">
-                            <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                            <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. Whitworth O/R">
+                            <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.name">Name</label>
+                            <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. Whitworth O/R" data-i18n-placeholder="rankings.namePlaceholder">
                         </div>
                         <div>
-                            <label for="form-short-name" class="block text-sm font-medium text-gray-700 mb-1">Short Name</label>
-                            <input type="text" id="form-short-name" maxlength="30" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. WHIT">
+                            <label for="form-short-name" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="rankings.shortName">Short Name</label>
+                            <input type="text" id="form-short-name" maxlength="30" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. WHIT" data-i18n-placeholder="rankings.shortNamePlaceholder">
                         </div>
                         <div>
-                            <label for="form-level" class="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                            <label for="form-level" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="rankings.level">Level</label>
                             <select id="form-level" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                                <option value="individual">Individual</option>
-                                <option value="team">Team</option>
+                                <option value="individual" data-i18n="level.individual">Individual</option>
+                                <option value="team" data-i18n="level.team">Team</option>
                             </select>
                         </div>
                     </div>
                     <label class="flex items-start gap-2 text-sm cursor-pointer">
                         <input type="checkbox" id="form-one-start" class="h-4 w-4 mt-0.5">
                         <span>
-                            <span class="font-medium">One start per competitor</span>
+                            <span class="font-medium" data-i18n="rankings.oneStart">One start per competitor</span>
                             <span id="one-start-hint" class="block text-xs text-gray-500"></span>
                         </span>
                     </label>
                     <div>
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-sm font-medium text-gray-700">What is ranked</span>
+                            <span class="text-sm font-medium text-gray-700" data-i18n="rankings.whatIsRanked">What is ranked</span>
                             <span id="discipline-count" class="text-xs text-gray-500"></span>
                         </div>
                         <p id="entries-hint" class="text-xs text-gray-500 mb-2"></p>
                         <div id="form-entries" class="space-y-3"></div>
-                        <button type="button" id="add-entry-btn" class="mt-3 px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">+ Add entry</button>
+                        <button type="button" id="add-entry-btn" class="mt-3 px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50" data-i18n="rankings.addEntry">+ Add entry</button>
                     </div>
                     <div class="flex gap-2">
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
-                        <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="common.save">Save</button>
+                        <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">Cancel</button>
                     </div>
                 </form>
             </div>
 
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-                    <h3 class="text-lg font-semibold">This meet's rankings</h3>
-                    <button id="add-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Ranking</button>
+                    <h3 class="text-lg font-semibold" data-i18n="rankings.listTitle">This meet's rankings</h3>
+                    <button id="add-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="rankings.add">Add Ranking</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-2 py-2"></th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Short Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ranks</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">One start</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.name">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.shortName">Short Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.level">Level</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.ranks">Ranks</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.oneStartColumn">One start</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="common.actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="ranking-table-body" class="divide-y divide-gray-200"></tbody>

@@ -1,12 +1,13 @@
 // API calls and data loading functions
 
 import { API_BASE, getState, setState } from './config.js';
+import { t } from './i18n.js';
 
 // Error carrying the HTTP status and parsed JSON body, e.g. a 409 conflict
 // with { error, current } when someone else saved the same record first
 export class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
         this.body = body;
     }

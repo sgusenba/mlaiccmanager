@@ -1,4 +1,9 @@
-// ISO 3166-1 alpha-2 codes; English names come from the browser's Intl data
+// ISO 3166-1 alpha-2 codes; the names come from the browser's Intl data.
+// A competitor's country is stored by its English name, whatever the page's
+// language, so the data stays the same when the language is switched.
+
+import { locale } from './i18n.js';
+
 const COUNTRY_CODES = (
     'AF AX AL DZ AS AD AO AI AQ AG AR AM AW AU AT AZ BS BH BD BB BY BE BZ BJ BM BT BO BQ BA BW BV BR IO BN BG BF BI ' +
     'CV KH CM CA KY CF TD CL CN CX CC CO KM CG CD CK CR CI HR CU CW CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FK FO ' +
@@ -9,7 +14,19 @@ const COUNTRY_CODES = (
     'TG TK TO TT TN TR TM TC TV UG UA AE GB US UM UY UZ VU VE VN VG VI WF EH YE ZM ZW'
 ).split(' ');
 
-export function getCountryNames() {
-    const names = new Intl.DisplayNames(['en'], { type: 'region' });
-    return COUNTRY_CODES.map(code => names.of(code)).sort((a, b) => a.localeCompare(b));
+const englishNames = new Intl.DisplayNames(['en'], { type: 'region' });
+const localNames = new Intl.DisplayNames([locale], { type: 'region' });
+const codeByEnglishName = new Map(COUNTRY_CODES.map(code => [englishNames.of(code), code]));
+
+/** The countries as { value: English name, label: name in the page's language }, sorted by label. */
+export function getCountries() {
+    return COUNTRY_CODES
+        .map(code => ({ value: englishNames.of(code), label: localNames.of(code) }))
+        .sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+/** A stored (English) country name in the page's language; unknown names stay as they are. */
+export function countryLabel(name) {
+    const code = codeByEnglishName.get(name);
+    return code ? localNames.of(code) : name;
 }

@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.ConflictException;
 import com.competition.service.RecordNotFoundException;
 import com.competition.service.RelayService;
@@ -134,7 +135,7 @@ public class RelayResource {
     public Response getAvailableStarts(@PathParam("id") String id, @QueryParam("range_id") String rangeId) {
         return handle("get available starts", () -> {
             if (rangeId == null || rangeId.isBlank()) {
-                throw new IllegalArgumentException("range_id is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "range_id"));
             }
             return relayService.getAvailableStarts(id, rangeId);
         });
@@ -183,7 +184,7 @@ public class RelayResource {
             logger.error("Failed to {}", what, e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to " + what))
+                .entity(ErrorBody.of(Messages.get("error.failed", what)))
                 .build();
         }
     }

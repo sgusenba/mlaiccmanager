@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.DangerZoneService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -29,7 +30,7 @@ public class DangerZoneResource {
             return Response.ok(dangerZoneService.summary()).build();
         } catch (Exception e) {
             logger.error("Failed to count the data", e);
-            return Response.serverError().entity(Map.of("error", "Failed to count the data")).build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "count the data"))).build();
         }
     }
 
@@ -42,7 +43,7 @@ public class DangerZoneResource {
             return Response.status(Response.Status.BAD_REQUEST).entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Failed to clear {}", target, e);
-            return Response.serverError().entity(Map.of("error", "Failed to clear " + target)).build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "clear " + target))).build();
         }
     }
 }

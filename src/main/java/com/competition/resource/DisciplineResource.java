@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.ConflictException;
 import com.competition.service.DisciplineService;
 import com.competition.service.RecordNotFoundException;
@@ -66,7 +67,7 @@ public class DisciplineResource {
             return badRequest(e.getMessage());
         } catch (Exception e) {
             logger.error("Error creating discipline", e);
-            return Response.serverError().entity(Map.of("error", "Failed to create discipline")).build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "create discipline"))).build();
         }
     }
 
@@ -96,7 +97,7 @@ public class DisciplineResource {
             Map<String, String> mapping = requestData != null
                 ? (Map<String, String>) requestData.get("shooting_distances") : null;
             if (mapping == null) {
-                throw new IllegalArgumentException("shooting_distances is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "shooting_distances"));
             }
             return disciplineService.updateShootingDistances(mapping);
         });
@@ -113,7 +114,7 @@ public class DisciplineResource {
     public Response setSettings(Map<String, Object> requestData) {
         return handle("save discipline settings", () -> {
             if (requestData == null || !(requestData.get("max_disciplines") instanceof Number max)) {
-                throw new IllegalArgumentException("max_disciplines is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "max_disciplines"));
             }
             return disciplineService.setMaxDisciplines(max.intValue());
         });
@@ -144,7 +145,7 @@ public class DisciplineResource {
             logger.error("Failed to {}", what, e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to " + what))
+                .entity(ErrorBody.of(Messages.get("error.failed", what)))
                 .build();
         }
     }

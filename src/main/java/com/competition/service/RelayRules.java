@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -32,12 +33,12 @@ public final class RelayRules {
             }
             // Rule 1: a registered start is shot once, so it takes at most one lane
             if (startId.equals(a.get("start_id"))) {
-                return "This start already has a lane";
+                return Messages.get("relay.startHasLane");
             }
             // Rule 2: one lane per relay, across all ranges — all ranges fire at the same time
             if (relayId.equals(a.get("relay_id"))
                 && Objects.equals(competitorOfStart.get((String) a.get("start_id")), competitorId)) {
-                return "Competitor already has a lane in this relay";
+                return Messages.get("relay.competitorHasLane");
             }
         }
         return null;

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -57,14 +58,14 @@ public class MeetService {
         }
         if (meet.get("date_from") != null && meet.get("date_to") != null
                 && ((String) meet.get("date_from")).compareTo((String) meet.get("date_to")) > 0) {
-            throw new IllegalArgumentException("date_from must not be after date_to");
+            throw new IllegalArgumentException(Messages.get("meet.datesReversed"));
         }
         Integer expectedVersion = request != null && request.get("version") instanceof Number n ? n.intValue() : null;
 
         return exclusive(() -> {
             Map<String, Object> stored = load();
             DataService.checkVersion(stored, expectedVersion,
-                "The meet details were changed by someone else meanwhile", stored);
+                Messages.get("meet.changed"), stored);
             meet.put("version", DataService.getVersion(stored));
             DataService.bumpVersion(meet);
             save(meet);
@@ -93,11 +94,11 @@ public class MeetService {
             return "";
         }
         if (!(value instanceof String s)) {
-            throw new IllegalArgumentException(field + " must be text");
+            throw new IllegalArgumentException(Messages.get("request.mustBeText", field));
         }
         String trimmed = s.trim();
         if (trimmed.length() > MAX_LENGTH) {
-            throw new IllegalArgumentException(field + " must be at most " + MAX_LENGTH + " characters");
+            throw new IllegalArgumentException(Messages.get("request.tooLong", field, MAX_LENGTH));
         }
         return trimmed;
     }
@@ -111,7 +112,7 @@ public class MeetService {
         try {
             return LocalDate.parse(value.toString().trim()).toString();
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(field + " must be YYYY-MM-DD");
+            throw new IllegalArgumentException(Messages.get("request.date", field));
         }
     }
 

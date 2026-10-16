@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -97,11 +98,11 @@ public class RelayService {
         boolean hasDuration = request != null && request.get("relay_duration_min") != null;
         boolean hasBreak = request != null && request.get("break_min") != null;
         if (!hasDuration && !hasBreak) {
-            throw new IllegalArgumentException("relay_duration_min or break_min is required");
+            throw new IllegalArgumentException(Messages.get("relay.durationOrBreakRequired"));
         }
         int duration = hasDuration ? requireInt(request, "relay_duration_min") : 0;
         if (hasDuration && (duration < 1 || duration > 24 * 60)) {
-            throw new IllegalArgumentException("relay_duration_min must be between 1 and 1440");
+            throw new IllegalArgumentException(Messages.get("relay.durationRange"));
         }
         int breakMin = hasBreak ? requireBreak(request) : 0;
         return update(relays -> {
@@ -148,7 +149,7 @@ public class RelayService {
         boolean replace = request != null && Boolean.TRUE.equals(request.get("replace"));
         return update(relays -> {
             if (!Boolean.TRUE.equals(configOf(relays).get("auto_assign_enabled"))) {
-                throw new IllegalArgumentException("Auto assignment is switched off. Enable it first.");
+                throw new IllegalArgumentException(Messages.get("relay.autoOff"));
             }
             List<Map<String, Object>> assignments = listOf(relays, "assignments");
 
@@ -162,7 +163,7 @@ public class RelayService {
                 }
             }
             if (relayIds.isEmpty()) {
-                throw new IllegalArgumentException("There are no relays on unlocked days to assign lanes in");
+                throw new IllegalArgumentException(Messages.get("relay.noUnlockedRelays"));
             }
 
             int cleared = 0;
@@ -272,8 +273,7 @@ public class RelayService {
             int oldFirstLane = firstLaneNo(range);
             int highestAssignedLane = highestAssignedLane(relays, rangeId);
             if (highestAssignedLane > 0 && laneCount < highestAssignedLane - oldFirstLane + 1) {
-                throw new IllegalArgumentException("Cannot shrink " + range.get("name") + " to " + laneCount
-                    + " lanes: lane " + highestAssignedLane + " is still assigned");
+                throw new IllegalArgumentException(Messages.get("relay.cannotShrink", range.get("name"), laneCount, highestAssignedLane));
             }
             int firstLane = requestedFirstLane != null ? requestedFirstLane : oldFirstLane;
             if (firstLane != oldFirstLane) {
@@ -297,7 +297,7 @@ public class RelayService {
             Map<String, Object> range = findRange(relays, rangeId);
             long assigned = listOf(relays, "assignments").stream().filter(a -> rangeId.equals(a.get("range_id"))).count();
             if (assigned > 0) {
-                throw new IllegalArgumentException("Cannot delete " + range.get("name") + ": " + assigned + " lane(s) are assigned on it");
+                throw new IllegalArgumentException(Messages.get("relay.rangeHasLanes", range.get("name"), assigned));
             }
             // Otherwise their starts could no longer be placed anywhere
             List<String> mapped = new ArrayList<>();
@@ -307,9 +307,8 @@ public class RelayService {
                 }
             }
             if (!mapped.isEmpty()) {
-                throw new IllegalArgumentException("Cannot delete " + range.get("name") + ": " + mapped.size()
-                    + " discipline(s) fire on it (" + String.join(", ", mapped.subList(0, Math.min(5, mapped.size())))
-                    + (mapped.size() > 5 ? ", …" : "") + "). Change their shooting distance first");
+                throw new IllegalArgumentException(Messages.get("relay.rangeHasDisciplines", range.get("name"), mapped.size(),
+                    String.join(", ", mapped.subList(0, Math.min(5, mapped.size()))) + (mapped.size() > 5 ? ", …" : "")));
             }
             listOf(relays, "ranges").remove(range);
             return null;
@@ -336,7 +335,7 @@ public class RelayService {
         String startTime = requireTime(request);
         return update(relays -> {
             Map<String, Object> day = findDay(relays, dayId);
-            requireDayUnlocked(day, "Cannot edit day");
+            requireDayUnlocked(day, Messages.get("relay.action.editDay"));
             day.put("date", date);
             day.put("start_time", startTime);
             recompute(relays, day);
@@ -348,7 +347,7 @@ public class RelayService {
     /** Deletes the day together with its relays and their assignments. */
     public void deleteDay(String dayId) throws Exception {
         update(relays -> {
-            requireDayUnlocked(findDay(relays, dayId), "Cannot delete day");
+            requireDayUnlocked(findDay(relays, dayId), Messages.get("relay.action.deleteDay"));
             List<Map<String, Object>> relayList = listOf(relays, "relays");
             List<Object> relayIds = new ArrayList<>();
             for (Map<String, Object> relay : relayList) {
@@ -367,11 +366,11 @@ public class RelayService {
     public List<Map<String, Object>> addRelays(String dayId, Map<String, Object> request) throws Exception {
         int count = request != null && request.get("count") != null ? requireInt(request, "count") : 1;
         if (count < 1 || count > 100) {
-            throw new IllegalArgumentException("count must be between 1 and 100");
+            throw new IllegalArgumentException(Messages.get("relay.countRange"));
         }
         return update(relays -> {
             Map<String, Object> day = findDay(relays, dayId);
-            requireDayUnlocked(day, "Cannot add relays");
+            requireDayUnlocked(day, Messages.get("relay.action.addRelays"));
             List<Map<String, Object>> relayList = listOf(relays, "relays");
             int sequenceNo = relaysOfDay(relays, dayId).size();
             List<Map<String, Object>> created = new ArrayList<>();
@@ -393,7 +392,7 @@ public class RelayService {
     public void deleteRelay(String relayId) throws Exception {
         update(relays -> {
             Map<String, Object> relay = findRelay(relays, relayId);
-            requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), "Cannot delete relay");
+            requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), Messages.get("relay.action.deleteRelay"));
             listOf(relays, "relays").remove(relay);
             listOf(relays, "assignments").removeIf(a -> relayId.equals(a.get("relay_id")));
             Map<String, Object> day = find(listOf(relays, "days"), relay.get("day_id"));
@@ -488,34 +487,33 @@ public class RelayService {
         return update(relays -> {
             Map<String, Object> relay = findRelay(relays, relayId);
             Map<String, Object> range = findRange(relays, rangeId);
-            requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), "Cannot change lanes");
+            requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), Messages.get("relay.action.changeLanes"));
             int firstLane = firstLaneNo(range);
             int lastLane = firstLane + RelayRules.intOf(range.get("lane_count")) - 1;
             if (laneNo < firstLane || laneNo > lastLane) {
-                throw new IllegalArgumentException("Lane must be between " + firstLane + " and " + lastLane + " for " + range.get("name"));
+                throw new IllegalArgumentException(Messages.get("relay.laneRange", firstLane, lastLane, range.get("name")));
             }
 
             Registry registry = registry();
             Map<String, Object> start = registry.starts().get(startId);
             if (start == null) {
-                throw new IllegalArgumentException("Start " + startId + " not found");
+                throw new IllegalArgumentException(Messages.get("relay.startNotFound", startId));
             }
             int disciplineId = RelayRules.intOf(start.get("discipline_id"));
             if (registry.takesNoLane(disciplineId)) {
-                throw new IllegalArgumentException(disciplineName(registry, disciplineId)
-                    + " is a team discipline and cannot be assigned to a lane");
+                throw new IllegalArgumentException(Messages.get("relay.teamNoLane", disciplineName(registry, disciplineId)));
             }
             String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
             if (mapped != null && !mapped.equals(rangeId)) {
-                throw new IllegalArgumentException(disciplineName(registry, disciplineId) + " is set to fire on "
-                    + rangeName(relays, mapped) + ", not on " + range.get("name"));
+                throw new IllegalArgumentException(Messages.get("relay.wrongRange", disciplineName(registry, disciplineId),
+                    rangeName(relays, mapped), range.get("name")));
             }
 
             Map<String, Object> current = findLane(relays, relayId, rangeId, laneNo);
             String currentId = current != null ? (String) current.get("id") : null;
             if (request.containsKey("expected_assignment_id")
                 && !Objects.equals(request.get("expected_assignment_id"), currentId)) {
-                throw new ConflictException("Lane was changed by someone else",
+                throw new ConflictException(Messages.get("relay.laneChanged"),
                     current != null ? resolve(current, registry) : null);
             }
             if (current != null && startId.equals(current.get("start_id"))) {
@@ -547,11 +545,11 @@ public class RelayService {
         update(relays -> {
             Map<String, Object> assignment = find(listOf(relays, "assignments"), assignmentId);
             if (assignment == null) {
-                throw new RecordNotFoundException("Assignment not found");
+                throw new RecordNotFoundException(Messages.get("relay.assignmentNotFound"));
             }
             Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
             if (relay != null) {
-                requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), "Cannot change lanes");
+                requireDayUnlocked(find(listOf(relays, "days"), relay.get("day_id")), Messages.get("relay.action.changeLanes"));
             }
             listOf(relays, "assignments").remove(assignment);
             return null;
@@ -634,17 +632,17 @@ public class RelayService {
                         continue;
                     }
                     if (entries.size() > 1) {
-                        issues.add("Start " + startId + " has " + entries.size() + " lanes");
+                        issues.add(Messages.get("relay.issue.severalLanes", startId, entries.size()));
                     }
                     for (Map<String, Object> scheduledEntry : entries) {
                         scheduled.add(scheduledEntry);
                         String mapped = shootingDistanceOfDiscipline(registry, RelayRules.intOf(start.get("discipline_id")));
                         if (mapped != null && !mapped.equals(scheduledEntry.get("range_id"))) {
-                            issues.add(scheduledEntry.get("discipline_name") + " is scheduled on "
-                                + scheduledEntry.get("range_name") + " but is set to fire on " + rangeName(relays, mapped));
+                            issues.add(Messages.get("relay.issue.wrongRange", scheduledEntry.get("discipline_name"),
+                                scheduledEntry.get("range_name"), rangeName(relays, mapped)));
                         }
                         if (scheduledEntry.get("start_time") == null) {
-                            issues.add("Start " + startId + " points to a missing relay or range");
+                            issues.add(Messages.get("relay.issue.missingRelay", startId));
                         }
                     }
                 }
@@ -653,12 +651,12 @@ public class RelayService {
                 Map<Object, Integer> perRelay = new HashMap<>();
                 scheduled.forEach(e -> perRelay.merge(e.get("relay_id"), 1, Integer::sum));
                 perRelay.forEach((relayId, count) -> {
-                    if (count > 1) issues.add(count + " lanes in the same relay");
+                    if (count > 1) issues.add(Messages.get("relay.issue.sameRelay", count));
                 });
 
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("competitor", competitor != null ? competitorSummary(competitor)
-                    : Map.of("id", competitorId, "name", "Unknown competitor"));
+                    : Map.of("id", competitorId, "name", Messages.get("relay.unknownCompetitor")));
                 row.put("scheduled", scheduled);
                 row.put("unscheduled", unscheduled);
                 // Starts that need no lane (aggregates such as Remington); they still go on the start card
@@ -671,8 +669,7 @@ public class RelayService {
             for (Map<String, Object> assignment : assignments) {
                 String startId = (String) assignment.get("start_id");
                 if (!registry.starts().containsKey(startId)) {
-                    dataIssues.add("Lane " + laneLabel(relays, assignment) + " holds start " + startId
-                        + ", which no longer exists");
+                    dataIssues.add(Messages.get("relay.issue.startGone", laneLabel(relays, assignment), startId));
                 }
             }
             // keyed by relay id, not its number: every day has a "relay 1"
@@ -687,8 +684,8 @@ public class RelayService {
                     Object name = competitorName(resolve(a, registry));
                     return a.get("start_id") + (name != null ? " (" + name + ")" : "");
                 }).toList();
-                dataIssues.add("Lane " + laneLabel(relays, shared.get(0)) + " holds " + shared.size()
-                    + " starts at once: " + String.join(", ", holders));
+                dataIssues.add(Messages.get("relay.issue.sharedLane", laneLabel(relays, shared.get(0)), shared.size(),
+                    String.join(", ", holders)));
             });
 
             Map<String, Object> overview = new LinkedHashMap<>();
@@ -750,7 +747,7 @@ public class RelayService {
 
     private static String disciplineName(Registry registry, int disciplineId) {
         String name = registry.disciplineNames().get(disciplineId);
-        return name != null ? name : "Discipline #" + disciplineId;
+        return name != null ? name : Messages.get("relay.disciplineFallback", disciplineId);
     }
 
     private static String shootingDistanceOfDiscipline(Registry registry, int disciplineId) {
@@ -765,10 +762,10 @@ public class RelayService {
     private static String laneLabel(Map<String, Object> relays, Map<String, Object> assignment) {
         Map<String, Object> relay = find(listOf(relays, "relays"), assignment.get("relay_id"));
         Map<String, Object> day = relay != null ? find(listOf(relays, "days"), relay.get("day_id")) : null;
-        String relayLabel = relay == null ? "unknown relay " + assignment.get("relay_id")
-            : "relay " + relay.get("sequence_no") + (day != null ? " on " + formatDate((String) day.get("date")) : "")
-                + " (" + relay.get("start_time") + ")";
-        return assignment.get("lane_no") + " on " + rangeName(relays, (String) assignment.get("range_id")) + ", " + relayLabel;
+        String relayLabel = relay == null ? Messages.get("relay.label.unknown", assignment.get("relay_id"))
+            : day != null ? Messages.get("relay.label.onDay", relay.get("sequence_no"), formatDate((String) day.get("date")), relay.get("start_time"))
+            : Messages.get("relay.label", relay.get("sequence_no"), relay.get("start_time"));
+        return Messages.get("relay.label.lane", assignment.get("lane_no"), rangeName(relays, (String) assignment.get("range_id")), relayLabel);
     }
 
     /** "2026-09-25" -> "25.09.2026", as shown in the meet schedule */
@@ -818,7 +815,7 @@ public class RelayService {
     private static Map<String, Object> findDay(Map<String, Object> relays, String dayId) {
         Map<String, Object> day = find(listOf(relays, "days"), dayId);
         if (day == null) {
-            throw new RecordNotFoundException("Day not found");
+            throw new RecordNotFoundException(Messages.get("relay.dayNotFound"));
         }
         return day;
     }
@@ -826,7 +823,7 @@ public class RelayService {
     private static Map<String, Object> findRelay(Map<String, Object> relays, String relayId) {
         Map<String, Object> relay = find(listOf(relays, "relays"), relayId);
         if (relay == null) {
-            throw new RecordNotFoundException("Relay not found");
+            throw new RecordNotFoundException(Messages.get("relay.notFound"));
         }
         return relay;
     }
@@ -834,7 +831,7 @@ public class RelayService {
     private static Map<String, Object> findRange(Map<String, Object> relays, String rangeId) {
         Map<String, Object> range = find(listOf(relays, "ranges"), rangeId);
         if (range == null) {
-            throw new IllegalArgumentException("Unknown range " + rangeId);
+            throw new IllegalArgumentException(Messages.get("relay.unknownRange", rangeId));
         }
         return range;
     }
@@ -846,13 +843,13 @@ public class RelayService {
 
     private static void requireDayUnlocked(Map<String, Object> day, String action) {
         if (day != null && Boolean.TRUE.equals(day.get("locked"))) {
-            throw new IllegalArgumentException(action + ": " + day.get("date") + " is locked. Unlock the day to make changes.");
+            throw new IllegalArgumentException(Messages.get("relay.dayLocked", action, day.get("date")));
         }
     }
 
     private static void requireConfigUnlocked(Map<String, Object> relays) {
         if (Boolean.TRUE.equals(configOf(relays).get("locked"))) {
-            throw new IllegalArgumentException("Relay configuration is locked. Unlock it to make changes.");
+            throw new IllegalArgumentException(Messages.get("relay.configLocked"));
         }
     }
 
@@ -933,9 +930,7 @@ public class RelayService {
                 new LaneAutoAssigner.DisciplineOrder(activeDisciplineIds.get(i), i));
         }
         for (Discipline discipline : dataService.loadDisciplines()) {
-            disciplineNames.put(discipline.getId(), discipline.getType() != null
-                ? discipline.getName() + " (" + discipline.getType() + ")"
-                : discipline.getName());
+            disciplineNames.put(discipline.getId(), Messages.disciplineWithType(discipline.getName(), discipline.getType()));
             if (discipline.getLevel() != null) {
                 disciplineLevels.put(discipline.getId(), discipline.getLevel());
             }
@@ -999,7 +994,7 @@ public class RelayService {
     private static String requireString(Map<String, Object> request, String key) {
         Object value = request != null ? request.get(key) : null;
         if (!(value instanceof String s) || s.isBlank()) {
-            throw new IllegalArgumentException(key + " is required");
+            throw new IllegalArgumentException(Messages.get("request.required", key));
         }
         return s;
     }
@@ -1016,13 +1011,13 @@ public class RelayService {
                 // falls through to the error below
             }
         }
-        throw new IllegalArgumentException(key + " must be a number");
+        throw new IllegalArgumentException(Messages.get("request.number", key));
     }
 
     private static boolean requireBoolean(Map<String, Object> request, String key) {
         Object value = request != null ? request.get(key) : null;
         if (!(value instanceof Boolean b)) {
-            throw new IllegalArgumentException(key + " must be true or false");
+            throw new IllegalArgumentException(Messages.get("request.boolean", key));
         }
         return b;
     }
@@ -1030,7 +1025,7 @@ public class RelayService {
     private static int requireLaneCount(Map<String, Object> request) {
         int laneCount = requireInt(request, "lane_count");
         if (laneCount < 1 || laneCount > 200) {
-            throw new IllegalArgumentException("lane_count must be between 1 and 200");
+            throw new IllegalArgumentException(Messages.get("relay.laneCountRange"));
         }
         return laneCount;
     }
@@ -1042,7 +1037,7 @@ public class RelayService {
         }
         int firstLane = requireInt(request, "first_lane_no");
         if (firstLane < 1 || firstLane > 9999) {
-            throw new IllegalArgumentException("first_lane_no must be between 1 and 9999");
+            throw new IllegalArgumentException(Messages.get("relay.firstLaneRange"));
         }
         return firstLane;
     }
@@ -1052,7 +1047,7 @@ public class RelayService {
         try {
             return LocalDate.parse(date).toString();
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("date must be YYYY-MM-DD");
+            throw new IllegalArgumentException(Messages.get("request.date", "date"));
         }
     }
 
@@ -1061,7 +1056,7 @@ public class RelayService {
         try {
             return LocalTime.parse(time, RelayRules.TIME_FORMAT).format(RelayRules.TIME_FORMAT);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("start_time must be HH:mm");
+            throw new IllegalArgumentException(Messages.get("relay.startTimeFormat"));
         }
     }
 
@@ -1069,7 +1064,7 @@ public class RelayService {
     private static int requireBreak(Map<String, Object> request) {
         int breakMin = requireInt(request, "break_min");
         if (breakMin < 0 || breakMin > 1440) {
-            throw new IllegalArgumentException("break_min must be between 0 and 1440");
+            throw new IllegalArgumentException(Messages.get("relay.breakRange"));
         }
         return breakMin;
     }

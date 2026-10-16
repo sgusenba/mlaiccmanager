@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.AppSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,11 +149,11 @@ public class ExternalBackupService {
         try {
             AppSettings.ExternalBackup settings = settingsService.getExternalBackup();
             if (!settings.isEnabled() || settings.getUrl().isEmpty()) {
-                throw new IllegalStateException("The external backup is not enabled");
+                throw new IllegalStateException(Messages.get("external.notEnabled"));
             }
             String signature = signature();
             if (signature == null) {
-                throw new IllegalStateException("There is no data to back up yet");
+                throw new IllegalStateException(Messages.get("external.noData"));
             }
             if (!push(settings, signature, clock.getAsLong())) {
                 synchronized (this) {
@@ -179,7 +180,7 @@ public class ExternalBackupService {
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                throw new IOException("The receiver answered " + response.statusCode() + ": " + response.body());
+                throw new IOException(Messages.get("external.answeredWith", response.statusCode(), response.body()));
             }
             synchronized (this) {
                 lastPushedSignature = signature;
@@ -216,18 +217,18 @@ public class ExternalBackupService {
                 .timeout(Duration.ofSeconds(10)).header("Authorization", "Bearer " + token).GET().build();
             int status = httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
             if (status == 401) {
-                throw new IllegalStateException("The receiver rejected the token");
+                throw new IllegalStateException(Messages.get("external.tokenRejected"));
             }
             if (status / 100 != 2) {
-                throw new IllegalStateException("The receiver answered " + status);
+                throw new IllegalStateException(Messages.get("external.answered", status));
             }
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw e;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted");
+            throw new IllegalStateException(Messages.get("external.interrupted"));
         } catch (Exception e) {
-            throw new IllegalStateException("Could not reach the receiver: " + e.getMessage());
+            throw new IllegalStateException(Messages.get("external.unreachable", e.getMessage()));
         }
     }
 

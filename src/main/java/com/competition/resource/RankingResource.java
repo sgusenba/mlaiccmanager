@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.ConflictException;
 import com.competition.service.RankingConfigService;
 import com.competition.service.RankingService;
@@ -74,7 +75,7 @@ public class RankingResource {
     public Response reorder(Map<String, Object> request) {
         return handle("reorder rankings", () -> {
             if (request == null || !(request.get("ids") instanceof List<?> ids)) {
-                throw new IllegalArgumentException("ids is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "ids"));
             }
             return rankingConfigService.reorder(ids.stream().map(i -> ((Number) i).intValue()).toList());
         });
@@ -85,7 +86,7 @@ public class RankingResource {
     public Response setSettings(Map<String, Object> request) {
         return handle("save ranking settings", () -> {
             if (request == null || !(request.get("max_disciplines_per_ranking") instanceof Number max)) {
-                throw new IllegalArgumentException("max_disciplines_per_ranking is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "max_disciplines_per_ranking"));
             }
             return rankingConfigService.setMaxDisciplines(max.intValue());
         });
@@ -129,7 +130,7 @@ public class RankingResource {
         return handle("get ranking result", () -> {
             Map<String, Object> result = rankingService.getRankingResult(id);
             if (result == null) {
-                throw new RecordNotFoundException("Ranking " + id + " not found");
+                throw new RecordNotFoundException(Messages.get("ranking.notFound", id));
             }
             return result;
         });
@@ -151,7 +152,7 @@ public class RankingResource {
             logger.error("Failed to {}", what, e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to " + what))
+                .entity(ErrorBody.of(Messages.get("error.failed", what)))
                 .build();
         }
     }

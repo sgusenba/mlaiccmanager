@@ -3,31 +3,14 @@
 // lane of the whole meet is in it, in time, range and lane order.
 
 import { startIdToEan13 } from '../js/startBarcode.js';
+import { countryLabel } from '../js/countries.js';
+import { locale, t, tOr } from '../js/i18n.js';
 
 const SEPARATORS = { semicolon: ';', comma: ',' };
 
-const COLUMNS = [
-    ['Date', row => row.date],
-    ['Weekday', row => row.weekday],
-    ['Relay', row => row.relay],
-    ['Start time', row => row.startTime],
-    ['End time', row => row.endTime],
-    ['Range', row => row.range],
-    ['Lane', row => row.lane],
-    ['Start ID', row => row.startId],
-    ['Barcode (EAN-13)', row => row.barcode],
-    ['Starter ID', row => row.starterId],
-    ['Name', row => row.name],
-    ['Club', row => row.club],
-    ['Country', row => row.country],
-    ['Discipline', row => row.discipline],
-    ['Discipline short name', row => row.disciplineShort],
-    ['Event', row => row.event],
-    ['Type', row => row.type],
-    ['Category', row => row.category],
-    ['Meet', row => row.meet],
-    ['Venue', row => row.venue]
-];
+// The header of a column is the message meet.csv.col.<field>
+const COLUMNS = ['date', 'weekday', 'relay', 'startTime', 'endTime', 'range', 'lane', 'startId', 'barcode',
+    'starterId', 'name', 'club', 'country', 'discipline', 'disciplineShort', 'event', 'type', 'category', 'meet', 'venue'];
 
 function addMinutes(time, minutes) {
     if (!time || !Number.isFinite(minutes)) return '';
@@ -38,7 +21,7 @@ function addMinutes(time, minutes) {
 
 function weekday(isoDate) {
     const [year, month, day] = String(isoDate ?? '').split('-').map(Number);
-    return year ? new Date(year, month - 1, day).toLocaleDateString(undefined, { weekday: 'short' }) : '';
+    return year ? new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'short' }) : '';
 }
 
 /** Quoted when it holds the separator, a quote or a line break; quotes are doubled. */
@@ -78,14 +61,14 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
             starterId: competitor.id ?? '',
             name: competitor.name ?? '',
             club: competitor.club ?? '',
-            country: competitor.country ?? '',
+            country: countryLabel(competitor.country ?? ''),
             discipline: entry.discipline_name ?? '',
             caliber: caliberByStart.get(entry.start_id) ?? '',
             // the full name where no short name is configured, so labels are never blank
             disciplineShort: discipline.short_name || entry.discipline_name || '',
             event: discipline.name ?? '',
-            type: discipline.type ?? '',
-            category: discipline.category ?? '',
+            type: discipline.type ? tOr(`type.${discipline.type}`, discipline.type) : '',
+            category: discipline.category ? tOr(`category.${discipline.category}`, discipline.category) : '',
             meet: meet?.name ?? '',
             venue: meet?.location ?? ''
         };
@@ -116,9 +99,9 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
  */
 export function toCsv(rows, separatorName = 'semicolon') {
     const separator = SEPARATORS[separatorName] || ';';
-    const lines = [COLUMNS.map(([header]) => csvField(header, separator)).join(separator)];
+    const lines = [COLUMNS.map(field => csvField(t(`meet.csv.col.${field}`), separator)).join(separator)];
     for (const row of rows) {
-        lines.push(COLUMNS.map(([, value]) => csvField(value(row), separator)).join(separator));
+        lines.push(COLUMNS.map(field => csvField(row[field], separator)).join(separator));
     }
     return '﻿' + lines.join('\r\n') + '\r\n';
 }

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.RankingDefinition;
 
@@ -230,7 +231,7 @@ public class RankingService {
         List<Map<String, Object>> components = new ArrayList<>(best.parts);
         for (Candidate other : candidates.subList(1, candidates.size())) {
             Map<String, Object> c = new LinkedHashMap<>();
-            c.put("label", pooled ? other.label : "Further result");
+            c.put("label", pooled ? other.label : Messages.get("ranking.furtherResult"));
             c.put("short_name", pooled ? other.label : null);
             c.put("start_id", other.startId);
             c.put("score", other.score);

@@ -3,6 +3,8 @@
 // landscape page.
 
 import { docx, paragraph, table } from '../js/officeFiles.js';
+import { countryLabel } from '../js/countries.js';
+import { t } from '../js/i18n.js';
 
 const GREY = '444444';
 const meetLine = (meet) => [meet.location, meet.dateText].filter(Boolean).join(' · ');
@@ -22,7 +24,7 @@ function disciplineCell(start, rankingsByDiscipline, style = {}) {
     return {
         paragraphs: [
             paragraph(start.discipline_name ?? '', { size: 10, ...style }),
-            ...(rankings ? [paragraph(`Rankings: ${rankings}`, { size: 7.5, color: GREY, italic: false })] : [])
+            ...(rankings ? [paragraph(t('meet.card.rankings', { rankings }), { size: 7.5, color: GREY, italic: false })] : [])
         ]
     };
 }
@@ -33,8 +35,8 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
     const noLane = row?.no_lane || [];
     const teams = teamsByCompetitor?.get(competitor.id) || [];
     const header = [
-        paragraph(meet.name || 'Start Card', { size: 20, bold: true, pageBreakBefore: !first, keepNext: true }),
-        ...[meetLine(meet), meet.host ? `Host: ${meet.host}` : ''].filter(Boolean)
+        paragraph(meet.name || t('meet.card.title'), { size: 20, bold: true, pageBreakBefore: !first, keepNext: true }),
+        ...[meetLine(meet), meet.host ? t('meet.hostLine', { host: meet.host }) : ''].filter(Boolean)
             .map(text => paragraph(text, { size: 11, spaceBefore: 3, keepNext: true }))
     ];
     // a line under the meet's details, as on the printed card
@@ -45,7 +47,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
             vAlign: 'center',
             borders: { top: 3, left: 3, bottom: 3, right: 3 },
             paragraphs: [
-                paragraph('Starter ID', { size: 8, caps: true, align: 'center' }),
+                paragraph(t('meet.card.starterId'), { size: 8, caps: true, align: 'center' }),
                 // smaller for long IDs, so they stay on one line in the box
                 paragraph(String(competitor.id), { size: idSize(competitor.id), bold: true, align: 'center' })
             ]
@@ -53,7 +55,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
         {
             paragraphs: [
                 paragraph(competitor.name, { size: 22, bold: true, spaceAfter: 4 }),
-                ...[['Club', competitor.club], ['Country', competitor.country]].map(([label, value]) => paragraph([
+                ...[[t('competitors.club'), competitor.club], [t('competitors.country'), countryLabel(competitor.country)]].map(([label, value]) => paragraph([
                     { text: `${label}   `, color: GREY },
                     { text: value || '–', bold: true }
                 ], { size: 12, spaceAfter: 2 }))
@@ -64,7 +66,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
     const count = scheduled.length + unscheduled.length + noLane.length;
     const starts = count
         ? table([
-            { cells: ['Day', 'Relay', 'Time', 'Range', 'Lane', 'Discipline', 'Start ID'], size: 8.5, caps: true },
+            { cells: ['day', 'relay', 'time', 'range', 'lane', 'discipline', 'startId'].map(key => t(`meet.card.${key}`)), size: 8.5, caps: true },
             ...scheduled.map(entry => [
                 formatDay(entry.date),
                 { text: entry.sequence_no ?? '?', align: 'center' },
@@ -74,7 +76,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
                 disciplineCell(entry, rankingsByDiscipline),
                 { text: entry.start_id, mono: true }
             ]),
-            ...[...unscheduled.map(start => ['not yet scheduled', start]), ...noLane.map(start => ['no lane needed', start])]
+            ...[...unscheduled.map(start => [t('meet.card.notScheduled'), start]), ...noLane.map(start => [t('meet.card.noLane'), start])]
                 .map(([note, start]) => ({
                     italic: true,
                     color: '555555',
@@ -85,18 +87,18 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
                     ]
                 }))
         ], { widths: START_COLUMNS, header: true, size: 10, borderPt: 0.75, padding: 1.2 })
-        : paragraph('No starts registered.', { italic: true, color: '555555' });
+        : paragraph(t('stats.empty'), { italic: true, color: '555555' });
 
     const foot = table([[
         { text: `${competitor.name} · ${competitor.id}`, borders: { top: 0.75 } },
-        { text: `Printed ${printedAt}`, align: 'right', borders: { top: 0.75 } }
+        { text: t('meet.card.printed', { time: printedAt }), align: 'right', borders: { top: 0.75 } }
     ]], { widths: [CARD_WIDTH / 2, CARD_WIDTH / 2], borders: 'none', size: 8, color: GREY });
 
     // The starter's teams, each with the team rankings it counts in
     const teamPart = teams.length ? [
-        paragraph(`Teams (${teams.length})`, { size: 13, bold: true, spaceBefore: 14, spaceAfter: 5, keepNext: true }),
+        paragraph(t('meet.card.teams', { count: teams.length }), { size: 13, bold: true, spaceBefore: 14, spaceAfter: 5, keepNext: true }),
         table([
-            { cells: ['Team', 'Team discipline', 'Rankings'], size: 8.5, caps: true },
+            { cells: [t('ranking.col.team'), t('teams.discipline'), t('meet.card.rankingsHeader')], size: 8.5, caps: true },
             ...teams.map(team => [team.name ?? '', team.discipline_name ?? '',
                 rankingNames(rankingsByDiscipline, team.discipline_id)])
         ], { widths: [56, 60, CARD_WIDTH - 116], header: true, size: 10, borderPt: 0.75, padding: 1.2 })
@@ -105,7 +107,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
     return [
         ...header,
         starter,
-        paragraph(`Starts (${count})`, { size: 13, bold: true, spaceBefore: 18, spaceAfter: 5, keepNext: true }),
+        paragraph(t('meet.card.starts', { count }), { size: 13, bold: true, spaceBefore: 18, spaceAfter: 5, keepNext: true }),
         starts,
         ...teamPart,
         paragraph('', { spaceAfter: 18 }), // keeps the tables apart from the foot
@@ -125,7 +127,7 @@ function bib(meet, competitor, first) {
     const number = String(competitor.id);
     const numberSize = number.length >= 5 ? 190 : number.length === 4 ? 240 : 300;
     const meetName = meet.name || '';
-    const club = [competitor.club, competitor.country].filter(Boolean).join(' · ');
+    const club = [competitor.club, countryLabel(competitor.country)].filter(Boolean).join(' · ');
     return [
         paragraph(meetName || ' ', {
             size: meetName.length > 45 ? 19 : 26, bold: true, caps: true, color: 'FFFFFF', align: 'center',
@@ -135,7 +137,7 @@ function bib(meet, competitor, first) {
         paragraph(number, { size: numberSize, bold: true, align: 'center', line: numberSize, spaceBefore: 6 }),
         paragraph(competitor.name, { size: competitor.name.length > 26 ? 30 : 40, bold: true, align: 'center', spaceBefore: 4 }),
         paragraph(club || ' ', { size: 22, align: 'center', spaceBefore: 2, spaceAfter: 8 }),
-        paragraph(meet.host ? `Host: ${meet.host}` : ' ', { size: 13, align: 'center', borderTop: 4 })
+        paragraph(meet.host ? t('meet.hostLine', { host: meet.host }) : ' ', { size: 13, align: 'center', borderTop: 4 })
     ];
 }
 

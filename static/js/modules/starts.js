@@ -3,6 +3,8 @@
 import { getState, setState } from '../config.js';
 import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
 import { escapeHtml } from '../teamRanking.js';
+import { t, tOr } from '../i18n.js';
+import { genderLabel } from './competitors.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue } from '../utils.js';
 import { withButtonFeedback } from '../buttonFeedback.js';
 
@@ -13,28 +15,28 @@ export function displayCompetitorInfo(competitor) {
     detailsDiv.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <span class="text-sm font-medium text-gray-500">Name:</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.name')}</span>
                 <span class="text-sm text-gray-900 ml-2">${competitor.name}</span>
             </div>
             <div>
-                <span class="text-sm font-medium text-gray-500">ID:</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.id')}</span>
                 <span class="text-sm text-gray-900 ml-2">#${competitor.id}</span>
             </div>
             <div>
-                <span class="text-sm font-medium text-gray-500">Year of Birth:</span>
-                <span class="text-sm text-gray-900 ml-2">${competitor.year_of_birth || 'Not specified'}</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.yearOfBirth')}</span>
+                <span class="text-sm text-gray-900 ml-2">${competitor.year_of_birth || t('common.notSpecified')}</span>
             </div>
             <div>
-                <span class="text-sm font-medium text-gray-500">Gender:</span>
-                <span class="text-sm text-gray-900 ml-2">${competitor.gender || 'Not specified'}</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.gender')}</span>
+                <span class="text-sm text-gray-900 ml-2">${competitor.gender ? genderLabel(competitor.gender) : t('common.notSpecified')}</span>
             </div>
             <div>
-                <span class="text-sm font-medium text-gray-500">Club:</span>
-                <span class="text-sm text-gray-900 ml-2">${competitor.club || 'Not specified'}</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.club')}</span>
+                <span class="text-sm text-gray-900 ml-2">${competitor.club || t('common.notSpecified')}</span>
             </div>
             <div>
-                <span class="text-sm font-medium text-gray-500">Email:</span>
-                <span class="text-sm text-gray-900 ml-2">${competitor.email || 'Not provided'}</span>
+                <span class="text-sm font-medium text-gray-500">${t('starts.info.email')}</span>
+                <span class="text-sm text-gray-900 ml-2">${competitor.email || t('common.notProvided')}</span>
             </div>
         </div>
     `;
@@ -60,9 +62,9 @@ function populateActiveDisciplinesDropdown() {
         activeDisciplines.includes(discipline.id) && discipline.level !== 'team'
     );
     
-    dropdown.innerHTML = '<option value="">Select Discipline</option>' +
+    dropdown.innerHTML = `<option value="">${t('starts.selectDiscipline')}</option>` +
         activeDisciplinesList.map(discipline => 
-            `<option value="${discipline.id}">${discipline.name} (${discipline.category})</option>`
+            `<option value="${discipline.id}">${discipline.name} (${tOr(`category.${discipline.category}`, discipline.category)})</option>`
         ).join('');
 }
 
@@ -96,7 +98,7 @@ function displayStartsTable(competitor) {
             return `
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${discipline ? discipline.name : 'Unknown'}
+                        ${discipline ? discipline.name : t('common.unknown')}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${start.start_number}
@@ -113,12 +115,12 @@ function displayStartsTable(competitor) {
                             start.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
                         }">
-                            ${start.status || 'registered'}
+                            ${tOr(`starts.statusValue.${start.status || 'registered'}`, start.status)}
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button data-action="delete-start" data-discipline-id="${start.discipline_id}" data-generated-id="${start.generated_id}" 
-                                class="text-red-600 hover:text-red-900">
+                                class="text-red-600 hover:text-red-900" title="${t('common.delete')}">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                             </svg>
@@ -165,14 +167,14 @@ export function hideAddStartForm() {
 export async function saveStart() {
     const selectedCompetitor = getState('selectedCompetitor');
     if (!selectedCompetitor) {
-        showMessage('No competitor selected', 'error');
+        showMessage(t('starts.noCompetitorSelected'), 'error');
         return;
     }
     
     const disciplineId = parseInt(getElementValue('start-discipline'));
     
     if (!disciplineId) {
-        showMessage('Please select a discipline', 'error');
+        showMessage(t('starts.selectDisciplinePrompt'), 'error');
         return;
     }
     
@@ -186,7 +188,7 @@ export async function saveStart() {
         console.error('Error adding start:', error);
         // Show the starts as stored on the server, including ones other users added
         if (!await refreshSelectedCompetitor()) return;
-        showMessage(error.body?.error ? `Error adding start: ${error.body.error}` : 'Error adding start', 'error');
+        showMessage(error.body?.error ? t('starts.error.addWith', { error: error.body.error }) : t('starts.error.add'), 'error');
     }
 }
 
@@ -203,7 +205,7 @@ async function refreshSelectedCompetitor() {
         // An empty list may just mean loading failed; keep what is shown then
         if (competitors.length === 0) return true;
         clearCompetitorSearch();
-        showMessage('This competitor was deleted by someone else.', 'error');
+        showMessage(t('competitors.conflict.deleted'), 'error');
         return false;
     }
     setState('selectedCompetitor', fresh);
@@ -215,7 +217,7 @@ async function refreshSelectedCompetitor() {
 // Delete start
 export async function deleteStart(disciplineId, generatedId, button) {
     const selectedCompetitor = getState('selectedCompetitor');
-    if (!selectedCompetitor || !confirm('Are you sure you want to delete this start?')) {
+    if (!selectedCompetitor || !confirm(t('starts.confirmDelete'))) {
         return;
     }
     
@@ -225,7 +227,7 @@ export async function deleteStart(disciplineId, generatedId, button) {
     } catch (error) {
         console.error('Error deleting start:', error);
         if (!await refreshSelectedCompetitor()) return;
-        showMessage(error.body?.error ? `Error deleting start: ${error.body.error}` : 'Error deleting start', 'error');
+        showMessage(error.body?.error ? t('starts.error.deleteWith', { error: error.body.error }) : t('starts.error.delete'), 'error');
     }
 }
 
@@ -233,7 +235,7 @@ export async function deleteStart(disciplineId, generatedId, button) {
 export function searchCompetitor() {
     const searchTerm = getElementValue('competitor-search').trim();
     if (!searchTerm) {
-        showMessage('Please enter a competitor name or ID', 'error');
+        showMessage(t('starts.enterNameOrId'), 'error');
         return;
     }
     
@@ -248,7 +250,7 @@ export function searchCompetitor() {
         displayCompetitorInfo(foundCompetitor);
         displayStartsManagement(foundCompetitor);
     } else {
-        showMessage('Competitor not found', 'error');
+        showMessage(t('competitors.notFound'), 'error');
         clearCompetitorSearch();
     }
 }

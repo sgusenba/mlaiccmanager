@@ -1,11 +1,13 @@
 // The meet's details (name, venue, host, dates) for the printouts: the Meet
 // page's start cards and race bibs, and the Ranking page's cover page.
 
+import { locale, t } from './i18n.js';
+
 export { escapeHtml } from './teamRanking.js';
 
 async function getJson(path) {
     const response = await fetch(`/api${path}`);
-    if (!response.ok) throw new Error(`Loading ${path} failed: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(t('common.loadFailed', { path, status: response.status }));
     return response.json();
 }
 
@@ -14,12 +16,12 @@ const parseDate = (iso) => {
     return year && month && day ? new Date(year, month - 1, day) : null;
 };
 
-/** "26–27 June 2026", "26 June 2026" or '' in the browser's language. */
+/** "26–27 June 2026", "26 June 2026" or '' in the page's language. */
 export function formatDateRange(from, to) {
     const start = parseDate(from);
     const end = parseDate(to) || start;
     if (!start) return '';
-    const format = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    const format = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
     return end > start ? format.formatRange(start, end) : format.format(start);
 }
 

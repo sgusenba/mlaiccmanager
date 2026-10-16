@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Result;
 import com.competition.service.ConflictException;
 import com.competition.service.RecordNotFoundException;
@@ -34,7 +35,7 @@ public class ResultResource {
             return Response.ok(results).build();
         } catch (Exception e) {
             logger.error("Error getting results", e);
-            return Response.serverError().entity("{\"error\": \"Failed to get results\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "get results"))).build();
         }
     }
 
@@ -58,7 +59,7 @@ public class ResultResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating/updating result", e);
-            return Response.serverError().entity("{\"error\": \"Failed to create/update result\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "create/update result"))).build();
         }
     }
 
@@ -76,7 +77,7 @@ public class ResultResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating result", e);
-            return Response.serverError().entity("{\"error\": \"Failed to update result\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "update result"))).build();
         }
     }
 
@@ -90,7 +91,7 @@ public class ResultResource {
             throw e; // mapped to 409 / 404
         } catch (Exception e) {
             logger.error("Error deleting result", e);
-            return Response.serverError().entity("{\"error\": \"Failed to delete result\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "delete result"))).build();
         }
     }
 }

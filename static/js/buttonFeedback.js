@@ -2,16 +2,18 @@
 // "saved successfully" message: a spinner while the request runs, then a green
 // checkmark for a moment, then the button's own label again.
 
+import { t } from './i18n.js';
+
 const CHECK_MS = 1000;
 
-const SPINNER = `<svg class="btn-feedback-icon btn-feedback-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+const SPINNER = () => `<svg class="btn-feedback-icon btn-feedback-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.25"></circle>
     <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
-</svg><span class="btn-feedback-label">Working</span>`;
+</svg><span class="btn-feedback-label">${t('common.working')}</span>`;
 
-const CHECK = `<svg class="btn-feedback-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+const CHECK = () => `<svg class="btn-feedback-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg><span class="btn-feedback-label">Done</span>`;
+</svg><span class="btn-feedback-label">${t('common.done')}</span>`;
 
 // Runs action() with the button showing a spinner. On success the button shows a
 // checkmark and the returned promise resolves once the label is back, so the caller
@@ -33,7 +35,7 @@ export async function withButtonFeedback(button, action) {
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
     button.classList.add('btn-feedback', 'btn-feedback-busy');
-    button.innerHTML = SPINNER;
+    button.innerHTML = SPINNER();
 
     const restore = () => {
         button.classList.remove('btn-feedback', 'btn-feedback-busy', 'btn-feedback-done');
@@ -54,7 +56,7 @@ export async function withButtonFeedback(button, action) {
 
     button.classList.replace('btn-feedback-busy', 'btn-feedback-done');
     button.removeAttribute('aria-busy');
-    button.innerHTML = CHECK;
+    button.innerHTML = CHECK();
     await new Promise(resolve => setTimeout(resolve, CHECK_MS));
     restore();
     return result;
