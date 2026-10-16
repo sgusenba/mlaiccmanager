@@ -1,5 +1,7 @@
 // Utility functions for UI helpers and form utilities
 
+import { locale } from './i18n.js';
+
 // Show message to user (toast/alert)
 export function showMessage(message, type = 'info') {
     // Create a simple alert for now - could be enhanced with a toast notification
@@ -63,5 +65,5 @@ export function scrollToElement(elementId) {
 // Format date for display
 export function formatDate(dateString) {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString(locale);
 }

@@ -1,7 +1,9 @@
 // Card with the table of one individual ranking (response of
 // /api/rankings/{id}/result), used by the Ranking page and the Todos page.
 
-import { entriesLine, escapeHtml, formatScore, hasSums, isCombined, missingTieBreakCell, rankBadge, typeHeader, typeTag } from '../js/teamRanking.js';
+import { categoryLabel, entriesLine, escapeHtml, formatScore, hasSums, isCombined, missingTieBreakCell, rankBadge, ringHeader, typeHeader, typeTag } from '../js/teamRanking.js';
+import { countryLabel } from '../js/countries.js';
+import { t } from '../js/i18n.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -43,14 +45,14 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
         ? `<td class="px-2 py-3 text-center text-sm">${escapeHtml(typeTag(row))}</td>` : '';
     const th = (label, align = 'left', title = '', padding = 'px-4') =>
         `<th class="${padding} py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
-    const tieBreak = (row) => row.override_value ?? (markMissingTieBreak ? missingTieBreakCell : '-');
+    const tieBreak = (row) => row.override_value ?? (markMissingTieBreak ? missingTieBreakCell() : '-');
 
     return `
         <div class="bg-white rounded-lg shadow-md ${extraClass}">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900">
                     ${escapeHtml(ranking.name)}
-                    <span class="text-sm text-gray-500 ml-2">${escapeHtml(ranking.category)}</span>
+                    <span class="text-sm text-gray-500 ml-2">${escapeHtml(categoryLabel(ranking.category))}</span>
                 </h3>
                 ${combined || aggregate ? `<p class="text-sm text-gray-500">${escapeHtml(entriesLine(ranking))}</p>` : ''}
             </div>
@@ -59,17 +61,17 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                ${showRank ? th('Rank') : ''}
-                                ${th('Name')}
-                                ${combined ? th(typeHeader(ranking), 'center', 'What the result is from', 'px-2') : ''}
-                                ${th('Club')}
-                                ${th('Country')}
-                                ${th('Result', 'center')}
-                                ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
-                                ${th('Tie-break', 'center', aggregate
-                                    ? 'Distance of the furthest shot (of a sum: of the results added up); the lower value wins'
-                                    : 'Distance of the furthest shot; the lower value wins')}
-                                ${hasNotes ? th('Notes') : ''}
+                                ${showRank ? th(t('ranking.col.rank')) : ''}
+                                ${th(t('ranking.col.name'))}
+                                ${combined ? th(typeHeader(ranking), 'center', t('ranking.discHint'), 'px-2') : ''}
+                                ${th(t('ranking.col.club'))}
+                                ${th(t('ranking.col.country'))}
+                                ${th(t('ranking.col.result'), 'center')}
+                                ${RINGS.map(ring => th(ringHeader(ring), 'center', '', 'px-2')).join('')}
+                                ${th(t('ranking.col.tieBreak'), 'center', aggregate
+                                    ? t('ranking.tieBreakHintSum')
+                                    : t('ranking.tieBreakHint'))}
+                                ${hasNotes ? th(t('ranking.col.notes')) : ''}
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -79,7 +81,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${nameCell(row)}</td>
                                     ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.country || '')}</td>
+                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(countryLabel(row.competitor.country || ''))}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
                                     <td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>
@@ -91,8 +93,8 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     <td class="px-4 py-3 whitespace-nowrap text-sm">${nameCell(row)}</td>
                                     ${typeCell(row)}
                                     <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.country || '')}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">no result</td>
+                                    <td class="px-4 py-3 text-sm">${escapeHtml(countryLabel(row.competitor.country || ''))}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">${t('ranking.noResult')}</td>
                                     ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
                                     <td class="px-4 py-3"></td>
                                     ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}

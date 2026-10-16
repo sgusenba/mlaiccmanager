@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.ConflictException;
 import com.competition.service.MeetService;
 import jakarta.inject.Inject;
@@ -33,7 +34,7 @@ public class MeetResource {
             logger.error("Failed to get meet details", e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to get meet details"))
+                .entity(ErrorBody.of(Messages.get("error.failed", "get meet details")))
                 .build();
         }
     }
@@ -54,7 +55,7 @@ public class MeetResource {
             logger.error("Failed to update meet details", e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to update meet details"))
+                .entity(ErrorBody.of(Messages.get("error.failed", "update meet details")))
                 .build();
         }
     }

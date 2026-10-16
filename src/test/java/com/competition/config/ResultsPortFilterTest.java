@@ -11,6 +11,7 @@ class ResultsPortFilterTest {
         assertTrue(ResultsPortFilter.isAllowed("GET", "/results/"));
         assertTrue(ResultsPortFilter.isAllowed("GET", "/results/results.js"));
         assertTrue(ResultsPortFilter.isAllowed("GET", "/js/modules/results.js"));
+        assertTrue(ResultsPortFilter.isAllowed("GET", "/i18n/de.js"));
         assertTrue(ResultsPortFilter.isAllowed("GET", "/style.css"));
         assertTrue(ResultsPortFilter.isAllowed("GET", "/img/logo.png"));
     }

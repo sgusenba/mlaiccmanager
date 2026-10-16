@@ -5,42 +5,43 @@
 // #hash.
 
 import { loadBuildInfo } from './buildInfo.js';
+import { bindLanguageSelect, t } from './i18n.js';
 
-// `default` marks the section a page shows when the URL has no known #hash
+// Labels are message keys (see i18n.js); `default` marks the section a page shows when the URL has no known #hash
 const GROUPS = [
     {
-        label: 'Starters',
+        label: 'nav.group.starters',
         items: [
-            { label: 'Competitors', path: '/', hash: 'competitors', default: true },
-            { label: 'Starts', path: '/', hash: 'starts' },
-            { label: 'Teams', path: '/tmgmt/' },
-            { label: 'Lane Assignment', path: '/rmgmt/', hash: 'assignment' },
-            { label: 'Starter Overview', path: '/rmgmt/', hash: 'overview' }
+            { label: 'nav.competitors', path: '/', hash: 'competitors', default: true },
+            { label: 'nav.starts', path: '/', hash: 'starts' },
+            { label: 'nav.teams', path: '/tmgmt/' },
+            { label: 'nav.laneAssignment', path: '/rmgmt/', hash: 'assignment' },
+            { label: 'nav.starterOverview', path: '/rmgmt/', hash: 'overview' }
         ]
     },
     {
-        label: 'Results',
+        label: 'nav.group.results',
         items: [
-            { label: 'Enter Results', path: '/', hash: 'results' }
+            { label: 'nav.enterResults', path: '/', hash: 'results' }
         ]
     },
     {
-        label: 'Rankings',
+        label: 'nav.group.rankings',
         items: [
-            { label: 'Ranking', path: '/ranking/' },
-            { label: 'Todos', path: '/todos/' }
+            { label: 'nav.ranking', path: '/ranking/' },
+            { label: 'nav.todos', path: '/todos/' }
         ]
     },
     {
-        label: 'Management',
+        label: 'nav.group.management',
         items: [
-            { label: 'Meet', path: '/meet/' },
-            { label: 'Ranking Setup', path: '/rankings/' },
-            { label: 'Disciplines', path: '/dmgmt/' },
-            { label: 'Ranges & Relays', path: '/rmgmt/', hash: 'settings' },
-            { label: 'Meet Days', path: '/rmgmt/', hash: 'schedule', default: true },
-            { label: 'Backup & Restore', path: '/backup/' },
-            { label: 'Danger Zone', path: '/danger/' }
+            { label: 'nav.meet', path: '/meet/' },
+            { label: 'nav.rankingSetup', path: '/rankings/' },
+            { label: 'nav.disciplines', path: '/dmgmt/' },
+            { label: 'nav.rangesRelays', path: '/rmgmt/', hash: 'settings' },
+            { label: 'nav.meetDays', path: '/rmgmt/', hash: 'schedule', default: true },
+            { label: 'nav.backup', path: '/backup/' },
+            { label: 'nav.danger', path: '/danger/' }
         ]
     }
 ];
@@ -70,7 +71,7 @@ function render() {
     nav.className = 'no-print';
     nav.innerHTML = `
         <div class="app-topbar">
-            <button type="button" class="app-menu-btn" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded="false">
+            <button type="button" class="app-menu-btn" aria-label="${t('nav.openMenu')}" aria-controls="app-sidebar" aria-expanded="false">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -88,16 +89,20 @@ function render() {
             <nav class="flex-1 overflow-y-auto py-3">
                 ${GROUPS.map(group => `
                     <div class="mb-4">
-                        <div class="px-4 mb-1 text-xs font-semibold uppercase tracking-wider text-blue-200">${group.label}</div>
+                        <div class="px-4 mb-1 text-xs font-semibold uppercase tracking-wider text-blue-200">${t(group.label)}</div>
                         ${group.items.map(item => `
-                            <a href="${href(item)}" class="app-nav-item" data-nav-index="${ITEMS.indexOf(item)}">${item.label}</a>
+                            <a href="${href(item)}" class="app-nav-item" data-nav-index="${ITEMS.indexOf(item)}">${t(item.label)}</a>
                         `).join('')}
                     </div>
                 `).join('')}
             </nav>
             <div class="px-4 py-3 border-t border-blue-500 text-xs leading-tight text-blue-100">
-                <div>Frontend: <span id="frontend-build-time">–</span></div>
-                <div>Backend: <span id="backend-build-time">–</span></div>
+                <label class="app-language mb-2">
+                    <span>${t('nav.language')}</span>
+                    <select id="app-language-select"></select>
+                </label>
+                <div>${t('nav.frontend')} <span id="frontend-build-time">–</span></div>
+                <div>${t('nav.backend')} <span id="backend-build-time">–</span></div>
             </div>
         </aside>`;
     document.body.prepend(nav);
@@ -110,6 +115,7 @@ function render() {
     menuButton.addEventListener('click', () => setOpen(!document.body.classList.contains('app-menu-open')));
     nav.querySelector('.app-backdrop').addEventListener('click', () => setOpen(false));
     nav.querySelectorAll('.app-nav-item').forEach(link => link.addEventListener('click', () => setOpen(false)));
+    bindLanguageSelect(nav.querySelector('#app-language-select'));
 }
 
 function highlight() {
@@ -121,7 +127,7 @@ function highlight() {
         else link.removeAttribute('aria-current');
     });
 
-    const label = active ? active.label : '';
+    const label = active ? t(active.label) : '';
     document.querySelector('.app-topbar-current').textContent = label;
     // Pages without their own section headings show the entry's name
     const title = document.getElementById('page-title');

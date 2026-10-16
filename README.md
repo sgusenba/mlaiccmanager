@@ -92,6 +92,14 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 
 Each page talks to the backend directly via `fetch` calls to the `/api` endpoints described below.
 
+### Languages
+
+The whole application is translated; English and German are shipped. The language is picked at the bottom of the sidebar (on the Enter Results page next to its title) and remembered per browser; until then the browser's preferred language is used if there is a translation for it, else English. Exports and printouts (rankings, start cards, race bibs, target labels, the lane assignments CSV) come out in the chosen language too. Data such as discipline and ranking names is never translated; countries are stored by their English name and shown in the chosen language.
+
+- **Frontend** — `static/js/i18n.js` picks the language and provides `t('key', { placeholder })`; the texts are in `static/i18n/en.js` (the reference, every key is there) and `static/i18n/de.js`. Static HTML is marked with `data-i18n="key"` (also `data-i18n-html`, `data-i18n-placeholder`, `data-i18n-title`, `data-i18n-aria-label`). A key missing in a language falls back to English.
+- **Backend** — the error messages the API returns come from `src/main/resources/messages.properties` (English) and `messages_de.properties`; `com.competition.i18n.LocaleFilter` takes the language from the `lang` cookie the frontend sets, else from `Accept-Language`.
+- **Adding a language** — copy `static/i18n/en.js` and `messages.properties` (as `messages_<code>.properties`), translate them, and add the language to `LANGUAGES` in `static/js/i18n.js` and `Messages.LANGUAGES`.
+
 ## Data Storage
 
 - **`data.json`** — competitors (with their starts) and results. Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it. Ids that follow from other data are not stored: a start's discipline comes from the key it is filed under, and a result's competitor and discipline from its start.

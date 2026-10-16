@@ -16,68 +16,68 @@
         <div class="px-4">
             <!-- Add Discipline Form (hidden by default) -->
             <div id="add-form-container" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
-                <h3 class="text-lg font-semibold mb-4" id="form-title">Add Discipline</h3>
+                <h3 class="text-lg font-semibold mb-4" id="form-title" data-i18n="disciplines.add">Add Discipline</h3>
                 <form id="discipline-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <input type="hidden" id="form-id" value="">
                     <div>
-                        <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miquelet">
+                        <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.name">Name</label>
+                        <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miquelet" data-i18n-placeholder="disciplines.namePlaceholder">
                     </div>
                     <div>
-                        <label for="form-short-name" class="block text-sm font-medium text-gray-700 mb-1">Short Name</label>
-                        <input type="text" id="form-short-name" maxlength="30" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miq O" title="Used in the lane assignments export">
-                        <p class="mt-1 text-xs text-gray-500">A label for lists and exports; it need not be unique.</p>
+                        <label for="form-short-name" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="rankings.shortName">Short Name</label>
+                        <input type="text" id="form-short-name" maxlength="30" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miq O" title="Used in the lane assignments export" data-i18n-placeholder="disciplines.shortNamePlaceholder" data-i18n-title="disciplines.shortNameTitle">
+                        <p class="mt-1 text-xs text-gray-500" data-i18n="disciplines.shortNameHint">A label for lists and exports; it need not be unique.</p>
                     </div>
                     <div>
-                        <label for="form-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <label for="form-category" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.category">Category</label>
                         <select id="form-category" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="rifle">Rifle</option>
-                            <option value="pistol">Pistol</option>
+                            <option value="rifle" data-i18n="category.rifle">Rifle</option>
+                            <option value="pistol" data-i18n="category.pistol">Pistol</option>
                         </select>
                     </div>
                     <div>
-                        <label for="form-level" class="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                        <label for="form-level" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="rankings.level">Level</label>
                         <select id="form-level" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="individual">Individual</option>
-                            <option value="team">Team</option>
+                            <option value="individual" data-i18n="level.individual">Individual</option>
+                            <option value="team" data-i18n="level.team">Team</option>
                         </select>
                     </div>
                     <div>
-                        <label for="form-type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <label for="form-type" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.type">Type</label>
                         <select id="form-type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="original">Original</option>
-                            <option value="reproduction">Reproduction</option>
-                            <option value="open">Open</option>
+                            <option value="original" data-i18n="type.original">Original</option>
+                            <option value="reproduction" data-i18n="type.reproduction">Reproduction</option>
+                            <option value="open" data-i18n="type.open">Open</option>
                         </select>
                     </div>
                     <div id="team-of-group" class="md:col-span-2 lg:col-span-3">
-                        <span class="block text-sm font-medium text-gray-700 mb-1">Results that count</span>
-                        <p id="team-of-hint" class="text-xs text-gray-500 mb-2">The individual disciplines whose starts can be team members.</p>
+                        <span class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.resultsThatCount">Results that count</span>
+                        <p id="team-of-hint" class="text-xs text-gray-500 mb-2" data-i18n="disciplines.teamOfHint">The individual disciplines whose starts can be team members.</p>
                         <div id="form-team-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
                     </div>
                     <div id="team-size-group">
-                        <label for="form-team-size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
+                        <label for="form-team-size" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.teamSize">Team Size</label>
                         <input type="number" id="form-team-size" min="2" max="20" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value="3">
                     </div>
                     <div>
-                        <label for="form-shooting-distance" class="block text-sm font-medium text-gray-700 mb-1">Shooting Distance</label>
+                        <label for="form-shooting-distance" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.distance">Shooting Distance</label>
                         <select id="form-shooting-distance" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">any distance</option>
+                            <option value="" data-i18n="disciplines.anyDistance">any distance</option>
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <label class="flex items-center gap-2 text-sm cursor-pointer" title="An archived discipline is offered for no new ranking; its history stays">
-                            <input type="checkbox" id="form-active" class="h-4 w-4" checked> Active
+                        <label class="flex items-center gap-2 text-sm cursor-pointer" title="An archived discipline is offered for no new ranking; its history stays" data-i18n-title="disciplines.activeHint">
+                            <input type="checkbox" id="form-active" class="h-4 w-4" checked> <span data-i18n="disciplines.active">Active</span>
                         </label>
                     </div>
                     <div class="flex items-end gap-2 md:col-span-2 lg:col-span-3">
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
-                        <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="common.save">Save</button>
+                        <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">Cancel</button>
                     </div>
                 </form>
             </div>
 
-            <p class="mb-6 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm no-print">
+            <p class="mb-6 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm no-print" data-i18n-html="disciplines.intro">
                 The disciplines are the same at every meet. What a meet ranks, and which disciplines it therefore
                 shoots, is set on the <a href="/rankings/" class="underline font-medium">Rankings page</a>.
             </p>
@@ -85,20 +85,20 @@
             <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
                 <div class="flex flex-wrap items-end gap-6">
                     <div>
-                        <label for="max-disciplines" class="block text-sm font-medium text-gray-700 mb-1">Disciplines a team may count, at most</label>
+                        <label for="max-disciplines" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="disciplines.maxDisciplines">Disciplines a team may count, at most</label>
                         <div class="flex items-center gap-2">
                             <input type="number" id="max-disciplines" min="1" max="20" class="w-24 px-3 py-2 border border-gray-300 rounded-md">
-                            <button id="save-max-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Save</button>
+                            <button id="save-max-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50" data-i18n="common.save">Save</button>
                         </div>
-                        <p class="mt-1 text-xs text-gray-500">Also the default limit of disciplines per ranking for a new meet.</p>
+                        <p class="mt-1 text-xs text-gray-500" data-i18n="disciplines.maxDisciplinesHint">Also the default limit of disciplines per ranking for a new meet.</p>
                     </div>
                     <div class="flex flex-wrap items-end gap-2 ml-auto">
-                        <button id="export-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Export Disciplines</button>
-                        <select id="import-mode" class="px-2 py-2 border border-gray-300 rounded-md text-sm" title="Merge: add and update by id. Replace: also remove the disciplines the file lacks">
-                            <option value="merge">Import: merge</option>
-                            <option value="replace">Import: replace</option>
+                        <button id="export-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50" data-i18n="disciplines.export">Export Disciplines</button>
+                        <select id="import-mode" class="px-2 py-2 border border-gray-300 rounded-md text-sm" title="Merge: add and update by id. Replace: also remove the disciplines the file lacks" data-i18n-title="disciplines.importModeHint">
+                            <option value="merge" data-i18n="disciplines.importMerge">Import: merge</option>
+                            <option value="replace" data-i18n="disciplines.importReplace">Import: replace</option>
                         </select>
-                        <button id="import-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Import Disciplines…</button>
+                        <button id="import-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50" data-i18n="disciplines.import">Import Disciplines…</button>
                         <input type="file" id="import-file" accept=".json,application/json" class="hidden">
                     </div>
                 </div>
@@ -107,25 +107,25 @@
             <!-- Discipline List -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-                    <h3 class="text-lg font-semibold">Disciplines</h3>
+                    <h3 class="text-lg font-semibold" data-i18n="nav.disciplines">Disciplines</h3>
                     <div class="flex items-center gap-3">
-                        <button id="save-distances-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors hidden">Save Shooting Distances</button>
-                        <button id="add-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Add Discipline</button>
+                        <button id="save-distances-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors hidden" data-i18n="disciplines.saveDistances">Save Shooting Distances</button>
+                        <button id="add-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="disciplines.add">Add Discipline</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Short Name</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shooting Distance</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.id">ID</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.name">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.shortName">Short Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="disciplines.category">Category</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="rankings.level">Level</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="disciplines.type">Type</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="ranking.col.team">Team</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="disciplines.distance">Shooting Distance</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print" data-i18n="common.actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="discipline-table-body" class="divide-y divide-gray-200">

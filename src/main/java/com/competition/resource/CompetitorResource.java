@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Competitor;
 import com.competition.service.CascadingDeletes;
 import com.competition.service.CompetitorService;
@@ -37,7 +38,7 @@ public class CompetitorResource {
             return Response.ok(competitors).build();
         } catch (Exception e) {
             logger.error("Error getting competitors", e);
-            return Response.serverError().entity("{\"error\": \"Failed to get competitors\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "get competitors"))).build();
         }
     }
 
@@ -61,7 +62,7 @@ public class CompetitorResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating/updating competitor", e);
-            return Response.serverError().entity("{\"error\": \"Failed to create/update competitor\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "create/update competitor"))).build();
         }
     }
 
@@ -79,7 +80,7 @@ public class CompetitorResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error updating competitor", e);
-            return Response.serverError().entity("{\"error\": \"Failed to update competitor\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "update competitor"))).build();
         }
     }
 
@@ -93,7 +94,7 @@ public class CompetitorResource {
             throw e; // mapped to 409 / 404
         } catch (Exception e) {
             logger.error("Error deleting competitor", e);
-            return Response.serverError().entity("{\"error\": \"Failed to delete competitor\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "delete competitor"))).build();
         }
     }
 }

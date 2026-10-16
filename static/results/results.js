@@ -3,6 +3,9 @@
 
 import { loadCompetitors, loadAvailableDisciplines, loadActiveDisciplines, loadResults } from '../js/api.js';
 import { searchStartById } from '../js/modules/results.js';
+import { bindLanguageSelect, t } from '../js/i18n.js';
+
+document.title = `${t('nav.enterResults')} · MLAICC Manager`;
 
 // Reload before every search, so starts and results added elsewhere since the page opened are found
 async function search() {
@@ -11,6 +14,7 @@ async function search() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    bindLanguageSelect(document.getElementById('language-select'));
     loadCompetitors();
     loadAvailableDisciplines();
     loadActiveDisciplines();

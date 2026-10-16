@@ -2,7 +2,9 @@
 // Teams come from /api/teams (stored in teams.json); a team member is one
 // registered start in the individual discipline the team discipline is based on.
 
-import { escapeHtml } from '../js/teamRanking.js';
+import { categoryLabel, escapeHtml, formatScore } from '../js/teamRanking.js';
+import { countryLabel } from '../js/countries.js';
+import { t, tOr } from '../js/i18n.js';
 import { withButtonFeedback } from '../js/buttonFeedback.js';
 
 const API = '/api/teams';
@@ -23,7 +25,7 @@ const state = {
 
 class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
         this.body = body;
     }
@@ -64,17 +66,16 @@ function storeDiscipline(id) {
     try { localStorage.setItem(STORAGE_KEY, String(id)); } catch { /* private mode */ }
 }
 
-const formatScore = (value) => (value === null || value === undefined ? '-' : Number(value).toLocaleString('en', { maximumFractionDigits: 2 }));
 const currentDiscipline = () => state.disciplines.find(d => d.id === state.disciplineId);
 const teamSize = () => currentDiscipline()?.team_size ?? 3;
 
 function disciplineOptions(disciplines, selectedId) {
-    const option = d => `<option value="${d.id}" ${d.id === selectedId ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.category)}, ${escapeHtml(d.type)})</option>`;
+    const option = d => `<option value="${d.id}" ${d.id === selectedId ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(categoryLabel(d.category))}, ${escapeHtml(tOr(`type.${d.type}`, d.type))})</option>`;
     // Teams can be entered for the team disciplines of the meet's rankings; others only still have teams
     const ranked = disciplines.filter(d => d.in_program);
     const others = disciplines.filter(d => !d.in_program);
-    return (ranked.length ? `<optgroup label="In this meet's rankings">${ranked.map(option).join('')}</optgroup>` : '')
-        + (others.length ? `<optgroup label="In no ranking">${others.map(option).join('')}</optgroup>` : '');
+    return (ranked.length ? `<optgroup label="${escapeHtml(t('teams.inRankings'))}">${ranked.map(option).join('')}</optgroup>` : '')
+        + (others.length ? `<optgroup label="${escapeHtml(t('teams.inNoRanking'))}">${others.map(option).join('')}</optgroup>` : '');
 }
 
 // --- loading ---------------------------------------------------------------
@@ -85,7 +86,7 @@ async function showTeams() {
         await refreshTeams();
     } catch (error) {
         console.error(error);
-        showMessage(`Could not load data: ${error.message}`);
+        showMessage(t('common.loadError', { error: error.message }));
     }
 }
 
@@ -105,15 +106,15 @@ async function refreshTeams() {
     const discipline = currentDiscipline();
     const info = document.getElementById('discipline-info');
     if (!discipline) {
-        info.textContent = 'There are no team disciplines in the catalog.';
+        info.textContent = t('teams.noDisciplines');
         document.getElementById('new-team-btn').disabled = true;
         return;
     }
     const from = discipline.eligible_disciplines.map(d => d.name).join(', ');
-    info.innerHTML = `${discipline.team_size} shooters per team · members come from starts in: `
+    info.innerHTML = `${escapeHtml(t('ranking.shootersPerTeam', { count: discipline.team_size }))} · ${escapeHtml(t('teams.membersFrom'))} `
         + (from ? `<strong>${escapeHtml(from)}</strong>`
-            : '<span class="text-red-700">nothing yet, tick the results that count on the Disciplines page</span>')
-        + (discipline.active ? '' : ' · <span class="text-yellow-700">discipline is not active</span>');
+            : `<span class="text-red-700">${escapeHtml(t('teams.membersFromNothing'))}</span>`)
+        + (discipline.active ? '' : ` · <span class="text-yellow-700">${escapeHtml(t('teams.notActive'))}</span>`);
 
     [state.teams, state.candidates] = await Promise.all([
         api(`?discipline_id=${discipline.id}`),
@@ -128,11 +129,11 @@ function renderTeams() {
     list.innerHTML = state.teams.map(team => {
         const total = team.members.reduce((sum, m) => sum + (m.score ?? 0), 0);
         const members = team.members.map(m => m.missing
-            ? `<li class="text-red-600">${escapeHtml(m.start_id)} · start deleted</li>`
+            ? `<li class="text-red-600">${escapeHtml(m.start_id)} · ${t('ranking.startDeleted')}</li>`
             : `<li class="flex justify-between gap-4">
                    <span><span class="font-mono text-xs text-gray-500">${escapeHtml(m.start_id)}</span>
-                   ${escapeHtml(m.name)} <span class="text-gray-500">${escapeHtml([m.club, m.country].filter(Boolean).join(' · '))}</span></span>
-                   <span class="${m.has_result ? '' : 'text-gray-400 italic'}">${m.has_result ? formatScore(m.score) : 'no result'}</span>
+                   ${escapeHtml(m.name)} <span class="text-gray-500">${escapeHtml([m.club, countryLabel(m.country)].filter(Boolean).join(' · '))}</span></span>
+                   <span class="${m.has_result ? '' : 'text-gray-400 italic'}">${m.has_result ? formatScore(m.score) : t('ranking.noResult')}</span>
                </li>`).join('');
         const missingSlots = team.team_size - team.members.length;
         return `
@@ -143,27 +144,27 @@ function renderTeams() {
                         ${team.notes ? `<p class="text-xs text-gray-500">${escapeHtml(team.notes)}</p>` : ''}
                     </div>
                     <div class="flex items-center gap-3 text-sm">
-                        <span>Total <strong>${formatScore(total)}</strong></span>
-                        ${team.tie_break !== null && team.tie_break !== undefined ? `<span class="text-gray-500">Tie-break ${team.tie_break}</span>` : ''}
-                        <button data-action="edit-team" class="text-blue-600 hover:text-blue-900">Edit</button>
-                        <button data-action="delete-team" class="text-red-600 hover:text-red-900">Delete</button>
+                        <span>${t('teams.total')} <strong>${formatScore(total)}</strong></span>
+                        ${team.tie_break !== null && team.tie_break !== undefined ? `<span class="text-gray-500">${t('results.tieBreakValue', { value: team.tie_break })}</span>` : ''}
+                        <button data-action="edit-team" class="text-blue-600 hover:text-blue-900">${t('common.edit')}</button>
+                        <button data-action="delete-team" class="text-red-600 hover:text-red-900">${t('common.delete')}</button>
                     </div>
                 </div>
                 <ul class="text-sm space-y-1">${members}</ul>
-                ${missingSlots > 0 ? `<p class="text-xs text-yellow-700 mt-2">${missingSlots} member${missingSlots === 1 ? '' : 's'} missing</p>` : ''}
+                ${missingSlots > 0 ? `<p class="text-xs text-yellow-700 mt-2">${t('teams.membersMissing', { count: missingSlots })}</p>` : ''}
             </div>`;
     }).join('');
 }
 
 async function deleteTeam(team, button) {
-    if (!confirm(`Delete team "${team.name}"?`)) return;
+    if (!confirm(t('teams.confirmDelete', { name: team.name }))) return;
     try {
         await withButtonFeedback(button, () => api(`/${team.id}?version=${team.version ?? 0}`, 'DELETE'));
         if (state.editing?.id === team.id) closeEditor();
     } catch (error) {
         console.error(error);
         showMessage(error.status === 409
-            ? 'Someone else changed this team in the meantime. The latest data is now loaded - please check and delete again if needed.'
+            ? t('teams.conflict.changedBeforeDelete')
             : error.message);
     }
     await refreshTeams();
@@ -184,10 +185,12 @@ function openEditor(team) {
         state.slots[i] = { candidate, startId: member.start_id };
     });
     if (dropped.length) {
-        showMessage(`Start${dropped.length === 1 ? '' : 's'} ${dropped.join(', ')} no longer exist${dropped.length === 1 ? 's' : ''} and ${dropped.length === 1 ? 'was' : 'were'} removed from the team. Save to keep the change.`);
+        showMessage(t('teams.startsDropped', { count: dropped.length, starts: dropped.join(', ') }));
     }
 
-    document.getElementById('team-form-title').textContent = team ? `Edit Team "${team.name}"` : `New Team – ${currentDiscipline().name}`;
+    document.getElementById('team-form-title').textContent = team
+        ? t('teams.editTitle', { name: team.name })
+        : t('teams.newTitle', { discipline: currentDiscipline().name });
     state.nameEdited = Boolean(team) && team.name !== team.default_name;
     document.getElementById('team-name').value = team ? team.name : '';
     document.getElementById('team-tie-break').value = team?.tie_break ?? '';
@@ -208,12 +211,12 @@ function closeEditor() {
 }
 
 function competitorLabel(candidate) {
-    const details = [candidate.club, candidate.country].filter(Boolean).join(' · ');
+    const details = [candidate.club, countryLabel(candidate.country)].filter(Boolean).join(' · ');
     return `${candidate.name} (#${candidate.competitor_id})${details ? ` – ${details}` : ''}`;
 }
 
 function startOptionLabel(start) {
-    const result = start.has_result ? `${formatScore(start.score)} pts` : 'no result yet';
+    const result = start.has_result ? t('teams.points', { score: formatScore(start.score) }) : t('teams.noResultYet');
     return `${start.start_id} · ${start.discipline_name} · ${result}`;
 }
 
@@ -222,21 +225,21 @@ function renderSlots() {
         const candidate = slot.candidate;
         return `
             <div class="border border-gray-200 rounded-md p-3 relative" data-slot="${i}">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Shooter ${i + 1}</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">${t('teams.shooter', { number: i + 1 })}</label>
                 ${candidate ? `
                     <div class="flex justify-between items-start gap-2 mb-2">
                         <div class="text-sm">
                             <div class="font-medium">${escapeHtml(candidate.name)} <span class="text-gray-500">#${candidate.competitor_id}</span></div>
-                            <div class="text-gray-500">${escapeHtml([candidate.club, candidate.country].filter(Boolean).join(' · ') || '–')}</div>
+                            <div class="text-gray-500">${escapeHtml([candidate.club, countryLabel(candidate.country)].filter(Boolean).join(' · ') || '–')}</div>
                         </div>
-                        <button type="button" data-action="clear-slot" class="text-gray-400 hover:text-red-600" title="Remove shooter">&times;</button>
+                        <button type="button" data-action="clear-slot" class="text-gray-400 hover:text-red-600" title="${t('teams.removeShooter')}">&times;</button>
                     </div>
-                    <label class="block text-xs text-gray-600 mb-1">Start (counts for the team)</label>
+                    <label class="block text-xs text-gray-600 mb-1">${t('teams.startCounts')}</label>
                     <select data-slot-start class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" ${candidate.starts.length < 2 ? 'disabled' : ''}>
                         ${candidate.starts.map(s => `<option value="${escapeHtml(s.start_id)}" ${s.start_id === slot.startId ? 'selected' : ''}>${escapeHtml(startOptionLabel(s))}</option>`).join('')}
                     </select>
                 ` : `
-                    <input type="search" data-slot-search placeholder="Start id, competitor id or name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="search" data-slot-search placeholder="${t('teams.searchPlaceholder')}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <ul data-slot-suggestions class="absolute left-3 right-3 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-y-auto hidden"></ul>
                 `}
             </div>`;
@@ -257,10 +260,10 @@ function searchCandidates(query) {
 // Why a candidate cannot be picked for slot i, or null
 function blockedReason(candidate, slotIndex) {
     if (state.slots.some((s, i) => i !== slotIndex && s.candidate?.competitor_id === candidate.competitor_id)) {
-        return 'already in this team';
+        return t('teams.alreadyInTeam');
     }
     if (candidate.team_id !== null && candidate.team_id !== undefined && candidate.team_id !== state.editing?.id) {
-        return `in team ${candidate.team_name}`;
+        return t('teams.inTeam', { name: candidate.team_name });
     }
     return null;
 }
@@ -280,7 +283,7 @@ function renderSuggestions(slotEl, slotIndex, query) {
                 <div class="font-medium">${escapeHtml(competitorLabel(c))}</div>
                 <div class="text-xs ${reason ? '' : 'text-gray-500'}">${escapeHtml(starts)}${reason ? ` · ${escapeHtml(reason)}` : ''}</div>
             </li>`;
-    }).join('') : '<li class="px-3 py-2 text-sm text-gray-500">No matching starter with a start in this discipline</li>';
+    }).join('') : `<li class="px-3 py-2 text-sm text-gray-500">${t('teams.noMatch')}</li>`;
     list.classList.remove('hidden');
 }
 
@@ -310,11 +313,11 @@ function updateDefaultName() {
     const suggestion = defaultName();
     const nameInput = document.getElementById('team-name');
     if (!state.nameEdited) nameInput.value = suggestion;
-    nameInput.placeholder = suggestion || 'Team <number> (no shared club or country)';
-    const source = sharedValue('club') ? 'shared club' : sharedValue('country') ? 'shared country' : null;
+    nameInput.placeholder = suggestion || t('teams.namePlaceholder');
+    const source = sharedValue('club') ? t('teams.sharedClub') : sharedValue('country') ? t('teams.sharedCountry') : null;
     document.getElementById('team-name-hint').textContent = source
-        ? `Default: ${suggestion} (${source})`
-        : 'Default: shared club, else shared country, else "Team <number>"';
+        ? t('teams.defaultName', { name: suggestion, source })
+        : t('teams.defaultNameRule');
     document.getElementById('reset-name-btn').classList.toggle('hidden', !state.nameEdited);
 }
 
@@ -338,11 +341,11 @@ async function saveTeam(event) {
     } catch (error) {
         console.error(error);
         if (error.status === 409 && error.body?.current) {
-            showMessage('Someone else changed this team in the meantime. The latest values are now loaded - please make your change again.');
+            showMessage(t('teams.conflict.changed'));
             await refreshTeams();
             openEditor(state.teams.find(t => t.id === error.body.current.id));
         } else if (error.status === 404) {
-            showMessage('This team was deleted in the meantime.');
+            showMessage(t('teams.conflict.deleted'));
             closeEditor();
             await refreshTeams();
         } else {

@@ -1,77 +1,33 @@
+import { t, tOr } from '../js/i18n.js';
+
 const API = '/api';
 
 // What can be cleared, in the order the server lists it (DangerZoneService.TARGETS).
-// `what` names the data in the confirm dialog, `action` the button (default
-// Clear); `count` turns the server's
-// counts into the line shown next to the name.
+// The texts are the messages danger.<target>.title (the name), .what (the data,
+// in the confirm dialog) and .description; `reset` makes the button reset
+// instead of clear; `count` turns the server's counts into the line shown
+// next to the name.
 const ITEMS = [
-    {
-        target: 'results',
-        title: 'Results',
-        what: 'all results',
-        description: 'Deletes every entered result, tie-break values included. Competitors, starts, lanes and teams stay.',
-        count: c => plural(c.results, 'result')
-    },
-    {
-        target: 'lanes',
-        title: 'Lane Assignments',
-        what: 'all lane assignments',
-        description: 'Clears every lane of every relay, locked days included. Meet days and relays stay.',
-        count: c => plural(c.lanes, 'lane assignment')
-    },
-    {
-        target: 'starts',
-        title: 'Starts',
-        what: 'all starts',
-        description: 'Deletes every start of every competitor, and with them all results, lane assignments and team members. Competitors and teams (then empty) stay.',
-        count: c => plural(c.starts, 'start')
-    },
-    {
-        target: 'competitors',
-        title: 'Competitors',
-        what: 'all competitors',
-        description: 'Deletes every competitor with their starts, and with them all results, lane assignments and team members. Teams (then empty) stay.',
-        count: c => plural(c.competitors, 'competitor')
-    },
-    {
-        target: 'teams',
-        title: 'Teams',
-        what: 'all teams',
-        description: 'Deletes every team. Starts and results stay.',
-        count: c => plural(c.teams, 'team')
-    },
+    { target: 'results', count: c => t('danger.count.results', { count: c.results }) },
+    { target: 'lanes', count: c => t('danger.count.lanes', { count: c.lanes }) },
+    { target: 'starts', count: c => t('danger.count.starts', { count: c.starts }) },
+    { target: 'competitors', count: c => t('danger.count.competitors', { count: c.competitors }) },
+    { target: 'teams', count: c => t('danger.count.teams', { count: c.teams }) },
     {
         target: 'days',
-        title: 'Meet Days & Relays',
-        what: 'all meet days and relays',
-        description: 'Deletes every meet day with its relays and lane assignments, locked days included. Ranges, relay duration and break stay.',
-        count: c => `${plural(c.days, 'day')}, ${plural(c.relays, 'relay')}`
+        count: c => `${t('danger.count.days', { count: c.days })}, ${t('danger.count.relays', { count: c.relays })}`
     },
-    {
-        target: 'meet',
-        title: 'Meet Details',
-        what: 'the meet details',
-        description: "Clears the meet's name, venue, host and dates.",
-        count: c => (c.meet ? 'set' : 'empty')
-    },
-    {
-        target: 'rankings',
-        title: 'Rankings',
-        what: "the meet's rankings",
-        description: "Deletes every ranking of this meet. Starts, results and teams stay, but no discipline is in the program any more until rankings are set up again.",
-        count: c => plural(c.rankings, 'ranking')
-    },
-    {
-        target: 'disciplines',
-        title: 'Discipline Catalog',
-        action: 'Reset',
-        what: 'the discipline catalog',
-        description: 'Resets the disciplines to the shipped catalog, like a fresh install: edits (e.g. the range) undone, removed ones back. Disciplines the shipped catalog lacks are deleted, from the rankings too, with their starts, results, lane assignments and teams.',
-        count: c => plural(c.disciplines, 'discipline')
-    }
-];
-
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    { target: 'meet', count: c => (c.meet ? t('danger.count.meetSet') : t('danger.count.meetEmpty')) },
+    { target: 'rankings', count: c => t('danger.count.rankings', { count: c.rankings }) },
+    { target: 'disciplines', reset: true, count: c => t('danger.count.disciplines', { count: c.disciplines }) }
+].map(item => ({
+    ...item,
+    title: t(`danger.${item.target}.title`),
+    what: t(`danger.${item.target}.what`),
+    description: t(`danger.${item.target}.description`),
+    // picks the danger.clear.* or danger.reset.* messages, e.g. "Clear {title}"
+    verb: item.reset ? 'reset' : 'clear'
+}));
 
 let messageTimer;
 function showMessage(text, type = 'error') {
@@ -89,7 +45,7 @@ async function errorOf(response) {
         const json = await response.json();
         if (json?.error) return json.error;
     } catch { /* not JSON */ }
-    return `HTTP error! status: ${response.status}`;
+    return t('common.httpError', { status: response.status });
 }
 
 const masterToggle = document.getElementById('master-toggle');
@@ -107,13 +63,13 @@ function render() {
             </div>
             <div class="flex items-center gap-4 shrink-0">
                 <label class="relative inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                    <input type="checkbox" class="danger-toggle" data-arm aria-label="Allow ${(item.action || 'Clear').toLowerCase()} ${item.title}">
+                    <input type="checkbox" class="danger-toggle" data-arm aria-label="${t(`danger.${item.verb}.allow`, { title: item.title })}">
                     <span class="danger-switch"></span>
-                    Allow
+                    ${t('danger.allow')}
                 </label>
                 <button type="button" data-clear
                         class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600">
-                    ${item.action || 'Clear'} ${item.title}
+                    ${t(`danger.${item.verb}.button`, { title: item.title })}
                 </button>
             </div>
         </div>
@@ -145,13 +101,12 @@ async function loadCounts() {
             list.querySelector(`[data-target="${item.target}"] [data-count]`).textContent = `(${item.count(counts)})`;
         });
     } catch (error) {
-        showMessage(`Could not load the data counts: ${error.message}`);
+        showMessage(t('danger.error.counts', { error: error.message }));
     }
 }
 
 async function clear(item) {
-    if (!confirm(`Really ${(item.action || 'Clear').toLowerCase()} ${item.what}?\n\n${item.description}\n\n`
-        + 'The current data is saved on the server first, so this can be undone on Backup & Restore.')) {
+    if (!confirm(t(`danger.${item.verb}.confirm`, { what: item.what, description: item.description }))) {
         return;
     }
 
@@ -163,11 +118,11 @@ async function clear(item) {
         if (!response.ok) throw new Error(await errorOf(response));
         const result = await response.json();
         const cleared = Object.entries(result.cleared).filter(([, n]) => n > 0)
-            .map(([what, n]) => `${what}: ${n}`).join(', ');
-        showMessage(`${item.title}: ${cleared ? `cleared ${cleared}.` : 'there was nothing to clear.'}`
-            + (result.safety_copy ? ` The previous data was saved to ${result.safety_copy}.` : ''), 'success');
+            .map(([what, n]) => `${tOr(`danger.cleared.${what}`, what)}: ${n}`).join(', ');
+        showMessage(`${item.title}: ${cleared ? t('danger.cleared', { cleared }) : t('danger.nothingCleared')}`
+            + (result.safety_copy ? ` ${t('backup.safetyCopy', { file: result.safety_copy })}` : ''), 'success');
     } catch (error) {
-        showMessage(`Could not ${(item.action || 'Clear').toLowerCase()} ${item.what}: ${error.message}`);
+        showMessage(t(`danger.${item.verb}.error`, { what: item.what, error: error.message }));
     } finally {
         // Each clear needs the row's switch turned on again
         row.querySelector('[data-arm]').checked = false;

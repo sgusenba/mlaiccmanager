@@ -1,5 +1,6 @@
 package com.competition.model;
 
+import com.competition.i18n.Messages;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -112,12 +113,12 @@ public class AppSettings {
             try {
                 uri = new java.net.URI(trimmed);
             } catch (java.net.URISyntaxException e) {
-                throw new IllegalArgumentException("The URL is not valid");
+                throw new IllegalArgumentException(Messages.get("settings.urlInvalid"));
             }
             String scheme = uri.getScheme();
             if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
                 || uri.getHost() == null) {
-                throw new IllegalArgumentException("The URL must start with http:// or https:// and name a host");
+                throw new IllegalArgumentException(Messages.get("settings.urlScheme"));
             }
             return trimmed.replaceAll("/+$", "");
         }
@@ -126,11 +127,11 @@ public class AppSettings {
         public void validate() {
             if (debounceSeconds < MIN_SECONDS || debounceSeconds > MAX_SECONDS) {
                 throw new IllegalArgumentException(
-                    "The quiet time must be between " + MIN_SECONDS + " and " + MAX_SECONDS + " seconds");
+                    Messages.get("settings.debounceRange", MIN_SECONDS, MAX_SECONDS));
             }
             if (maxDelaySeconds < debounceSeconds || maxDelaySeconds > MAX_SECONDS) {
                 throw new IllegalArgumentException(
-                    "The maximum delay must be between the quiet time and " + MAX_SECONDS + " seconds");
+                    Messages.get("settings.maxDelayRange", MAX_SECONDS));
             }
             if (enabled || !url.isEmpty()) {
                 url = validateUrl(url);

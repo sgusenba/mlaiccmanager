@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.DisciplineCatalog;
 import com.competition.model.RankingConfig;
@@ -71,13 +72,12 @@ public class DisciplineService {
     /** Sets how many individual disciplines a team discipline may count; refused below a team's current count. */
     public Map<String, Object> setMaxDisciplines(int max) throws Exception {
         if (max < 1) {
-            throw new IllegalArgumentException("The limit must be at least 1");
+            throw new IllegalArgumentException(Messages.get("limit.atLeastOne"));
         }
         dataService.updateCatalog(catalog -> {
             for (Discipline d : catalog.getDisciplines()) {
                 if (d.isTeam() && d.getTeamOf() != null && d.getTeamOf().size() > max) {
-                    throw new IllegalArgumentException(d.getName() + " counts " + d.getTeamOf().size()
-                        + " disciplines, more than " + max);
+                    throw new IllegalArgumentException(Messages.get("discipline.countsTooMany", d.getName(), d.getTeamOf().size(), max));
                 }
             }
             catalog.setMaxDisciplines(max);
@@ -106,13 +106,13 @@ public class DisciplineService {
         return dataService.read(stored -> dataService.updateCatalog(catalog -> {
             Discipline target = catalog.getDisciplines().stream()
                 .filter(d -> d.getId() == id).findFirst()
-                .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
+                .orElseThrow(() -> new RecordNotFoundException(Messages.get("discipline.notFound", id)));
             String levelBefore = target.getLevel();
             String categoryBefore = target.getCategory();
             applyCatalogFields(target, data);
             check(target, catalog);
             if (!Objects.equals(levelBefore, target.getLevel()) || !Objects.equals(categoryBefore, target.getCategory())) {
-                checkNotReferenced(target, "change its level or category",
+                checkNotReferenced(target, Messages.get("discipline.action.changeLevel"),
                     usesOf(id, stored, teamCounts, dataService.loadRankingConfig(), catalog.getDisciplines()));
             }
             checkRankingsStillValid(catalog);
@@ -127,8 +127,8 @@ public class DisciplineService {
         dataService.read(data -> dataService.updateCatalog(catalog -> {
             Discipline target = catalog.getDisciplines().stream()
                 .filter(d -> d.getId() == id).findFirst()
-                .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
-            checkNotReferenced(target, "delete it",
+                .orElseThrow(() -> new RecordNotFoundException(Messages.get("discipline.notFound", id)));
+            checkNotReferenced(target, Messages.get("discipline.action.delete"),
                 usesOf(id, data, teamCounts, dataService.loadRankingConfig(), catalog.getDisciplines()));
             catalog.getDisciplines().remove(target);
             return null;
@@ -161,29 +161,28 @@ public class DisciplineService {
         List<String> uses = new ArrayList<>();
         for (RankingDefinition r : config.getRankings()) {
             if (r.disciplineIds().contains(id)) {
-                uses.add("ranking " + r.getName());
+                uses.add(Messages.get("discipline.use.ranking", r.getName()));
             }
         }
         for (Discipline d : disciplines) {
             if (d.isTeam() && d.getTeamOf() != null && d.getTeamOf().contains(id)) {
-                uses.add("team discipline " + d.getName());
+                uses.add(Messages.get("discipline.use.teamDiscipline", d.getName()));
             }
         }
         int starts = startCount(data, id);
         if (starts > 0) {
-            uses.add(starts + " start(s)");
+            uses.add(Messages.get("discipline.use.starts", starts));
         }
         int teams = teamCounts.getOrDefault(id, 0);
         if (teams > 0) {
-            uses.add(teams + " team(s)");
+            uses.add(Messages.get("discipline.use.teams", teams));
         }
         return uses;
     }
 
     private static void checkNotReferenced(Discipline discipline, String action, List<String> uses) {
         if (!uses.isEmpty()) {
-            throw new ConflictException("Cannot " + action + ": " + discipline.getName() + " is used by "
-                + String.join(", ", uses) + ". Archive it instead (untick Active)", uses);
+            throw new ConflictException(Messages.get("discipline.inUse", action, discipline.getName(), String.join(", ", uses)), uses);
         }
     }
 
@@ -216,23 +215,23 @@ public class DisciplineService {
      */
     public Map<String, Object> importCatalog(JsonNode file, String mode) throws Exception {
         if (!DataService.isCatalog(file)) {
-            throw new IllegalArgumentException("Not a disciplines file (format " + DisciplineCatalog.FORMAT + ")");
+            throw new IllegalArgumentException(Messages.get("discipline.notAFile", DisciplineCatalog.FORMAT));
         }
         if (file.path("version").asInt() > DisciplineCatalog.FORMAT_VERSION) {
-            throw new IllegalArgumentException("The disciplines file is of a newer version");
+            throw new IllegalArgumentException(Messages.get("discipline.newerVersion"));
         }
         boolean replace = "replace".equals(mode);
         if (!replace && mode != null && !"merge".equals(mode)) {
-            throw new IllegalArgumentException("Unknown import mode: " + mode);
+            throw new IllegalArgumentException(Messages.get("discipline.importMode", mode));
         }
         DisciplineCatalog imported = objectMapper.treeToValue(file, DisciplineCatalog.class);
         Map<Integer, Discipline> importedById = new LinkedHashMap<>();
         for (Discipline d : imported.getDisciplines()) {
             if (d.getId() <= 0) {
-                throw new IllegalArgumentException("Every discipline needs an id above 0");
+                throw new IllegalArgumentException(Messages.get("discipline.idAboveZero"));
             }
             if (importedById.put(d.getId(), d) != null) {
-                throw new IllegalArgumentException("Discipline id " + d.getId() + " is in the file twice");
+                throw new IllegalArgumentException(Messages.get("discipline.idTwice", d.getId()));
             }
         }
 
@@ -277,7 +276,7 @@ public class DisciplineService {
             for (int id : removed) {
                 List<String> uses = usesOf(id, data, teamCounts, config, result);
                 if (!uses.isEmpty()) {
-                    problems.add(current.get(id).getName() + " (used by " + String.join(", ", uses) + ")");
+                    problems.add(Messages.get("discipline.importUsedBy", current.get(id).getName(), String.join(", ", uses)));
                 }
             }
             for (int id : updated) {
@@ -286,12 +285,12 @@ public class DisciplineService {
                 if ((!Objects.equals(before.getLevel(), after.getLevel())
                         || !Objects.equals(before.getCategory(), after.getCategory()))
                         && !usesOf(id, data, teamCounts, config, catalog.getDisciplines()).isEmpty()) {
-                    problems.add(before.getName() + " (in use, its level or category cannot change)");
+                    problems.add(Messages.get("discipline.importLevelInUse", before.getName()));
                 }
             }
             checkRankingsStillValid(next);
             if (!problems.isEmpty()) {
-                throw new ConflictException("Nothing imported: " + String.join("; ", problems), problems);
+                throw new ConflictException(Messages.get("import.nothing", String.join("; ", problems)), problems);
             }
 
             catalog.setMaxDisciplines(next.getMaxDisciplines());
@@ -321,13 +320,13 @@ public class DisciplineService {
      */
     static void check(Discipline d, DisciplineCatalog catalog) {
         if (d.getName() == null || d.getName().isBlank()) {
-            throw new IllegalArgumentException("Discipline " + d.getId() + " needs a name");
+            throw new IllegalArgumentException(Messages.get("discipline.needsName", d.getId()));
         }
         if (d.getCategory() == null || !CATEGORIES.contains(d.getCategory())) {
-            throw new IllegalArgumentException(d.getName() + ": category must be rifle or pistol");
+            throw new IllegalArgumentException(Messages.get("discipline.category", d.getName()));
         }
         if (d.getLevel() == null || !LEVELS.contains(d.getLevel())) {
-            throw new IllegalArgumentException(d.getName() + ": level must be individual or team");
+            throw new IllegalArgumentException(Messages.get("ranking.level", d.getName()));
         }
         if (!d.isTeam()) {
             d.setTeamOf(null);
@@ -336,19 +335,17 @@ public class DisciplineService {
         }
         d.setShootingDistance(null); // a team takes no lane
         if (d.getTeamOf() == null || d.getTeamOf().isEmpty()) {
-            throw new IllegalArgumentException("Tick at least one discipline whose results count for " + d.getName());
+            throw new IllegalArgumentException(Messages.get("discipline.tickOne", d.getName()));
         }
         if (d.getTeamOf().size() > catalog.getMaxDisciplines()) {
-            throw new IllegalArgumentException(d.getName() + " may count at most " + catalog.getMaxDisciplines()
-                + " disciplines");
+            throw new IllegalArgumentException(Messages.get("discipline.mayCountAtMost", d.getName(), catalog.getMaxDisciplines()));
         }
         Map<Integer, Discipline> byId = new HashMap<>();
         catalog.getDisciplines().forEach(x -> byId.put(x.getId(), x));
         for (int id : d.getTeamOf()) {
             Discipline counted = byId.get(id);
             if (counted == null || counted.isTeam() || !Objects.equals(counted.getCategory(), d.getCategory())) {
-                throw new IllegalArgumentException("A " + d.getCategory() + " team can only count individual "
-                    + d.getCategory() + " disciplines, not discipline " + id);
+                throw new IllegalArgumentException(Messages.get("discipline.teamCategory", Messages.get("category." + d.getCategory()), id));
             }
         }
         if (d.getTeamSize() == null || d.getTeamSize() < 1) {

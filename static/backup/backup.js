@@ -1,4 +1,5 @@
 import { withButtonFeedback } from '../js/buttonFeedback.js';
+import { formatNumber, locale, t } from '../js/i18n.js';
 
 const API = '/api';
 
@@ -18,7 +19,7 @@ async function errorOf(response) {
         const json = await response.json();
         if (json?.error) return json.error;
     } catch { /* not JSON */ }
-    return `HTTP error! status: ${response.status}`;
+    return t('common.httpError', { status: response.status });
 }
 
 // The server names the file after the time the backup was taken
@@ -42,7 +43,7 @@ async function downloadBackup() {
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         });
     } catch (error) {
-        showMessage(`Could not create the backup: ${error.message}`);
+        showMessage(t('backup.error.create', { error: error.message }));
     }
 }
 
@@ -51,8 +52,7 @@ async function restoreBackup(event) {
     const input = document.getElementById('restore-file');
     const file = input.files[0];
     if (!file) return;
-    if (!confirm(`Replace ALL current data with the backup "${file.name}"?\n\n`
-        + 'The current data is saved on the server first, so this can be undone.')) {
+    if (!confirm(t('backup.confirmRestore', { file: file.name }))) {
         return;
     }
 
@@ -67,10 +67,10 @@ async function restoreBackup(event) {
         if (!response.ok) throw new Error(await errorOf(response));
         const result = await response.json();
         input.value = '';
-        showMessage(`Backup restored (${result.restored_files.join(', ')}).`
-            + (result.safety_copy ? ` The previous data was saved to ${result.safety_copy}.` : ''), 'success');
+        showMessage(t('backup.restored', { files: result.restored_files.join(', ') })
+            + (result.safety_copy ? ` ${t('backup.safetyCopy', { file: result.safety_copy })}` : ''), 'success');
     } catch (error) {
-        showMessage(`Could not restore the backup: ${error.message}`);
+        showMessage(t('backup.error.restore', { error: error.message }));
     } finally {
         button.disabled = false;
     }
@@ -104,38 +104,40 @@ function updateUrlWarning() {
 }
 
 function formatTime(iso) {
-    return iso ? new Date(iso).toLocaleString() : '—';
+    return iso ? new Date(iso).toLocaleString(locale) : '—';
 }
 
 function formatSize(bytes) {
-    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return bytes >= 1024 * 1024
+        ? `${formatNumber(bytes / 1024 / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
+        : `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} KB`;
 }
 
 function renderExternal({ settings, status }) {
     ext.enabled.checked = settings.enabled;
     ext.url.value = settings.url;
     ext.token.value = '';
-    ext.token.placeholder = settings.token_set ? 'saved — leave empty to keep it' : '';
+    ext.token.placeholder = settings.token_set ? t('backup.ext.tokenSaved') : '';
     ext.debounce.value = settings.debounceSeconds;
     ext.maxDelay.value = settings.maxDelaySeconds;
     updateUrlWarning();
 
     const rows = [
-        ['Last backup', status.last_success
+        [t('backup.ext.lastBackup'), status.last_success
             ? `${formatTime(status.last_success)} — ${status.last_backup_name} (${formatSize(status.last_backup_size)})`
             : '—'],
-        ['Waiting to be sent', status.pending ? 'Yes, there are changes that are not backed up yet' : 'No']
+        [t('backup.ext.pending'), status.pending ? t('backup.ext.pendingYes') : t('common.no')]
     ];
     if (status.last_error) {
-        rows.push(['Last error', `${status.last_error} (${formatTime(status.last_error_at)})`]);
+        rows.push([t('backup.ext.lastError'), `${status.last_error} (${formatTime(status.last_error_at)})`, true]);
     }
-    ext.status.replaceChildren(...rows.flatMap(([label, value]) => {
+    ext.status.replaceChildren(...rows.flatMap(([label, value, isError]) => {
         const dt = document.createElement('dt');
         dt.className = 'text-gray-500';
         dt.textContent = label;
         const dd = document.createElement('dd');
         dd.textContent = value;
-        if (label === 'Last error') dd.className = 'text-red-700';
+        if (isError) dd.className = 'text-red-700';
         return [dt, dd];
     }));
 }
@@ -156,7 +158,7 @@ async function loadExternal() {
         if (!response.ok) throw new Error(await errorOf(response));
         renderExternal(await response.json());
     } catch (error) {
-        showMessage(`Could not load the external backup settings: ${error.message}`);
+        showMessage(t('backup.error.loadExternal', { error: error.message }));
     }
 }
 

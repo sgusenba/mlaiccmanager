@@ -3,6 +3,7 @@ package com.competition;
 import com.competition.config.CorsFilter;
 import com.competition.config.JerseyConfig;
 import com.competition.config.ResultsPortFilter;
+import com.competition.i18n.LocaleFilter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
@@ -39,6 +40,9 @@ public class Main {
         
         // Add CORS filter
         context.addFilter(CorsFilter.class, "/*", null);
+
+        // The language of the messages the API sends back (the "lang" cookie of the frontend)
+        context.addFilter(LocaleFilter.class, "/*", null);
 
         // Register Jersey servlet
         ServletHolder jerseyServlet = new ServletHolder(new ServletContainer(new JerseyConfig()));

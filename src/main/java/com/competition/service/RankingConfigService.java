@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.RankingConfig;
 import com.competition.model.RankingDefinition;
@@ -85,7 +86,7 @@ public class RankingConfigService {
         return change(ranking, (config, disciplines) -> {
             RankingDefinition stored = findRanking(config, id);
             if (version != null && stored.getVersion() != version) {
-                throw new ConflictException("Someone else changed this ranking in the meantime", stored);
+                throw new ConflictException(Messages.get("ranking.changed"), stored);
             }
             ranking.setId(id);
             ranking.setVersion(stored.getVersion() + 1);
@@ -99,7 +100,7 @@ public class RankingConfigService {
         change(null, (config, disciplines) -> {
             RankingDefinition stored = findRanking(config, id);
             if (version != null && stored.getVersion() != version) {
-                throw new ConflictException("Someone else changed this ranking in the meantime", stored);
+                throw new ConflictException(Messages.get("ranking.changed"), stored);
             }
             config.getRankings().remove(stored);
             return null;
@@ -127,7 +128,7 @@ public class RankingConfigService {
     /** Sets how many disciplines one ranking may cover; refused below what a ranking covers now. */
     public RankingConfig setMaxDisciplines(int max) throws Exception {
         if (max < 1) {
-            throw new IllegalArgumentException("The limit must be at least 1");
+            throw new IllegalArgumentException(Messages.get("limit.atLeastOne"));
         }
         return dataService.updateRankingConfig((config, catalog) -> {
             for (RankingDefinition r : config.getRankings()) {
@@ -185,8 +186,7 @@ public class RankingConfigService {
     public RankingConfig loadDefaults() throws Exception {
         JsonNode file = DataService.readShipped(defaultRankingsFilePath);
         if (file == null) {
-            throw new IllegalArgumentException("There are no default rankings ("
-                + new File(defaultRankingsFilePath).getName() + " is missing)");
+            throw new IllegalArgumentException(Messages.get("ranking.noDefaults", new File(defaultRankingsFilePath).getName()));
         }
         return replaceAll(parseFile(file), true);
     }
@@ -227,7 +227,7 @@ public class RankingConfigService {
                 }
             }
             if (!problems.isEmpty()) {
-                throw new IllegalArgumentException("Nothing imported: " + String.join("; ", problems));
+                throw new IllegalArgumentException(Messages.get("import.nothing", String.join("; ", problems)));
             }
             checkProgramKeepsEntries(config, incoming.getRankings(), data, teamCounts, catalog.getDisciplines());
             checkOneStartRules(incoming.getRankings(), data);
@@ -243,10 +243,10 @@ public class RankingConfigService {
     private static RankingConfig parseFile(JsonNode file) throws Exception {
         if (file == null || !file.isObject() || !FORMAT.equals(file.path("format").asText())
                 || !file.path("rankings").isArray()) {
-            throw new IllegalArgumentException("Not a rankings file (format " + FORMAT + ")");
+            throw new IllegalArgumentException(Messages.get("ranking.notAFile", FORMAT));
         }
         if (file.path("version").asInt() > FORMAT_VERSION) {
-            throw new IllegalArgumentException("The rankings file is of a newer version");
+            throw new IllegalArgumentException(Messages.get("ranking.newerVersion"));
         }
         RankingConfig config = new RankingConfig();
         config.setMaxDisciplinesPerRanking(file.path("max_disciplines_per_ranking").asInt(RankingConfig.DEFAULT_MAX_DISCIPLINES));
@@ -256,7 +256,7 @@ public class RankingConfigService {
         }
         config.setRankings(rankings);
         if (config.getMaxDisciplinesPerRanking() < 1) {
-            throw new IllegalArgumentException("max_disciplines_per_ranking must be at least 1");
+            throw new IllegalArgumentException(Messages.get("ranking.maxAtLeastOne"));
         }
         return config;
     }
@@ -287,8 +287,7 @@ public class RankingConfigService {
             if (changed != null) {
                 checkOneStartRules(List.of(changed), data);
                 if (!inSeveralTeams.isEmpty()) {
-                    throw new ConflictException(changed.getName() + " allows one team per competitor, but these are in "
-                        + "more than one of its teams: " + String.join(", ", inSeveralTeams), inSeveralTeams);
+                    throw new ConflictException(Messages.get("ranking.oneTeamViolated", changed.getName(), String.join(", ", inSeveralTeams)), inSeveralTeams);
                 }
             }
             config.setVersion(config.getVersion() + 1);
@@ -314,17 +313,16 @@ public class RankingConfigService {
         Map<Integer, Integer> starts = startCounts(data);
         List<String> problems = new ArrayList<>();
         for (int id : leaving) {
-            String name = byId.containsKey(id) ? byId.get(id).getName() : "Discipline " + id;
+            String name = byId.containsKey(id) ? byId.get(id).getName() : Messages.get("discipline.fallbackName", id);
             if (starts.getOrDefault(id, 0) > 0) {
-                problems.add(name + " (" + starts.get(id) + " start(s))");
+                problems.add(Messages.get("ranking.leavingStarts", name, starts.get(id)));
             }
             if (teamCounts.getOrDefault(id, 0) > 0) {
-                problems.add(name + " (" + teamCounts.get(id) + " team(s))");
+                problems.add(Messages.get("ranking.leavingTeams", name, teamCounts.get(id)));
             }
         }
         if (!problems.isEmpty()) {
-            throw new ConflictException("These disciplines would no longer be in any ranking, but have entries; "
-                + "keep them in a ranking or remove the entries first: " + String.join(", ", problems), problems);
+            throw new ConflictException(Messages.get("ranking.programKeepsEntries", String.join(", ", problems)), problems);
         }
     }
 
@@ -336,8 +334,7 @@ public class RankingConfigService {
             }
             List<String> names = competitorsStartingInMoreThanOne(data, r.disciplineIds());
             if (!names.isEmpty()) {
-                throw new ConflictException(r.getName() + " allows one start per competitor, but these start in "
-                    + "more than one of its disciplines: " + String.join(", ", names), names);
+                throw new ConflictException(Messages.get("ranking.oneStartViolated", r.getName(), String.join(", ", names)), names);
             }
         }
     }
@@ -351,49 +348,47 @@ public class RankingConfigService {
      */
     public static void check(RankingDefinition r, int max, List<Discipline> disciplines) {
         if (r.getName() == null || r.getName().isBlank()) {
-            throw new IllegalArgumentException("A ranking needs a name");
+            throw new IllegalArgumentException(Messages.get("ranking.needsName"));
         }
         if (!DisciplineService.LEVELS.contains(r.getLevel())) {
-            throw new IllegalArgumentException(r.getName() + ": level must be individual or team");
+            throw new IllegalArgumentException(Messages.get("ranking.level", r.getName()));
         }
         if (r.getEntries().isEmpty()) {
-            throw new IllegalArgumentException(r.getName() + ": add at least one discipline");
+            throw new IllegalArgumentException(Messages.get("ranking.noEntries", r.getName()));
         }
         Map<Integer, Discipline> byId = new HashMap<>();
         disciplines.forEach(d -> byId.put(d.getId(), d));
         Set<Integer> seen = new HashSet<>();
         for (RankingDefinition.Entry entry : r.getEntries()) {
             if (entry.getDisciplineIds().isEmpty()) {
-                throw new IllegalArgumentException(r.getName() + ": an entry has no discipline");
+                throw new IllegalArgumentException(Messages.get("ranking.emptyEntry", r.getName()));
             }
             if (entry.isSum() && r.isTeam()) {
-                throw new IllegalArgumentException(r.getName() + ": a team ranking cannot add up team disciplines");
+                throw new IllegalArgumentException(Messages.get("ranking.teamSum", r.getName()));
             }
             if (entry.isSum() && (entry.getLabel() == null || entry.getLabel().isBlank())) {
-                throw new IllegalArgumentException(r.getName() + ": name the sum of several disciplines");
+                throw new IllegalArgumentException(Messages.get("ranking.sumName", r.getName()));
             }
             for (int id : entry.getDisciplineIds()) {
                 Discipline d = byId.get(id);
                 if (d == null) {
-                    throw new IllegalArgumentException(r.getName() + ": there is no discipline " + id);
+                    throw new IllegalArgumentException(Messages.get("ranking.noSuchDiscipline", r.getName(), id));
                 }
                 if (d.isTeam() != r.isTeam()) {
-                    throw new IllegalArgumentException(r.getName() + ": " + d.getName() + " is "
-                        + (d.isTeam() ? "a team" : "an individual") + " discipline, the ranking is "
-                        + (r.isTeam() ? "a team" : "an individual") + " ranking");
+                    throw new IllegalArgumentException(Messages.get(d.isTeam() ? "ranking.teamInIndividual" : "ranking.individualInTeam",
+                        r.getName(), d.getName()));
                 }
                 if (!seen.add(id)) {
-                    throw new IllegalArgumentException(r.getName() + ": " + d.getName() + " is in it twice");
+                    throw new IllegalArgumentException(Messages.get("ranking.twice", r.getName(), d.getName()));
                 }
                 if (d.isTeam() && d.getTeamOf() != null && d.getTeamOf().size() > max) {
-                    throw new IllegalArgumentException(r.getName() + ": " + d.getName() + " counts "
-                        + d.getTeamOf().size() + " disciplines, more than this meet's limit of " + max);
+                    throw new IllegalArgumentException(Messages.get("ranking.teamCountsTooMany", r.getName(), d.getName(),
+                        d.getTeamOf().size(), max));
                 }
             }
         }
         if (seen.size() > max) {
-            throw new IllegalArgumentException(r.getName() + " covers " + seen.size()
-                + " disciplines, more than this meet's limit of " + max);
+            throw new IllegalArgumentException(Messages.get("ranking.tooManyDisciplines", r.getName(), seen.size(), max));
         }
     }
 
@@ -401,7 +396,7 @@ public class RankingConfigService {
 
     private static RankingDefinition parse(Map<String, Object> request) {
         if (request == null) {
-            throw new IllegalArgumentException("The ranking is missing");
+            throw new IllegalArgumentException(Messages.get("ranking.missing"));
         }
         Map<String, Object> copy = new LinkedHashMap<>(request);
         copy.remove("id");
@@ -410,7 +405,7 @@ public class RankingConfigService {
         try {
             ranking = objectMapper.convertValue(copy, RankingDefinition.class);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("The ranking is not valid: " + e.getMessage());
+            throw new IllegalArgumentException(Messages.get("ranking.invalid", e.getMessage()));
         }
         normalize(ranking);
         return ranking;
@@ -434,7 +429,7 @@ public class RankingConfigService {
 
     private static RankingDefinition findRanking(RankingConfig config, int id) {
         return config.getRankings().stream().filter(r -> r.getId() == id).findFirst()
-            .orElseThrow(() -> new RecordNotFoundException("Ranking " + id + " not found"));
+            .orElseThrow(() -> new RecordNotFoundException(Messages.get("ranking.notFound", id)));
     }
 
     @SuppressWarnings("unchecked")

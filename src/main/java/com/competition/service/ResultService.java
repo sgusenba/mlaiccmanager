@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.Result;
 
@@ -77,12 +78,12 @@ public class ResultService {
      */
     public Result createResult(Result result) throws Exception {
         if (result.getStartId() == null || result.getStartId().isBlank()) {
-            throw new IllegalArgumentException("start_id is required");
+            throw new IllegalArgumentException(Messages.get("request.required", "start_id"));
         }
         return dataService.update(data -> {
             int[] owner = startOwner(data, result.getStartId());
             if (owner == null) {
-                throw new IllegalArgumentException("Start " + result.getStartId() + " does not exist");
+                throw new IllegalArgumentException(Messages.get("start.doesNotExist", result.getStartId()));
             }
             result.setCompetitorId(owner[0]);
             result.setDisciplineId(owner[1]);
@@ -91,7 +92,7 @@ public class ResultService {
             // Only one result per start: if another user entered it first, hand theirs back
             for (Map<String, Object> existingResult : resultsData) {
                 if (result.getStartId().equals(existingResult.get("start_id"))) {
-                    throw new ConflictException("A result for this start was already entered by someone else",
+                    throw new ConflictException(Messages.get("result.alreadyEntered"),
                         mapToResult(existingResult));
                 }
             }
@@ -132,10 +133,10 @@ public class ResultService {
         return dataService.update(data -> {
             Map<String, Object> existingData = findById(resultsOf(data), id);
             if (existingData == null) {
-                throw new RecordNotFoundException("Result not found");
+                throw new RecordNotFoundException(Messages.get("result.notFound"));
             }
             DataService.checkVersion(existingData, result.getVersion(),
-                "Result was changed by someone else", mapToResult(existingData));
+                Messages.get("result.changed"), mapToResult(existingData));
 
             existingData.put("value", result.getValue());
             existingData.put("entries", result.getEntries());
@@ -153,10 +154,10 @@ public class ResultService {
             List<Map<String, Object>> resultsData = resultsOf(data);
             Map<String, Object> existingData = findById(resultsData, id);
             if (existingData == null) {
-                throw new RecordNotFoundException("Result not found");
+                throw new RecordNotFoundException(Messages.get("result.notFound"));
             }
             DataService.checkVersion(existingData, expectedVersion,
-                "Result was changed by someone else", mapToResult(existingData));
+                Messages.get("result.changed"), mapToResult(existingData));
 
             resultsData.remove(existingData);
             return null;

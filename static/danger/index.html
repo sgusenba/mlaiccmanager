@@ -19,20 +19,20 @@
             <div class="bg-white rounded-lg shadow-md p-6 border-2 border-red-300">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <h3 class="text-lg font-semibold text-red-700 mb-2">Enable Danger Zone</h3>
-                        <p class="text-sm text-gray-600 mb-2">
+                        <h3 class="text-lg font-semibold text-red-700 mb-2" data-i18n="danger.enable">Enable Danger Zone</h3>
+                        <p class="text-sm text-gray-600 mb-2" data-i18n="danger.intro">
                             Clears data of this competition for good. Everything on this page is locked until
                             this is turned on, and each clear button needs its own switch as well.
                             Leaving or reloading the page locks it again.
                         </p>
-                        <p class="text-sm text-gray-500">
+                        <p class="text-sm text-gray-500" data-i18n-html="danger.safety">
                             Before every clear, all current data is saved on the server in the
                             <code>backups/</code> folder, so it can be undone on
                             <a href="/backup/" class="text-blue-600 hover:underline">Backup &amp; Restore</a>.
                         </p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                        <input type="checkbox" id="master-toggle" class="danger-toggle" aria-label="Enable Danger Zone">
+                        <input type="checkbox" id="master-toggle" class="danger-toggle" aria-label="Enable Danger Zone" data-i18n-aria-label="danger.enable">
                         <span class="danger-switch"></span>
                     </label>
                 </div>

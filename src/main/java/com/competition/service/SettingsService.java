@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.AppSettings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -64,7 +65,7 @@ public class SettingsService {
                 copy.setToken(next.getExternalBackup().getToken());
             }
             if (copy.isEnabled() && copy.getToken().isEmpty()) {
-                throw new IllegalArgumentException("Enter the receiver's token");
+                throw new IllegalArgumentException(Messages.get("settings.tokenRequired"));
             }
             next.setExternalBackup(copy);
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");

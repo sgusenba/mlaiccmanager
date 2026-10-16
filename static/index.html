@@ -19,20 +19,20 @@
                         <svg class="h-8 w-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
-                        Competitors
+                        <span data-i18n="competitors.title">Competitors</span>
                     </h2>
                     <button id="add-competitor-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
                         <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
-                        Add Competitor
+                        <span data-i18n="competitors.add">Add Competitor</span>
                     </button>
                 </div>
 
                 <!-- Competitor Form -->
                 <div id="competitor-form" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">Add New Competitor</h3>
+                        <h3 class="text-lg font-semibold" data-i18n="competitors.form.addTitle">Add New Competitor</h3>
                         <button id="close-competitor-form-btn" class="text-gray-500 hover:text-gray-700">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -42,52 +42,52 @@
                     <form id="competitor-data-form" class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.form.nameRequired">Name *</label>
                                 <input type="text" id="competitor-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.gender">Gender</label>
                                 <select id="competitor-gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
+                                    <option value="" data-i18n="competitors.form.selectGender">Select Gender</option>
+                                    <option value="male" data-i18n="gender.male">Male</option>
+                                    <option value="female" data-i18n="gender.female">Female</option>
+                                    <option value="other" data-i18n="gender.other">Other</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Year of Birth</label>
-                                <input type="number" id="competitor-year-of-birth" min="1900" step="1" placeholder="e.g. 1990" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.yearOfBirth">Year of Birth</label>
+                                <input type="number" id="competitor-year-of-birth" min="1900" step="1" placeholder="e.g. 1990" data-i18n-placeholder="competitors.form.yearPlaceholder" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Club</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.club">Club</label>
                                 <input type="text" id="competitor-club" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.email">Email</label>
                                 <input type="email" id="competitor-email" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.phone">Phone</label>
                                 <input type="tel" id="competitor-phone" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.country">Country</label>
                                 <select id="competitor-country" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Country</option>
+                                    <option value="" data-i18n="competitors.form.selectCountry">Select Country</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="competitors.address">Address</label>
                                 <textarea id="competitor-address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                             </div>
                         </div>
                         <div class="flex justify-end space-x-3">
-                            <button type="button" id="cancel-competitor-form-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
+                            <button type="button" id="cancel-competitor-form-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">Cancel</button>
                             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center">
                                 <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                 </svg>
-                                Save
+                                <span data-i18n="common.save">Save</span>
                             </button>
                         </div>
                     </form>
@@ -97,35 +97,35 @@
                 <div class="bg-white rounded-lg shadow-md p-4 mb-4">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         <div class="sm:col-span-2">
-                            <label for="competitors-search" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Search</label>
-                            <input type="search" id="competitors-search" placeholder="Name, ID, club, email, phone..." autocomplete="off" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="competitors-search" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1" data-i18n="common.search">Search</label>
+                            <input type="search" id="competitors-search" placeholder="Name, ID, club, email, phone..." data-i18n-placeholder="competitors.searchPlaceholder" autocomplete="off" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label for="competitors-filter-gender" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Gender</label>
+                            <label for="competitors-filter-gender" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1" data-i18n="competitors.gender">Gender</label>
                             <select id="competitors-filter-gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">All</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                                <option value="__none__">Not specified</option>
+                                <option value="" data-i18n="common.all">All</option>
+                                <option value="male" data-i18n="gender.male">Male</option>
+                                <option value="female" data-i18n="gender.female">Female</option>
+                                <option value="other" data-i18n="gender.other">Other</option>
+                                <option value="__none__" data-i18n="common.notSpecified">Not specified</option>
                             </select>
                         </div>
                         <div>
-                            <label for="competitors-filter-club" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Club</label>
+                            <label for="competitors-filter-club" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1" data-i18n="competitors.club">Club</label>
                             <select id="competitors-filter-club" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">All</option>
+                                <option value="" data-i18n="common.all">All</option>
                             </select>
                         </div>
                         <div>
-                            <label for="competitors-filter-country" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Country</label>
+                            <label for="competitors-filter-country" class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1" data-i18n="competitors.country">Country</label>
                             <select id="competitors-filter-country" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">All</option>
+                                <option value="" data-i18n="common.all">All</option>
                             </select>
                         </div>
                     </div>
                     <div class="flex items-center justify-between mt-3 text-sm text-gray-500">
                         <span id="competitors-count"></span>
-                        <button type="button" id="competitors-clear-filters-btn" class="text-blue-600 hover:text-blue-800 hidden">Clear filters</button>
+                        <button type="button" id="competitors-clear-filters-btn" class="text-blue-600 hover:text-blue-800 hidden" data-i18n="common.clearFilters">Clear filters</button>
                     </div>
                 </div>
 
@@ -135,26 +135,26 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year of Birth</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Club</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.name">Name</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.id">ID</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.gender">Gender</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.yearOfBirth">Year of Birth</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.club">Club</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.email">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.phone">Phone</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.country">Country</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="competitors.address">Address</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="competitors-table-body" class="bg-white divide-y divide-gray-200">
                                 <!-- Competitors will be loaded here -->
                             </tbody>
                         </table>
-                        <div id="no-competitors" class="text-center py-8 text-gray-500 hidden">
+                        <div id="no-competitors" class="text-center py-8 text-gray-500 hidden" data-i18n="competitors.empty">
                             No competitors found. Add your first competitor to get started.
                         </div>
-                        <div id="no-matching-competitors" class="text-center py-8 text-gray-500 hidden">
+                        <div id="no-matching-competitors" class="text-center py-8 text-gray-500 hidden" data-i18n="competitors.noMatch">
                             No competitors match the current search or filters.
                         </div>
                     </div>
@@ -166,27 +166,27 @@
         <div id="starts-section" class="section hidden">
             <div class="px-4 py-6">
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Competitor Starts Management</h2>
-                    <p class="text-gray-600 mt-1">Search for a competitor and manage their starts in active disciplines</p>
+                    <h2 class="text-2xl font-bold text-gray-900" data-i18n="starts.title">Competitor Starts Management</h2>
+                    <p class="text-gray-600 mt-1" data-i18n="starts.intro">Search for a competitor and manage their starts in active disciplines</p>
                 </div>
 
                 <!-- Competitor Search -->
                 <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Search Competitor</label>
-                            <input type="text" id="competitor-search" placeholder="Enter name or ID..." 
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.searchCompetitor">Search Competitor</label>
+                            <input type="text" id="competitor-search" placeholder="Enter name or ID..." data-i18n-placeholder="starts.searchPlaceholder" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
-                            <button id="search-competitor-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            <button id="search-competitor-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="common.search">
                                 Search
                             </button>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
-                            <button id="clear-competitor-search-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                            <button id="clear-competitor-search-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.clear">
                                 Clear
                             </button>
                         </div>
@@ -196,7 +196,7 @@
                 <!-- Selected Competitor Info -->
                 <div id="selected-competitor-info" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">Selected Competitor</h3>
+                        <h3 class="text-lg font-semibold" data-i18n="starts.selectedCompetitor">Selected Competitor</h3>
                         <button id="clear-competitor-info-btn" class="text-gray-500 hover:text-gray-700">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -211,8 +211,8 @@
                 <!-- Starts Management -->
                 <div id="starts-management" class="bg-white rounded-lg shadow-md p-6 hidden">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">Starts Management</h3>
-                        <button id="add-start-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        <h3 class="text-lg font-semibold" data-i18n="starts.management">Starts Management</h3>
+                        <button id="add-start-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="starts.add">
                             Add Start
                         </button>
                     </div>
@@ -221,23 +221,23 @@
                     <div id="add-start-form" class="border border-gray-200 rounded-lg p-4 mb-4 hidden">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Discipline *</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.disciplineRequired">Discipline *</label>
                                 <select id="start-discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Discipline</option>
+                                    <option value="" data-i18n="starts.selectDiscipline">Select Discipline</option>
                                     <!-- Active disciplines will be populated here -->
                                 </select>
                             </div>
                             <div>
-                                <label for="start-caliber" class="block text-sm font-medium text-gray-700 mb-1">Caliber</label>
-                                <input type="text" id="start-caliber" placeholder="e.g. .36, .56" maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <label for="start-caliber" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.caliber">Caliber</label>
+                                <input type="text" id="start-caliber" placeholder="e.g. .36, .56" data-i18n-placeholder="starts.caliberPlaceholder" maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
                                 <div class="flex space-x-2">
-                                    <button id="save-start-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                    <button id="save-start-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="starts.add">
                                         Add Start
                                     </button>
-                                    <button id="cancel-start-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    <button id="cancel-start-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">
                                         Cancel
                                     </button>
                                 </div>
@@ -250,19 +250,19 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discipline</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Number</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Caliber</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated ID</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="starts.discipline">Discipline</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="starts.startNumber">Start Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="starts.caliber">Caliber</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="starts.generatedId">Generated ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="starts.status">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="starts-table-body" class="bg-white divide-y divide-gray-200">
                                 <!-- Starts will be populated here -->
                             </tbody>
                         </table>
-                        <div id="no-starts" class="text-center py-8 text-gray-500 hidden">
+                        <div id="no-starts" class="text-center py-8 text-gray-500 hidden" data-i18n="starts.empty">
                             No starts found for this competitor.
                         </div>
                     </div>
@@ -278,26 +278,26 @@
                         <svg class="h-8 w-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
-                        Results
+                        <span data-i18n="results.title">Results</span>
                     </h2>
                 </div>
 
                 <!-- Search Section -->
                 <div class="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div class="mb-4">
-                        <h3 class="text-lg font-semibold text-gray-900">Search for a Start</h3>
-                        <p class="text-sm text-gray-600">Enter a start ID to find and add results for that specific start</p>
+                        <h3 class="text-lg font-semibold text-gray-900" data-i18n="results.searchTitle">Search for a Start</h3>
+                        <p class="text-sm text-gray-600" data-i18n="results.searchIntro">Enter a start ID to find and add results for that specific start</p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start ID *</label>
-                            <input type="text" id="result-start-search" placeholder="Enter start ID (e.g., 1-52-1)..." 
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="results.startIdRequired">Start ID *</label>
+                            <input type="text" id="result-start-search" placeholder="Enter start ID (e.g., 1-52-1)..." data-i18n-placeholder="results.startIdPlaceholder" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
                             <div class="flex space-x-2">
-                                <button id="search-start-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                <button id="search-start-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors" data-i18n="common.search">
                                     Search
                                 </button>
                             </div>

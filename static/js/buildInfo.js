@@ -1,6 +1,7 @@
 // Frontend and backend build dates shown in the sidebar
 
 import { API_BASE } from './config.js';
+import { locale } from './i18n.js';
 
 // static/build-info.json is written by the release workflow; it is absent
 // in a local checkout, which then shows "dev"
@@ -18,7 +19,7 @@ async function fetchBuildTime(url) {
 function formatBuildTime(isoString) {
     if (!isoString) return 'dev';
     const date = new Date(isoString);
-    return isNaN(date) ? isoString : date.toLocaleString();
+    return isNaN(date) ? isoString : date.toLocaleString(locale);
 }
 
 export async function loadBuildInfo() {

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Competitor;
 import com.competition.model.Start;
 
@@ -58,10 +59,10 @@ public class CompetitorService {
         return dataService.update(data -> {
             Map<String, Object> existingData = findById(competitorsOf(data), id);
             if (existingData == null) {
-                throw new RecordNotFoundException("Competitor not found");
+                throw new RecordNotFoundException(Messages.get("competitor.notFound"));
             }
             DataService.checkVersion(existingData, competitor.getVersion(),
-                "Competitor was changed by someone else", mapToCompetitor(existingData));
+                Messages.get("competitor.changed"), mapToCompetitor(existingData));
 
             existingData.put("name", competitor.getName());
             existingData.put("gender", competitor.getGender());
@@ -91,10 +92,10 @@ public class CompetitorService {
 
             Map<String, Object> existingData = findById(competitorsData, id);
             if (existingData == null) {
-                throw new RecordNotFoundException("Competitor not found");
+                throw new RecordNotFoundException(Messages.get("competitor.notFound"));
             }
             DataService.checkVersion(existingData, expectedVersion,
-                "Competitor was changed by someone else", mapToCompetitor(existingData));
+                Messages.get("competitor.changed"), mapToCompetitor(existingData));
 
             Set<String> startIds = new HashSet<>();
             if (existingData.get("starts") instanceof Map<?, ?> starts) {

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.RankingDefinition;
 import com.competition.model.Start;
@@ -24,7 +25,7 @@ public class StartService {
 
     public Start createStart(int competitorId, int disciplineId, String caliber) throws Exception {
         if (disciplineId == 0) {
-            throw new IllegalArgumentException("discipline_id is required");
+            throw new IllegalArgumentException(Messages.get("request.required", "discipline_id"));
         }
         String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 
@@ -34,7 +35,7 @@ public class StartService {
             checkTakesStarts(disciplineId);
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
             if (competitorData == null) {
-                throw new RecordNotFoundException("Competitor not found");
+                throw new RecordNotFoundException(Messages.get("competitor.notFound"));
             }
             checkOneStartRules(competitorData, disciplineId);
 
@@ -54,7 +55,7 @@ public class StartService {
             // data.json files still contain unseparated ids, which stay as they are.
             String generatedId = competitorId + "-" + disciplineId + "-" + startNumber;
             if (startIdExists(data, generatedId)) {
-                throw new ConflictException("Start ID " + generatedId + " is already in use", null);
+                throw new ConflictException(Messages.get("start.idInUse", generatedId), null);
             }
 
             Map<String, Object> newStartData = new HashMap<>();
@@ -111,9 +112,9 @@ public class StartService {
             for (int other : ranking.disciplineIds()) {
                 if (other != disciplineId && RankingConfigService.startsIn(competitorData, other)) {
                     Discipline otherDiscipline = disciplineService.getAvailableDisciplineById(other);
-                    throw new ConflictException(competitorData.get("name") + " already starts in "
-                        + (otherDiscipline != null ? otherDiscipline.getName() : String.valueOf(other))
-                        + ", and " + ranking.getName() + " allows one start per competitor", null);
+                    throw new ConflictException(Messages.get("start.oneStartPerRanking", competitorData.get("name"),
+                        otherDiscipline != null ? otherDiscipline.getName() : String.valueOf(other),
+                        ranking.getName()), null);
                 }
             }
         }
@@ -126,14 +127,13 @@ public class StartService {
     private void checkTakesStarts(int disciplineId) throws Exception {
         Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
         if (discipline == null) {
-            throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
+            throw new IllegalArgumentException(Messages.get("discipline.doesNotExist", disciplineId));
         }
         if (discipline.isTeam()) {
-            throw new IllegalArgumentException(discipline.getName()
-                + " is a team discipline: competitors start in the disciplines that count for it");
+            throw new IllegalArgumentException(Messages.get("start.teamDiscipline", discipline.getName()));
         }
         if (!dataService.loadProgramIds().contains(disciplineId)) {
-            throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings");
+            throw new IllegalArgumentException(Messages.get("discipline.notInProgram", discipline.getName()));
         }
     }
 
@@ -148,14 +148,14 @@ public class StartService {
 
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
             if (competitorData == null) {
-                throw new RecordNotFoundException("Competitor not found");
+                throw new RecordNotFoundException(Messages.get("competitor.notFound"));
             }
 
             @SuppressWarnings("unchecked")
             Map<String, List<Map<String, Object>>> startsData = (Map<String, List<Map<String, Object>>>) competitorData.get("starts");
 
             if (startsData == null || startsData.isEmpty()) {
-                throw new RecordNotFoundException("Start not found");
+                throw new RecordNotFoundException(Messages.get("start.notFound"));
             }
 
             boolean startFound = false;
@@ -179,7 +179,7 @@ public class StartService {
             }
 
             if (!startFound) {
-                throw new RecordNotFoundException("Start not found");
+                throw new RecordNotFoundException(Messages.get("start.notFound"));
             }
             return null;
         });

@@ -19,105 +19,105 @@
         <div class="px-4 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
             <!-- Meet details -->
             <form id="meet-form" class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
-                <h3 class="text-lg font-semibold mb-1">Meet Details</h3>
-                <p class="text-sm text-gray-600 mb-4">
+                <h3 class="text-lg font-semibold mb-1" data-i18n="meet.details">Meet Details</h3>
+                <p class="text-sm text-gray-600 mb-4" data-i18n="meet.detailsIntro">
                     Printed on the ranking's cover page, the start cards and the race bibs.
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label for="meet-name" class="block text-sm font-medium text-gray-700 mb-1">Name of the meet</label>
-                        <input type="text" id="meet-name" maxlength="200" placeholder="e.g. Staatsmeisterschaft Vorderlader 2026"
+                        <label for="meet-name" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.name">Name of the meet</label>
+                        <input type="text" id="meet-name" maxlength="200" placeholder="e.g. Staatsmeisterschaft Vorderlader 2026" data-i18n-placeholder="meet.namePlaceholder"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="meet-location" class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                        <input type="text" id="meet-location" maxlength="200" placeholder="e.g. Bad Zell"
+                        <label for="meet-location" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="cover.venue">Venue</label>
+                        <input type="text" id="meet-location" maxlength="200" placeholder="e.g. Bad Zell" data-i18n-placeholder="meet.venuePlaceholder"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="meet-host" class="block text-sm font-medium text-gray-700 mb-1">Host</label>
-                        <input type="text" id="meet-host" maxlength="200" placeholder="e.g. SV Bad Zell"
+                        <label for="meet-host" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="cover.host">Host</label>
+                        <input type="text" id="meet-host" maxlength="200" placeholder="e.g. SV Bad Zell" data-i18n-placeholder="meet.hostPlaceholder"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="meet-date-from" class="block text-sm font-medium text-gray-700 mb-1">First day</label>
+                        <label for="meet-date-from" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.firstDay">First day</label>
                         <input type="date" id="meet-date-from"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="meet-date-to" class="block text-sm font-medium text-gray-700 mb-1">Last day</label>
+                        <label for="meet-date-to" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.lastDay">Last day</label>
                         <input type="date" id="meet-date-to"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
                 <p id="meet-date-hint" class="text-sm text-gray-500 mt-2"></p>
                 <div class="flex justify-end mt-4">
-                    <button type="submit" id="meet-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <button type="submit" id="meet-save-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50" data-i18n="common.save">
                         Save
                     </button>
                 </div>
             </form>
 
-            <p class="lg:col-span-2 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm">
+            <p class="lg:col-span-2 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm" data-i18n-html="meet.rankingsLink">
                 What this meet ranks, and so which disciplines it shoots, is set on the
                 <a href="/rankings/" class="underline font-medium">Rankings page</a>.
             </p>
 
             <!-- Start cards -->
             <div class="bg-white rounded-lg shadow-md p-6 flex flex-col">
-                <h3 class="text-lg font-semibold mb-1">Start Cards</h3>
-                <p class="text-sm text-gray-600 mb-4 flex-1">
+                <h3 class="text-lg font-semibold mb-1" data-i18n="meet.cards.title">Start Cards</h3>
+                <p class="text-sm text-gray-600 mb-4 flex-1" data-i18n="meet.cards.intro">
                     One A4 page per starter with name, starter ID, club, country and every start
                     with its day, relay, time, range and lane.
                 </p>
-                <label for="cards-starter" class="block text-sm font-medium text-gray-700 mb-1">Starters</label>
+                <label for="cards-starter" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.starters">Starters</label>
                 <input type="search" id="cards-search" data-select="cards-starter" autocomplete="off" spellcheck="false"
-                    placeholder="Search name, starter ID, club or country..." aria-label="Search start card starters"
+                    placeholder="Search name, starter ID, club or country..." aria-label="Search start card starters" data-i18n-placeholder="meet.starterSearch" data-i18n-aria-label="meet.cards.search"
                     class="starter-search w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
                 <select id="cards-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
-                <button type="button" id="print-cards-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                <button type="button" id="print-cards-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50" data-i18n="meet.cards.export">
                     Export Start Cards
                 </button>
             </div>
 
             <!-- Race bibs -->
             <div class="bg-white rounded-lg shadow-md p-6 flex flex-col">
-                <h3 class="text-lg font-semibold mb-1">Race Bibs</h3>
-                <p class="text-sm text-gray-600 mb-4 flex-1">
+                <h3 class="text-lg font-semibold mb-1" data-i18n="meet.bibs.title">Race Bibs</h3>
+                <p class="text-sm text-gray-600 mb-4 flex-1" data-i18n="meet.bibs.intro">
                     One A4 landscape bib per starter with the starter ID, name, club, country,
                     and the meet's name, venue and date.
                 </p>
-                <label for="bibs-starter" class="block text-sm font-medium text-gray-700 mb-1">Starters</label>
+                <label for="bibs-starter" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.starters">Starters</label>
                 <input type="search" id="bibs-search" data-select="bibs-starter" autocomplete="off" spellcheck="false"
-                    placeholder="Search name, starter ID, club or country..." aria-label="Search race bib starters"
+                    placeholder="Search name, starter ID, club or country..." aria-label="Search race bib starters" data-i18n-placeholder="meet.starterSearch" data-i18n-aria-label="meet.bibs.search"
                     class="starter-search w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
                 <select id="bibs-starter" class="starter-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"></select>
-                <button type="button" id="print-bibs-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                <button type="button" id="print-bibs-btn" class="print-btn bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50" data-i18n="meet.bibs.export">
                     Export Race Bibs
                 </button>
             </div>
 
             <!-- Lane assignments export -->
             <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
-                <h3 class="text-lg font-semibold mb-1">Lane Assignments (CSV)</h3>
-                <p class="text-sm text-gray-600 mb-4">
+                <h3 class="text-lg font-semibold mb-1" data-i18n="meet.csv.title">Lane Assignments (CSV)</h3>
+                <p class="text-sm text-gray-600 mb-4" data-i18n="meet.csv.intro">
                     Every lane assignment of the meet as a CSV file, one row per start, in time, range and lane order:
                     date, relay, start and end time, range, lane, start ID with its EAN-13 barcode number, starter ID, name, club, country and discipline, with the discipline's short name from the Disciplines page (its full name where none is set).
                     Use it e.g. for a mail merge that prints the labels identifying the targets; the label program turns the barcode column into a barcode, which the Results page's start search reads with a scanner.
                 </p>
                 <div class="flex flex-wrap items-end gap-4">
                     <div>
-                        <label for="csv-separator" class="block text-sm font-medium text-gray-700 mb-1">Separator</label>
+                        <label for="csv-separator" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.csv.separator">Separator</label>
                         <select id="csv-separator" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="semicolon">Semicolon (Excel, German)</option>
-                            <option value="comma">Comma</option>
+                            <option value="semicolon" data-i18n="meet.csv.semicolon">Semicolon (Excel, German)</option>
+                            <option value="comma" data-i18n="meet.csv.comma">Comma</option>
                         </select>
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-700 py-2">
                         <input type="checkbox" id="csv-unscheduled" class="h-4 w-4">
-                        Also list starts without a lane
+                        <span data-i18n="meet.csv.unscheduled">Also list starts without a lane</span>
                     </label>
-                    <button type="button" id="export-lanes-btn" class="ml-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <button type="button" id="export-lanes-btn" class="ml-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50" data-i18n="meet.csv.export">
                         Export CSV
                     </button>
                 </div>
@@ -125,8 +125,8 @@
 
             <!-- Target labels -->
             <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
-                <h3 class="text-lg font-semibold mb-1">Target Labels (PDF / Word)</h3>
-                <p class="text-sm text-gray-600 mb-4">
+                <h3 class="text-lg font-semibold mb-1" data-i18n="meet.labels.title">Target Labels (PDF / Word)</h3>
+                <p class="text-sm text-gray-600 mb-4" data-i18n="meet.labels.intro">
                     One label per lane assignment, in time, range and lane order, tiled on A4 sheets:
                     range and lane, starter ID, the start ID as a 10 x 10 mm QR code (the Results page's start search reads it with a scanner),
                     day and time, caliber, discipline short name, and the score grid.
@@ -134,25 +134,25 @@
                 </p>
                 <div class="flex flex-wrap items-end gap-4">
                     <div>
-                        <label for="label-width" class="block text-sm font-medium text-gray-700 mb-1">Width (mm)</label>
+                        <label for="label-width" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.labels.width">Width (mm)</label>
                         <input type="number" id="label-width" min="60" max="210" step="0.5" value="105"
                                class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="label-height" class="block text-sm font-medium text-gray-700 mb-1">Height (mm)</label>
+                        <label for="label-height" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="meet.labels.height">Height (mm)</label>
                         <input type="number" id="label-height" min="34" max="297" step="0.5" value="48"
                                class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-700 py-2">
                         <input type="checkbox" id="label-pairs" class="h-4 w-4">
-                        Two labels per start (left and right)
+                        <span data-i18n="meet.labels.pairs">Two labels per start (left and right)</span>
                     </label>
                     <span id="label-per-sheet" class="text-sm text-gray-500 py-2"></span>
                     <div class="ml-auto flex gap-2">
-                        <button type="button" id="print-labels-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                        <button type="button" id="print-labels-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50" data-i18n="meet.labels.print">
                             Print / PDF
                         </button>
-                        <button type="button" id="word-labels-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        <button type="button" id="word-labels-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50" data-i18n="meet.labels.word">
                             Export Word
                         </button>
                     </div>
@@ -163,21 +163,21 @@
 
     <dialog id="export-dialog" class="no-print rounded-lg shadow-xl p-0 w-full max-w-sm">
         <form method="dialog" class="p-6">
-            <h3 id="export-title" class="text-lg font-semibold mb-1">Export</h3>
-            <p class="text-sm text-gray-600 mb-4">For the starters chosen in the list:</p>
+            <h3 id="export-title" class="text-lg font-semibold mb-1" data-i18n="ranking.export">Export</h3>
+            <p class="text-sm text-gray-600 mb-4" data-i18n="meet.dialog.intro">For the starters chosen in the list:</p>
             <label class="flex items-start gap-2 text-sm text-gray-700 mb-3">
                 <input type="radio" name="export-format" value="print" class="h-4 w-4 mt-0.5" checked>
-                <span><span class="font-medium">Print</span><br>
-                    <span class="text-gray-500">Opens the print dialog; choose "Save as PDF" there for a PDF file</span></span>
+                <span><span class="font-medium" data-i18n="ranking.dialog.print">Print</span><br>
+                    <span class="text-gray-500" data-i18n="ranking.dialog.printHint">Opens the print dialog; choose "Save as PDF" there for a PDF file</span></span>
             </label>
             <label class="flex items-start gap-2 text-sm text-gray-700 mb-5">
                 <input type="radio" name="export-format" value="word" class="h-4 w-4 mt-0.5">
                 <span><span class="font-medium">Word (.docx)</span><br>
-                    <span class="text-gray-500">One page per starter, to edit or print in Word</span></span>
+                    <span class="text-gray-500" data-i18n="meet.dialog.wordHint">One page per starter, to edit or print in Word</span></span>
             </label>
             <div class="flex justify-end gap-2">
-                <button value="cancel" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
-                <button value="export" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">Export</button>
+                <button value="cancel" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">Cancel</button>
+                <button value="export" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors" data-i18n="ranking.export">Export</button>
             </div>
         </form>
     </dialog>

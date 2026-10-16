@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.model.AppSettings;
 import com.competition.service.BackupService;
 import com.competition.service.ExternalBackupService;
@@ -46,7 +47,7 @@ public class BackupResource {
             logger.error("Failed to create backup", e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to create backup"))
+                .entity(ErrorBody.of(Messages.get("error.failed", "create backup")))
                 .build();
         }
     }
@@ -69,7 +70,7 @@ public class BackupResource {
             logger.error("Failed to restore backup", e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to restore backup"))
+                .entity(ErrorBody.of(Messages.get("error.failed", "restore backup")))
                 .build();
         }
     }
@@ -94,7 +95,7 @@ public class BackupResource {
         } catch (Exception e) {
             logger.error("Failed to save the external backup settings", e);
             return Response.serverError().type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to save the settings")).build();
+                .entity(ErrorBody.of(Messages.get("error.failed", "save the settings"))).build();
         }
     }
 

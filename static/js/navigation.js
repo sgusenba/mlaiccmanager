@@ -2,6 +2,7 @@
 
 import { loadCompetitors, loadAvailableDisciplines, loadActiveDisciplines, loadResults } from './api.js';
 import { showMessage } from './utils.js';
+import { t } from './i18n.js';
 
 const SECTIONS = ['competitors', 'starts', 'results'];
 
@@ -102,6 +103,6 @@ async function loadInitialData() {
         console.log('All data loaded successfully');
     } catch (error) {
         console.error('Error loading initial data:', error);
-        showMessage('Error loading application data. Please refresh the page.', 'error');
+        showMessage(t('app.loadError'), 'error');
     }
 }

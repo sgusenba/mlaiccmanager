@@ -19,6 +19,7 @@
 import { docx, imageRelId, imageRun, paragraph } from '../js/officeFiles.js';
 import { qrPng, qrSvg } from '../js/qrCode.js';
 import { escapeHtml } from '../js/meet.js';
+import { locale, t } from '../js/i18n.js';
 
 export const DEFAULT_LABEL_SIZE = { width: 105, height: 48 };
 export const LABEL_SIZE_LIMITS = { width: [60, 210], height: [34, 297] };
@@ -26,13 +27,18 @@ export const LABEL_SIZE_LIMITS = { width: [60, 210], height: [34, 297] };
 const PAGE = { width: 210, height: 297 };
 const INSET = 2; // the frame is drawn this far inside the label's edge
 const QR_MM = 10;
-const SCORE_COLUMNS = ['Z', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
-const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+// The first column is the inner ten (Z in German, X in English)
+const SCORE_COLUMNS = [t('meet.labels.innerTen'), '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
-/** "Sa 12.10. 14:30" */
+/** "Sa 12.10. 14:30" in German, "Sat 10/12 14:30" in English */
 function dayAndTime(isoDate, time) {
     const [year, month, day] = String(isoDate ?? '').split('-').map(Number);
-    const date = year ? `${WEEKDAYS[new Date(year, month - 1, day).getDay()]} ${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.` : '';
+    let date = '';
+    if (year) {
+        const d = new Date(year, month - 1, day);
+        const weekday = d.toLocaleDateString(locale, { weekday: 'short' }).replace(/\.$/, '');
+        date = `${weekday} ${d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`;
+    }
     return [date, time].filter(Boolean).join(' ');
 }
 
@@ -132,8 +138,8 @@ function labelHtml(label, l) {
                     ${td(qrSpan, 'tl-qr', `${qrSvg(label.startId, QR_MM)}<div class="tl-id" style="font-size:${FONT.startId}pt">${escapeHtml(label.startId)}</div>`)}
                 </tr>
                 <tr style="height:${l.rows.time.toFixed(2)}mm;font-size:${pt(FONT.text)}">
-                    ${td(distanceSpan, 'tl-text', `Time: <b>${escapeHtml(label.time)}</b>`)}
-                    ${td(numberSpan, 'tl-text', label.caliber ? `Cal: <b>${escapeHtml(label.caliber)}</b>` : '')}
+                    ${td(distanceSpan, 'tl-text', `${escapeHtml(t('meet.labels.time'))} <b>${escapeHtml(label.time)}</b>`)}
+                    ${td(numberSpan, 'tl-text', label.caliber ? `${escapeHtml(t('meet.labels.caliber'))} <b>${escapeHtml(label.caliber)}</b>` : '')}
                     ${td(qrSpan, 'tl-discipline', escapeHtml(label.discipline), `font-size:${pt(FONT.discipline)}`)}
                 </tr>
                 <tr class="tl-score-head" style="height:${l.rows.scoreHead.toFixed(2)}mm;font-size:${pt(FONT.score)}">
@@ -190,7 +196,7 @@ function labelDocx(label, l, image, drawingId) {
     const size = (pt) => pt * l.scale;
     const [distanceSpan, numberSpan, qrSpan] = l.topSpans;
     const qr = `<w:p><w:pPr><w:spacing w:after="20"/><w:jc w:val="center"/></w:pPr>`
-        + `${imageRun(imageRelId(image), QR_MM, QR_MM, { id: drawingId, name: `qr${drawingId}.png`, description: `QR code ${label.startId}` })}</w:p>`
+        + `${imageRun(imageRelId(image), QR_MM, QR_MM, { id: drawingId, name: `qr${drawingId}.png`, description: t('meet.labels.qr', { id: label.startId }) })}</w:p>`
         + paragraph(label.startId, { size: FONT.startId, align: 'center' });
     // a double line between the label's details and the score grid, as on the printout
     const double = `<w:top w:val="double" w:sz="6" w:space="0" w:color="000000"/>`;
@@ -204,9 +210,9 @@ function labelDocx(label, l, image, drawingId) {
             [qrSpan, qr]
         ])),
         row(h(l.rows.time), cells(l, [
-            [distanceSpan, paragraph([{ text: 'Time: ' }, { text: label.time, bold: true }], { size: size(FONT.text) })],
+            [distanceSpan, paragraph([{ text: `${t('meet.labels.time')} ` }, { text: label.time, bold: true }], { size: size(FONT.text) })],
             // no caliber: an empty cell, not "Cal:" alone
-            [numberSpan, paragraph(label.caliber ? [{ text: 'Cal: ' }, { text: label.caliber, bold: true }] : '', { size: size(FONT.text) })],
+            [numberSpan, paragraph(label.caliber ? [{ text: `${t('meet.labels.caliber')} ` }, { text: label.caliber, bold: true }] : '', { size: size(FONT.text) })],
             [qrSpan, paragraph(label.discipline, { size: size(FONT.discipline), align: 'center' })]
         ])),
         row(h(l.rows.scoreHead), cells(l, SCORE_COLUMNS.map((text, i) =>

@@ -4,26 +4,28 @@
 
 import { escapeHtml } from '../js/meet.js';
 import { nowText } from './rankingExport.js';
+import { countryLabel } from '../js/countries.js';
+import { locale, t, tOr } from '../js/i18n.js';
 
 // Discipline columns per table; more are continued in another table below.
 // Column widths in mm: 26 + 2 × 12 + 8 × 16 = 178, fits an A4 page with margins.
 const COLUMNS_PER_BLOCK = 8;
 const WIDTH_MM = { country: 26, number: 12, discipline: 16 };
-const NO_COUNTRY = 'No country';
+const NO_COUNTRY = '';
 
 /** Page 1: "Results", the meet's name, what the ranking covers, venue, date and host. */
 export function coverPage(meet, scope) {
     const facts = [
-        ['Venue', meet.location],
-        ['Date', meet.dateText],
-        ['Host', meet.host]
+        [t('cover.venue'), meet.location],
+        [t('cover.date'), meet.dateText],
+        [t('cover.host'), meet.host]
     ].filter(([, value]) => value);
     return `
-        <div class="cover-kicker">Results</div>
-        <div class="cover-title">${escapeHtml(meet.name || 'Ranking')}</div>
+        <div class="cover-kicker">${escapeHtml(t('cover.kicker'))}</div>
+        <div class="cover-title">${escapeHtml(meet.name || t('ranking.ranking'))}</div>
         <div class="cover-scope">${escapeHtml(scope)}</div>
         <dl class="cover-facts">
-            ${facts.map(([label, value]) => `<dt>${label}:</dt><dd>${escapeHtml(value)}</dd>`).join('')}
+            ${facts.map(([label, value]) => `<dt>${escapeHtml(label)}:</dt><dd>${escapeHtml(value)}</dd>`).join('')}
         </dl>`;
 }
 
@@ -62,11 +64,14 @@ export function entryStatistics(competitors, disciplines) {
         })
         .map(id => {
             const d = byId.get(id);
-            return d ? { id, name: d.short_name || d.name, type: d.type } : { id, name: `Discipline #${id}` };
+            return d
+                ? { id, name: d.short_name || d.name, type: d.type && tOr(`type.${d.type}`, d.type) }
+                : { id, name: t('stats.unknownDiscipline', { id }) };
         });
+    // Countries by their name in the page's language, competitors without one last
     const rows = [...groups.entries()]
-        .sort(([a], [b]) => (a === NO_COUNTRY) - (b === NO_COUNTRY) || a.localeCompare(b))
-        .map(([country, row]) => ({ country, ...row }));
+        .map(([country, row]) => ({ none: country === NO_COUNTRY, ...row, country: country === NO_COUNTRY ? t('stats.noCountry') : countryLabel(country) }))
+        .sort((a, b) => a.none - b.none || a.country.localeCompare(b.country, locale));
     return { total, rows, columns };
 }
 
@@ -77,7 +82,7 @@ export function statisticsPage(meet, stats) {
     for (let i = 0; i < Math.max(stats.columns.length, 1); i += COLUMNS_PER_BLOCK) {
         blocks.push(stats.columns.slice(i, i + COLUMNS_PER_BLOCK));
     }
-    const allRows = [{ country: 'TOTAL', total: true, ...stats.total }, ...stats.rows];
+    const allRows = [{ country: t('stats.total'), total: true, ...stats.total }, ...stats.rows];
 
     // Fixed column widths keep every block's discipline columns under the first block's;
     // later blocks leave the persons and starts columns empty, as in a results booklet
@@ -90,8 +95,8 @@ export function statisticsPage(meet, stats) {
             </colgroup>
             <thead>
                 <tr>
-                    <th class="text-left">Country</th>
-                    ${first ? '<th>Persons</th><th>Starts</th>' : '<th class="stats-gap"></th><th class="stats-gap"></th>'}
+                    <th class="text-left">${t('stats.country')}</th>
+                    ${first ? `<th>${t('stats.persons')}</th><th>${t('stats.starts')}</th>` : '<th class="stats-gap"></th><th class="stats-gap"></th>'}
                     ${columns.map(c => `<th>${escapeHtml(c.name)}${c.type ? `<span class="stats-type">(${escapeHtml(c.type)})</span>` : ''}</th>`).join('')}
                 </tr>
             </thead>
@@ -108,16 +113,16 @@ export function statisticsPage(meet, stats) {
     return `
         <div class="stats-head">
             <div>
-                <div class="font-bold">${escapeHtml(meet.name || 'Ranking')}</div>
+                <div class="font-bold">${escapeHtml(meet.name || t('ranking.ranking'))}</div>
                 <div>${escapeHtml([meet.dateText, meet.location].filter(Boolean).join(' · '))}</div>
                 ${meet.host ? `<div>${escapeHtml(meet.host)}</div>` : ''}
             </div>
             <div class="text-right">
-                <div class="font-bold">Starters and entries</div>
-                <div>as of ${escapeHtml(nowText())}</div>
+                <div class="font-bold">${t('stats.title')}</div>
+                <div>${escapeHtml(t('ranking.asOf', { time: nowText() }))}</div>
             </div>
         </div>
         ${stats.total.persons === 0
-            ? '<p class="text-gray-500">No starts registered.</p>'
+            ? `<p class="text-gray-500">${t('stats.empty')}</p>`
             : blocks.map((columns, i) => table(columns, i === 0)).join('')}`;
 }

@@ -1,5 +1,6 @@
 package com.competition.service;
 
+import com.competition.i18n.Messages;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -73,7 +74,7 @@ public final class LaneAutoAssigner {
                 queues.get(rangeId).add(start);
             } else {
                 unplaced.add(new Unplaced(start.startId(), start.rangeId() != null
-                    ? "Its range " + start.rangeId() + " does not exist" : "There is no range to fire on"));
+                    ? Messages.get("auto.rangeMissing", start.rangeId()) : Messages.get("auto.noRange")));
             }
         }
 
@@ -128,8 +129,8 @@ public final class LaneAutoAssigner {
                 boolean full = relayIds.stream().allMatch(
                     relayId -> taken.get(relayId).get(range.id()).size() >= range.laneCount());
                 unplaced.add(new Unplaced(start.startId(), full
-                    ? "No free lane left on " + range.name() + " in the unlocked relays"
-                    : "The competitor already has a lane in every relay with a free lane on " + range.name()));
+                    ? Messages.get("auto.noFreeLane", range.name())
+                    : Messages.get("auto.competitorBusy", range.name())));
             }
         }
         return new Plan(placements, unplaced);

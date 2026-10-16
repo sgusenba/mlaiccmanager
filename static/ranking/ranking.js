@@ -8,6 +8,7 @@ import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
 import { rankingDocx, rankingXlsx, timestampLine } from './rankingExport.js';
 import { individualCard } from './rankingCard.js';
+import { t } from '../js/i18n.js';
 
 const RANKING_KEY = 'ranking.ranking';
 const PAGE_BREAK_KEY = 'ranking.pagePerDiscipline';
@@ -15,7 +16,8 @@ const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
 const FORMAT_KEY = 'ranking.exportFormat';
 const RESULT_LABEL_KEY = 'ranking.resultLabel';
-const RESULT_LABELS = ['Intermediate Result', 'Final Result'];
+// Stored by these values; shown as the message of the same key
+const RESULT_LABELS = { 'Intermediate Result': 'ranking.watermark.intermediate', 'Final Result': 'ranking.watermark.final' };
 const FORMATS = ['print', 'word', 'excel'];
 
 // --- helpers ---------------------------------------------------------------
@@ -27,7 +29,7 @@ async function api(path) {
     if (text) {
         try { json = JSON.parse(text); } catch { json = { error: text }; }
     }
-    if (!response.ok) throw new Error(json?.error || `HTTP error! status: ${response.status}`);
+    if (!response.ok) throw new Error(json?.error || t('common.httpError', { status: response.status }));
     return json;
 }
 
@@ -57,7 +59,7 @@ function card(data, extraClass) {
 function emptyState(text) {
     return `
         <div class="text-center py-12">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No ranking data available</h3>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">${t('ranking.noData')}</h3>
             <p class="text-gray-500">${text}</p>
         </div>`;
 }
@@ -86,7 +88,7 @@ async function loadRankings() {
     const config = await api('/rankings');
     const options = (config.rankings || []).map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`);
     const select = document.getElementById('discipline-select');
-    select.innerHTML = '<option value="">All rankings</option>' + options.join('');
+    select.innerHTML = `<option value="">${t('ranking.allRankings')}</option>` + options.join('');
 
     const stored = readStored(RANKING_KEY);
     select.value = [...select.options].some(o => o.value === stored) ? stored : '';
@@ -96,13 +98,13 @@ async function loadRanking() {
     const rankingId = document.getElementById('discipline-select').value;
     try {
         if (rankingId) {
-            render([await api(`/rankings/${rankingId}/result`)], 'There are no starts, results or teams for this ranking yet.');
+            render([await api(`/rankings/${rankingId}/result`)], t('ranking.emptyOne'));
         } else {
-            render(await api('/rankings/results'), 'There are no rankings with starts, results or teams to display.');
+            render(await api('/rankings/results'), t('ranking.emptyAll'));
         }
     } catch (error) {
         shownRankings = [];
-        showMessage(`Error loading ranking: ${error.message}`);
+        showMessage(t('ranking.error.load', { error: error.message }));
     }
 }
 
@@ -119,19 +121,25 @@ async function loadPrintData() {
         printData = { meet, stats: entryStatistics(competitors || [], disciplines || []) };
     } catch (error) {
         printData = null;
-        showMessage(`Error loading the meet details for printing: ${error.message}`);
+        showMessage(t('ranking.error.loadMeet', { error: error.message }));
     }
 }
 
 function printScope() {
     const select = document.getElementById('discipline-select');
-    return select.value ? select.options[select.selectedIndex].text : 'All rankings';
+    return select.value ? select.options[select.selectedIndex].text : t('ranking.allRankings');
 }
 
 // "Intermediate Result", "Final Result" or '' as chosen in the export dialog
-function resultLabel() {
+function resultLabelValue() {
     const stored = readStored(RESULT_LABEL_KEY);
-    return RESULT_LABELS.includes(stored) ? stored : '';
+    return Object.hasOwn(RESULT_LABELS, stored) ? stored : '';
+}
+
+// The chosen watermark in the page's language
+function resultLabel() {
+    const value = resultLabelValue();
+    return value ? t(RESULT_LABELS[value]) : '';
 }
 
 function applyPrintOptions() {
@@ -142,7 +150,7 @@ function applyPrintOptions() {
 // Also runs for the browser's own print command (Ctrl+P)
 function fillPrintHeader() {
     const meet = printData?.meet;
-    document.querySelector('#print-header h1').textContent = meet?.name ? `${meet.name} · Ranking` : 'Ranking';
+    document.querySelector('#print-header h1').textContent = meet?.name ? `${meet.name} · ${t('ranking.ranking')}` : t('ranking.ranking');
     document.getElementById('print-date').textContent = timestampLine(printScope());
     document.getElementById('print-watermark').textContent = resultLabel();
     applyPrintOptions();
@@ -170,7 +178,7 @@ function openPrintDialog() {
     document.querySelector(`#print-dialog input[name="export-format"][value="${format}"]`).checked = true;
     document.getElementById('print-with-cover').checked = readStored(COVER_KEY) === 'true';
     document.getElementById('print-with-stats').checked = readStored(STATS_KEY) === 'true';
-    const label = resultLabel();
+    const label = resultLabelValue();
     resultLabelBoxes().forEach(box => { box.checked = box.value === label; });
     updateCoverOption();
     document.getElementById('print-dialog').showModal();
@@ -200,7 +208,7 @@ async function exportFromDialog() {
         return;
     }
     if (shownRankings.length === 0) {
-        showMessage('There is no ranking to export yet.');
+        showMessage(t('ranking.nothingToExport'));
         return;
     }
     const options = {
@@ -216,12 +224,12 @@ async function exportFromDialog() {
     };
     try {
         if (format === 'excel') {
-            downloadBlob(rankingXlsx(options), exportFileName('ranking', 'xlsx'));
+            downloadBlob(rankingXlsx(options), exportFileName(t('ranking.fileName'), 'xlsx'));
         } else {
-            downloadBlob(rankingDocx(options), exportFileName('ranking', 'docx'));
+            downloadBlob(rankingDocx(options), exportFileName(t('ranking.fileName'), 'docx'));
         }
     } catch (error) {
-        showMessage(`Could not export the ranking: ${error.message}`);
+        showMessage(t('ranking.error.export', { error: error.message }));
     }
 }
 
@@ -261,7 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await loadRankings();
     } catch (error) {
-        showMessage(`Error loading the rankings: ${error.message}`);
+        showMessage(t('ranking.error.loadRankings', { error: error.message }));
     }
     loadRanking();
 });

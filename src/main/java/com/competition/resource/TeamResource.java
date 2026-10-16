@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.service.ConflictException;
 import com.competition.service.RecordNotFoundException;
 import com.competition.service.TeamService;
@@ -47,7 +48,7 @@ public class TeamResource {
     public Response getCandidates(@QueryParam("discipline_id") Integer disciplineId) {
         return handle("get team candidates", () -> {
             if (disciplineId == null) {
-                throw new IllegalArgumentException("discipline_id is required");
+                throw new IllegalArgumentException(Messages.get("request.required", "discipline_id"));
             }
             return teamService.getCandidates(disciplineId);
         });
@@ -59,7 +60,7 @@ public class TeamResource {
         return handle("get team ranking", () -> {
             Map<String, Object> ranking = teamService.getRanking(disciplineId);
             if (ranking == null) {
-                throw new RecordNotFoundException("Team discipline " + disciplineId + " not found");
+                throw new RecordNotFoundException(Messages.get("team.disciplineNotFound", disciplineId));
             }
             return ranking;
         });
@@ -107,7 +108,7 @@ public class TeamResource {
             logger.error("Failed to {}", what, e);
             return Response.serverError()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Failed to " + what))
+                .entity(ErrorBody.of(Messages.get("error.failed", what)))
                 .build();
         }
     }

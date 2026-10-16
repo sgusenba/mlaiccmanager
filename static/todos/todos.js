@@ -6,6 +6,7 @@
 
 import { teamRankingCard } from '../js/teamRanking.js';
 import { hasResult, individualCard } from '../ranking/rankingCard.js';
+import { t } from '../js/i18n.js';
 
 // The rings of the countback; misses (0s) do not count
 const COUNTBACK_RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'];
@@ -17,7 +18,7 @@ async function api(path) {
     if (text) {
         try { json = JSON.parse(text); } catch { json = { error: text }; }
     }
-    if (!response.ok) throw new Error(json?.error || `HTTP error! status: ${response.status}`);
+    if (!response.ok) throw new Error(json?.error || t('common.httpError', { status: response.status }));
     return json;
 }
 
@@ -73,14 +74,14 @@ function render(rankings) {
 
     content.innerHTML = cards.length
         ? cards.join('')
-        : '<p class="text-center py-12 text-gray-500">Nothing to do: no entries need a tie-break.</p>';
+        : `<p class="text-center py-12 text-gray-500">${t('todos.nothing')}</p>`;
 }
 
 async function load() {
     try {
         render(await api('/rankings/results') || []);
     } catch (error) {
-        showMessage(`Error loading the ranking: ${error.message}`);
+        showMessage(t('ranking.error.load', { error: error.message }));
     }
 }
 

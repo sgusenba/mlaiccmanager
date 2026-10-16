@@ -3,6 +3,7 @@
 // registered start (e.g. "1-52-1") from data.json.
 
 import { withButtonFeedback } from '../js/buttonFeedback.js';
+import { locale, t, tOr } from '../js/i18n.js';
 
 const API = '/api/rmgmt';
 
@@ -19,7 +20,7 @@ const state = {
 
 class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
         this.body = body;
     }
@@ -77,7 +78,7 @@ function addMinutes(time, minutes) {
 function formatDate(isoDate) {
     if (!isoDate) return '?';
     const date = new Date(`${isoDate}T00:00:00`);
-    return isNaN(date) ? isoDate : date.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return isNaN(date) ? isoDate : date.toLocaleDateString(locale, { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 const duration = () => state.data.config.relay_duration_min;
@@ -92,13 +93,13 @@ function orderedRelays() {
 
 function relayLabel(relay) {
     const day = dayById(relay.day_id);
-    return `${formatDate(day?.date)} · Relay ${relay.sequence_no} · ${relay.start_time}–${addMinutes(relay.start_time, duration())}`;
+    return `${formatDate(day?.date)} · ${t('relays.relayNo', { number: relay.sequence_no })} · ${relay.start_time}–${addMinutes(relay.start_time, duration())}`;
 }
 
 // "Anna Muster (#1) – Colt (original) · 1-52-1"
 function startLabel(entry) {
     const competitor = entry.competitor;
-    const who = competitor ? `${competitor.name} (#${competitor.id})` : 'Unknown competitor';
+    const who = competitor ? `${competitor.name} (#${competitor.id})` : t('relays.unknownCompetitor');
     return `${who} – ${entry.discipline_name ?? '?'} · ${entry.start_id}`;
 }
 
@@ -119,7 +120,7 @@ async function loadDisciplines() {
         .filter(d => d && d.level !== 'team')
         .map(d => ({
             id: String(d.id),
-            name: d.type ? `${d.name} (${d.type})` : d.name,
+            name: d.type ? `${d.name} (${tOr(`type.${d.type}`, d.type)})` : d.name,
             range: d.shooting_distance?.trim() ? d.shooting_distance : null
         }));
 }
@@ -142,7 +143,7 @@ async function showSection(name) {
         if (name === 'settings') await refreshSettings();
     } catch (error) {
         console.error(error);
-        showMessage(`Could not load data: ${error.message}`);
+        showMessage(t('common.loadError', { error: error.message }));
     }
 }
 
@@ -156,10 +157,10 @@ async function refreshSchedule() {
 function renderAutoAssign() {
     const enabled = state.data.config.auto_assign_enabled === true;
     document.getElementById('auto-assign-toggle').checked = enabled;
-    document.getElementById('auto-assign-toggle-label').textContent = enabled ? 'On' : 'Off';
+    document.getElementById('auto-assign-toggle-label').textContent = enabled ? t('relays.auto.on') : t('relays.auto.off');
     const button = document.getElementById('auto-assign-btn');
     button.disabled = !enabled;
-    button.title = enabled ? '' : 'Switch auto lane assignment on first';
+    button.title = enabled ? '' : t('relays.auto.switchOnFirst');
     document.getElementById('auto-assign-replace').disabled = !enabled;
 }
 
@@ -168,11 +169,11 @@ function showAutoAssignResult(result) {
     const unplaced = result.unplaced || [];
     el.innerHTML = `
         <p class="${unplaced.length ? 'text-amber-700' : 'text-green-700'} font-medium">
-            ${result.assigned} lane${result.assigned === 1 ? '' : 's'} assigned${result.cleared ? `, ${result.cleared} cleared first` : ''}${unplaced.length ? `, ${unplaced.length} start${unplaced.length === 1 ? '' : 's'} could not be placed:` : '.'}
+            ${escapeHtml(t('relays.auto.assigned', { count: result.assigned }))}${result.cleared ? escapeHtml(t('relays.auto.cleared', { count: result.cleared })) : ''}${unplaced.length ? escapeHtml(t('relays.auto.unplaced', { count: unplaced.length })) : '.'}
         </p>
         ${unplaced.length ? `<ul class="mt-2 list-disc pl-5 text-gray-700 max-h-64 overflow-y-auto">${unplaced.map(u =>
             `<li>${escapeHtml(startLabel(u))} — ${escapeHtml(u.reason)}</li>`).join('')}</ul>
-        <p class="mt-2 text-gray-600">Add relays or lanes and run it again; lanes already assigned are kept.</p>` : ''}`;
+        <p class="mt-2 text-gray-600">${escapeHtml(t('relays.auto.unplacedHint'))}</p>` : ''}`;
     el.classList.remove('hidden');
 }
 
@@ -197,28 +198,33 @@ function renderSchedule() {
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                 <div>
                     <h3 class="text-lg font-semibold">${escapeHtml(formatDate(day.date))}</h3>
-                    <p class="text-sm text-gray-600">Start ${escapeHtml(day.start_time)} · ${config.break_min ?? 0} min break · ${relays.length} relay${relays.length === 1 ? '' : 's'}${lastEnd ? ` · ends ${lastEnd}` : ''}</p>
+                    <p class="text-sm text-gray-600">${escapeHtml([
+                        t('relays.day.start', { time: day.start_time }),
+                        t('relays.day.break', { minutes: config.break_min ?? 0 }),
+                        t('relays.day.relays', { count: relays.length }),
+                        ...(lastEnd ? [t('relays.day.ends', { time: lastEnd })] : [])
+                    ].join(' · '))}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 no-print">
                     <button type="button" class="day-lock-btn text-sm px-2 py-1 border rounded-md ${locked
                         ? 'text-red-600 border-red-200 bg-red-50' : 'text-green-700 border-green-200 bg-green-50'}"
-                        data-locked="${locked}" title="${locked ? 'Unlock' : 'Lock'} this day for editing">
-                        ${locked ? '&#128274; Locked' : '&#128275; Unlocked'}
+                        data-locked="${locked}" title="${locked ? t('relays.day.unlockHint') : t('relays.day.lockHint')}">
+                        ${locked ? `&#128274; ${t('relays.locked')}` : `&#128275; ${t('relays.unlocked')}`}
                     </button>
-                    <input type="date" ${off} class="day-edit-date px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.date)}" aria-label="Date">
-                    <input type="time" ${off} class="day-edit-start px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.start_time)}" aria-label="Start time">
-                    <button ${off} class="day-save-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Update</button>
-                    <button ${off} class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">Delete day</button>
+                    <input type="date" ${off} class="day-edit-date px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.date)}" aria-label="${t('cover.date')}">
+                    <input type="time" ${off} class="day-edit-start px-2 py-1 border border-gray-300 rounded-md text-sm" value="${escapeHtml(day.start_time)}" aria-label="${t('relays.startTime')}">
+                    <button ${off} class="day-save-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">${t('common.update')}</button>
+                    <button ${off} class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">${t('relays.day.delete')}</button>
                 </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relay</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${t('meet.card.relay')}</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${t('meet.card.time')}</th>
                             ${ranges.map(r => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(r.name)}</th>`).join('')}
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">${t('common.actions')}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -231,17 +237,17 @@ function renderSchedule() {
                                 return `<td class="px-4 py-2 text-sm ${n === r.lane_count ? 'text-green-700 font-medium' : 'text-gray-600'}">${n} / ${r.lane_count}</td>`;
                             }).join('')}
                             <td class="px-4 py-2 text-sm whitespace-nowrap no-print">
-                                <button class="relay-open-btn text-blue-600 hover:text-blue-800 mr-3">Assign lanes</button>
-                                <button ${off} class="relay-delete-btn text-red-600 hover:text-red-800">Delete</button>
+                                <button class="relay-open-btn text-blue-600 hover:text-blue-800 mr-3">${t('relays.assignLanes')}</button>
+                                <button ${off} class="relay-delete-btn text-red-600 hover:text-red-800">${t('common.delete')}</button>
                             </td>
                         </tr>`).join('')}
-                        ${relays.length === 0 ? `<tr><td colspan="${3 + ranges.length}" class="px-4 py-4 text-sm text-gray-500 text-center">No relays on this day yet.</td></tr>` : ''}
+                        ${relays.length === 0 ? `<tr><td colspan="${3 + ranges.length}" class="px-4 py-4 text-sm text-gray-500 text-center">${t('relays.day.noRelays')}</td></tr>` : ''}
                     </tbody>
                 </table>
             </div>
             <div class="flex items-center gap-2 mt-4 no-print">
-                <input type="number" ${off} class="relay-count px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="1" max="100" value="1" aria-label="Number of relays">
-                <button ${off} class="relay-add-btn bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700">Add relays</button>
+                <input type="number" ${off} class="relay-count px-2 py-1 border border-gray-300 rounded-md text-sm w-20" min="1" max="100" value="1" aria-label="${t('relays.day.relayCount')}">
+                <button ${off} class="relay-add-btn bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700">${t('relays.day.addRelays')}</button>
             </div>
         </div>`;
     }).join('');
@@ -267,7 +273,7 @@ function renderConfigLock(locked, ranges) {
     document.getElementById('config-form').querySelector('button[type="submit"]').disabled = locked;
 
     const lockBtn = document.getElementById('config-lock-btn');
-    lockBtn.textContent = locked ? '\u{1F512} Locked' : '\u{1F513} Unlocked';
+    lockBtn.textContent = locked ? `\u{1F512} ${t('relays.locked')}` : `\u{1F513} ${t('relays.unlocked')}`;
     lockBtn.dataset.locked = locked;
     lockBtn.className = `no-print shrink-0 text-sm px-2 py-1 border rounded-md ${locked
         ? 'text-red-600 border-red-200 bg-red-50' : 'text-green-700 border-green-200 bg-green-50'}`;
@@ -275,14 +281,14 @@ function renderConfigLock(locked, ranges) {
     document.getElementById('ranges-list').innerHTML = ranges.map(r => `
         <div class="flex flex-wrap items-end gap-2" data-range-id="${escapeHtml(r.id)}">
             <input type="text" class="range-edit-name px-2 py-1 border border-gray-300 rounded-md text-sm w-28"
-                value="${escapeHtml(r.name)}" ${locked ? 'disabled' : ''} aria-label="Distance name">
+                value="${escapeHtml(r.name)}" ${locked ? 'disabled' : ''} aria-label="${t('relays.config.distanceName')}">
             <input type="number" class="range-edit-lanes px-2 py-1 border border-gray-300 rounded-md text-sm w-20"
-                min="1" max="200" value="${r.lane_count}" ${locked ? 'disabled' : ''} aria-label="Lanes">
+                min="1" max="200" value="${r.lane_count}" ${locked ? 'disabled' : ''} aria-label="${t('relays.config.laneCount')}">
             <input type="number" class="range-edit-first px-2 py-1 border border-gray-300 rounded-md text-sm w-24"
-                min="1" max="9999" value="${r.first_lane_no ?? 1}" ${locked ? 'disabled' : ''} aria-label="First lane number" title="First lane number">
-            <button type="button" class="range-save-btn no-print px-2 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50" ${locked ? 'disabled' : ''}>Update</button>
-            <button type="button" class="range-delete-btn no-print px-2 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50" ${locked ? 'disabled' : ''}>Delete</button>
-            <span class="text-xs text-gray-500 self-center">lanes ${r.first_lane_no ?? 1}–${(r.first_lane_no ?? 1) + r.lane_count - 1}</span>
+                min="1" max="9999" value="${r.first_lane_no ?? 1}" ${locked ? 'disabled' : ''} aria-label="${t('relays.config.firstLaneNumber')}" title="${t('relays.config.firstLaneNumber')}">
+            <button type="button" class="range-save-btn no-print px-2 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50" ${locked ? 'disabled' : ''}>${t('common.update')}</button>
+            <button type="button" class="range-delete-btn no-print px-2 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50" ${locked ? 'disabled' : ''}>${t('common.delete')}</button>
+            <span class="text-xs text-gray-500 self-center">${t('relays.config.laneRange', { from: r.first_lane_no ?? 1, to: (r.first_lane_no ?? 1) + r.lane_count - 1 })}</span>
         </div>`).join('');
 
     document.getElementById('range-name').disabled = locked;
@@ -314,7 +320,7 @@ function setupScheduleListeners() {
 
     document.getElementById('auto-assign-btn').addEventListener('click', () => {
         const replace = document.getElementById('auto-assign-replace').checked;
-        if (replace && !confirm('Clear all lanes of the unlocked days and assign them again?')) return;
+        if (replace && !confirm(t('relays.auto.confirmReplace'))) return;
         const button = document.getElementById('auto-assign-btn');
         button.disabled = true;
         let result = null;
@@ -351,7 +357,7 @@ function setupScheduleListeners() {
             perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'PUT',
                 { name, lane_count: laneCount, first_lane_no: firstLane }), refreshSettings);
         } else if (button.classList.contains('range-delete-btn')) {
-            if (!confirm('Delete this distance? Only possible if no lanes are assigned on it.')) return;
+            if (!confirm(t('relays.config.confirmDeleteRange'))) return;
             perform(() => api(`/ranges/${encodeURIComponent(rangeId)}`, 'DELETE'), refreshSettings);
         }
     });
@@ -371,13 +377,13 @@ function setupScheduleListeners() {
             const start = dayEl.querySelector('.day-edit-start').value;
             perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'PUT', { date, start_time: start }), refreshSchedule);
         } else if (button.classList.contains('day-delete-btn')) {
-            if (!confirm('Delete this day with all its relays and lane assignments?')) return;
+            if (!confirm(t('relays.day.confirmDelete'))) return;
             perform(() => api(`/days/${encodeURIComponent(dayId)}`, 'DELETE'), refreshSchedule);
         } else if (button.classList.contains('relay-add-btn')) {
             const count = parseInt(dayEl.querySelector('.relay-count').value, 10) || 1;
             perform(() => api(`/days/${encodeURIComponent(dayId)}/relays`, 'POST', { count }), refreshSchedule);
         } else if (button.classList.contains('relay-delete-btn') && relayId) {
-            if (!confirm('Delete this relay and its lane assignments? Later relays of the day move up.')) return;
+            if (!confirm(t('relays.confirmDeleteRelay'))) return;
             perform(() => api(`/relays/${encodeURIComponent(relayId)}`, 'DELETE'), refreshSchedule);
         } else if (button.classList.contains('relay-open-btn') && relayId) {
             state.relayId = relayId;
@@ -392,7 +398,7 @@ async function refreshAssignment() {
     await Promise.all([loadData(), loadDisciplines().catch(error => {
         // the lanes still work, just without the discipline filter
         state.disciplines = [];
-        showMessage(`Could not load the disciplines for the filter: ${error.message}`);
+        showMessage(t('relays.error.filterDisciplines', { error: error.message }));
     })]);
     const relays = orderedRelays();
     document.getElementById('no-relays').classList.toggle('hidden', relays.length > 0);
@@ -430,7 +436,7 @@ function drawRelay() {
 
     document.getElementById('relay-detail').innerHTML = `
         <h2 class="text-2xl font-bold text-gray-900 mb-4">
-            Relay ${relay.sequence_no}
+            ${escapeHtml(t('relays.relayNo', { number: relay.sequence_no }))}
             <span class="text-base font-normal text-gray-600">${escapeHtml(formatDate(relay.day?.date))} · ${escapeHtml(relay.start_time)}–${end}</span>
         </h2>
         <div class="relay-grid grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -453,7 +459,7 @@ function laneBlock(block, allAvailable) {
         const current = assignment
             ? `<option value="${escapeHtml(assignment.start_id)}" selected>${escapeHtml(startLabel(assignment))}</option>`
             : '';
-        return `<option value="">— empty —</option>${current}` + available
+        return `<option value="">${t('relays.emptyLane')}</option>${current}` + available
             .map(start => `<option value="${escapeHtml(start.start_id)}">${escapeHtml(startLabel(start))}</option>`)
             .join('');
     };
@@ -463,14 +469,14 @@ function laneBlock(block, allAvailable) {
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                 <h3 class="text-lg font-semibold flex items-center gap-2">
                     ${escapeHtml(block.name)}
-                    ${locked ? '<span class="no-print text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-full px-2 py-0.5">Locked</span>' : ''}
+                    ${locked ? `<span class="no-print text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-full px-2 py-0.5">${t('relays.locked')}</span>` : ''}
                 </h3>
-                <span class="text-sm text-gray-600">${taken} / ${block.lane_count} lanes</span>
+                <span class="text-sm text-gray-600">${escapeHtml(t('relays.lanesTaken', { taken, count: block.lane_count }))}</span>
             </div>
             <div class="px-4 py-2 border-b border-gray-200 no-print">
                 <select class="lane-filter w-full px-2 py-1 border rounded-md text-sm ${filter ? 'border-blue-300 bg-blue-50' : 'border-gray-300'}"
-                    data-range-id="${escapeHtml(block.id)}" aria-label="Show only the starts of this discipline on ${escapeHtml(block.name)}">
-                    <option value="">All disciplines</option>
+                    data-range-id="${escapeHtml(block.id)}" aria-label="${escapeHtml(t('relays.laneFilter', { range: block.name }))}">
+                    <option value="">${t('relays.allDisciplines')}</option>
                     ${disciplinesOfRange(block.id).map(d => `<option value="${escapeHtml(d.id)}" ${d.id === filter ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
                 </select>
             </div>
@@ -483,8 +489,8 @@ function laneBlock(block, allAvailable) {
                         <td class="px-3 py-1">
                             <select hidden class="lane-select">${optionsFor(lane.assignment)}</select>
                             <input type="text" ${locked ? 'disabled' : ''} autocomplete="off" spellcheck="false"
-                                role="combobox" aria-expanded="false" aria-controls="lane-options" aria-label="${escapeHtml(block.name)} lane ${lane.lane_no}"
-                                placeholder="— empty —" value="${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}"
+                                role="combobox" aria-expanded="false" aria-controls="lane-options" aria-label="${escapeHtml(t('relays.laneLabel', { range: block.name, lane: lane.lane_no }))}"
+                                placeholder="${t('relays.emptyLane')}" value="${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}"
                                 class="lane-search w-full px-2 py-1 border rounded-md text-sm ${lane.assignment ? 'border-blue-300 bg-blue-50' : 'border-gray-300'} ${locked ? 'bg-gray-100 cursor-not-allowed' : ''}">
                             <span class="print-only text-sm">${lane.assignment ? escapeHtml(startLabel(lane.assignment)) : ''}</span>
                         </td>
@@ -559,7 +565,7 @@ function renderPicker() {
         <li role="option" id="lane-option-${i}" data-index="${i}"
             class="${item.value ? '' : 'lane-option-empty'}"
             aria-selected="${i === picker.active}" ${item.value === picker.select.value ? 'data-current' : ''}>${escapeHtml(item.label)}</li>`).join('')
-        || '<li class="lane-option-none">No matching start</li>';
+        || `<li class="lane-option-none">${t('relays.noMatchingStart')}</li>`;
     if (picker.active >= 0 && picker.items.length) {
         picker.input.setAttribute('aria-activedescendant', `lane-option-${picker.active}`);
         list.children[picker.active].scrollIntoView({ block: 'nearest' });
@@ -708,14 +714,14 @@ function renderOverview() {
     const problemCount = rows.filter(r => r.issues.length).length + dataIssues.length;
     document.getElementById('overview-issues').innerHTML = problemCount
         ? `<div class="mb-4 px-4 py-3 rounded-md bg-red-100 text-red-800 border border-red-200">
-               ${problemCount} problem${problemCount === 1 ? '' : 's'} found in the stored relay data.
+               ${escapeHtml(t('relays.overview.problems', { count: problemCount }))}
                ${dataIssues.map(i => `<div class="text-sm">${escapeHtml(i)}</div>`).join('')}
            </div>`
         : '';
 
     const th = (text) => `<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${escapeHtml(text)}</th>`;
     document.getElementById('overview-head').innerHTML =
-        `<tr>${th('Competitor')}${th('Club')}${th('Scheduled starts')}${th('Not yet scheduled')}${th('Problems')}</tr>`;
+        `<tr>${th(t('relays.overview.competitor'))}${th(t('competitors.club'))}${th(t('relays.overview.scheduled'))}${th(t('relays.overview.notScheduled'))}${th(t('relays.overview.problemsHeader'))}</tr>`;
 
     const visible = rows.filter(row => {
         if (issuesOnly && row.issues.length === 0) return false;
@@ -732,8 +738,8 @@ function renderOverview() {
         return `<div>
             <span class="text-gray-900">${escapeHtml(entry.discipline_name ?? '?')}</span>
             <span class="text-gray-400">${escapeHtml(entry.start_id)}</span> →
-            <a href="#assignment" class="overview-relay-link text-blue-600 hover:underline" data-relay-id="${escapeHtml(entry.relay_id)}">Relay ${entry.sequence_no ?? '?'}</a>
-            · ${escapeHtml(entry.range_name ?? '?')} lane ${entry.lane_no} <span class="text-gray-500">(${when})</span>
+            <a href="#assignment" class="overview-relay-link text-blue-600 hover:underline" data-relay-id="${escapeHtml(entry.relay_id)}">${escapeHtml(t('relays.relayNo', { number: entry.sequence_no ?? '?' }))}</a>
+            · ${escapeHtml(t('relays.rangeLane', { range: entry.range_name ?? '?', lane: entry.lane_no }))} <span class="text-gray-500">(${when})</span>
         </div>`;
     };
 
@@ -741,7 +747,7 @@ function renderOverview() {
     const noLaneLine = (start) => `<div>
             <span class="text-gray-900">${escapeHtml(start.discipline_name ?? '?')}</span>
             <span class="text-gray-400">${escapeHtml(start.start_id)}</span>
-            <span class="text-gray-500">· no lane needed</span>
+            <span class="text-gray-500">· ${t('meet.card.noLane')}</span>
         </div>`;
 
     document.getElementById('overview-body').innerHTML = visible.map(row => `
@@ -756,7 +762,7 @@ function renderOverview() {
                 : '<span class="text-gray-300">–</span>'}</td>
             <td class="px-4 py-2 text-sm text-red-700">${row.issues.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</td>
         </tr>`).join('')
-        || '<tr><td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No competitors to show.</td></tr>';
+        || `<tr><td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">${t('relays.overview.empty')}</td></tr>`;
 }
 
 function setupOverviewListeners() {

@@ -1,5 +1,6 @@
 package com.competition.resource;
 
+import com.competition.i18n.Messages;
 import com.competition.model.Start;
 import com.competition.service.ConflictException;
 import com.competition.service.CascadingDeletes;
@@ -52,7 +53,7 @@ public class StartResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error creating start", e);
-            return Response.serverError().entity("{\"error\": \"Failed to create start\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "create start"))).build();
         }
     }
 
@@ -70,7 +71,7 @@ public class StartResource {
                 .entity(ErrorBody.of(e.getMessage())).build();
         } catch (Exception e) {
             logger.error("Error deleting start", e);
-            return Response.serverError().entity("{\"error\": \"Failed to delete start\"}").build();
+            return Response.serverError().entity(ErrorBody.of(Messages.get("error.failed", "delete start"))).build();
         }
     }
 }

@@ -1,4 +1,5 @@
 import { withButtonFeedback } from '../js/buttonFeedback.js';
+import { t, tOr } from '../js/i18n.js';
 
 const API = '/api';
 
@@ -10,7 +11,7 @@ const state = {
 
 class ApiError extends Error {
     constructor(status, body) {
-        super(body?.error || `HTTP error! status: ${status}`);
+        super(body?.error || t('common.httpError', { status }));
         this.status = status;
         this.body = body;
     }
@@ -64,7 +65,7 @@ function compositionText(team) {
         .map(id => state.disciplines.find(d => d.id === id))
         .filter(Boolean)
         .map(d => escapeHtml(d.short_name || d.name));
-    return names.join(' + ') || '<span class="text-red-600">none</span>';
+    return names.join(' + ') || `<span class="text-red-600">${t('disciplines.compositionNone')}</span>`;
 }
 
 /** The checkboxes of the individual disciplines a team of the form's category can count, ticked from checkedIds. */
@@ -72,30 +73,30 @@ function renderTeamOfOptions(checkedIds) {
     const category = document.getElementById('form-category').value;
     const checked = new Set(checkedIds || []);
     document.getElementById('team-of-hint').textContent =
-        `The individual disciplines whose starts can be team members (1 to ${state.maxDisciplines}).`;
+        t('disciplines.teamOfHintMax', { max: state.maxDisciplines });
     document.getElementById('form-team-of').innerHTML = state.disciplines
         .filter(d => d.level !== 'team' && d.category === category && (d.active !== false || checked.has(d.id)))
         .map(d => `
             <label class="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" class="team-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
                 <span>${escapeHtml(d.name)}${d.short_name ? ` <span class="text-gray-400">${escapeHtml(d.short_name)}</span>` : ''}</span>
-            </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
+            </label>`).join('') || `<p class="text-sm text-gray-500">${t('disciplines.noIndividual')}</p>`;
 }
 
 function levelBadge(level) {
-    if (level === 'team') return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Team</span>';
-    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Individual</span>';
+    if (level === 'team') return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">${t('level.team')}</span>`;
+    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">${t('level.individual')}</span>`;
 }
 
 function categoryBadge(category) {
-    if (category === 'pistol') return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Pistol</span>';
-    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Rifle</span>';
+    if (category === 'pistol') return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">${t('category.pistol')}</span>`;
+    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">${t('category.rifle')}</span>`;
 }
 
 function renderTable() {
     const tbody = document.getElementById('discipline-table-body');
     if (!state.disciplines.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-sm text-gray-500 text-center">No disciplines yet.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-sm text-gray-500 text-center">${t('disciplines.empty')}</td></tr>`;
         return;
     }
 
@@ -105,7 +106,7 @@ function renderTable() {
 
     tbody.innerHTML = sorted.map(d => {
         const isTeam = d.level === 'team';
-        const teamInfo = isTeam ? `${compositionText(d)}${d.team_size ? ` (${d.team_size} shooters)` : ''}` : '';
+        const teamInfo = isTeam ? `${compositionText(d)}${d.team_size ? ` (${escapeHtml(t('disciplines.shooters', { count: d.team_size }))})` : ''}` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
         ).join('');
@@ -114,21 +115,21 @@ function renderTable() {
         <tr data-id="${d.id}" class="${d.active === false ? 'text-gray-400' : ''}">
             <td class="px-4 py-2 text-sm text-gray-500">${d.id}</td>
             <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.name)}${d.active === false
-                ? ' <span class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-normal">archived</span>' : ''}</td>
+                ? ` <span class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-normal">${t('disciplines.archived')}</span>` : ''}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(d.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${categoryBadge(d.category)}</td>
             <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
-            <td class="px-4 py-2 text-sm">${escapeHtml(d.type || '')}</td>
+            <td class="px-4 py-2 text-sm">${escapeHtml(d.type ? tOr(`type.${d.type}`, d.type) : '')}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
             <td class="px-4 py-2 text-sm">
-                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to lanes"' : ''}>
-                    <option value="">any distance</option>
+                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? `disabled title="${t('disciplines.teamNoLane')}"` : ''}>
+                    <option value="">${t('disciplines.anyDistance')}</option>
                     ${distanceOptions}
                 </select>
             </td>
             <td class="px-4 py-2 text-sm whitespace-nowrap no-print">
-                <button class="edit-btn text-blue-600 hover:text-blue-800 mr-3">Edit</button>
-                <button class="delete-btn text-red-600 hover:text-red-800">Delete</button>
+                <button class="edit-btn text-blue-600 hover:text-blue-800 mr-3">${t('common.edit')}</button>
+                <button class="delete-btn text-red-600 hover:text-red-800">${t('common.delete')}</button>
             </td>
         </tr>`;
     }).join('');
@@ -147,7 +148,7 @@ function toggleLevelFields() {
 function populateDistanceOptions() {
     const select = document.getElementById('form-shooting-distance');
     const current = select.value;
-    select.innerHTML = '<option value="">any distance</option>' +
+    select.innerHTML = `<option value="">${t('disciplines.anyDistance')}</option>` +
         state.ranges.map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`).join('');
     select.value = current;
 }
@@ -159,7 +160,7 @@ function showForm(discipline) {
     populateDistanceOptions();
 
     if (discipline) {
-        title.textContent = 'Edit Discipline';
+        title.textContent = t('disciplines.edit');
         document.getElementById('form-id').value = discipline.id;
         document.getElementById('form-name').value = discipline.name || '';
         document.getElementById('form-short-name').value = discipline.short_name || '';
@@ -171,7 +172,7 @@ function showForm(discipline) {
         document.getElementById('form-active').checked = discipline.active !== false;
         renderTeamOfOptions(discipline.team_of);
     } else {
-        title.textContent = 'Add Discipline';
+        title.textContent = t('disciplines.add');
         document.getElementById('form-id').value = '';
         document.getElementById('discipline-form').reset();
         document.getElementById('form-active').checked = true;
@@ -239,7 +240,7 @@ function setupListeners() {
         const id = document.getElementById('form-id').value;
         const data = formData();
         if (data.team_of && (data.team_of.length < 1 || data.team_of.length > state.maxDisciplines)) {
-            showMessage(`Tick 1 to ${state.maxDisciplines} disciplines whose results count`);
+            showMessage(t('disciplines.tickRange', { max: state.maxDisciplines }));
             return;
         }
         try {
@@ -264,7 +265,7 @@ function setupListeners() {
         }
 
         if (event.target.closest('.delete-btn')) {
-            if (!confirm('Delete this discipline? A discipline in use cannot be deleted; archive it instead.')) return;
+            if (!confirm(t('disciplines.confirmDelete'))) return;
             try {
                 await withButtonFeedback(event.target.closest('.delete-btn'), () => api(`/available-disciplines/${id}`, 'DELETE'));
                 await reload();
@@ -308,7 +309,7 @@ function setupListeners() {
     document.getElementById('export-btn').addEventListener('click', async () => {
         try {
             await withButtonFeedback(document.getElementById('export-btn'),
-                async () => download(await api('/disciplines/export'), `disciplines-${today()}.json`));
+                async () => download(await api('/disciplines/export'), `${t('disciplines.fileName')}-${today()}.json`));
         } catch (error) {
             showMessage(error.message);
         }
@@ -320,15 +321,16 @@ function setupListeners() {
         event.target.value = '';
         if (!file) return;
         const mode = document.getElementById('import-mode').value;
-        if (mode === 'replace' && !confirm('Replace the catalog? Disciplines the file lacks are removed (refused for any in use).')) return;
+        if (mode === 'replace' && !confirm(t('disciplines.confirmReplace'))) return;
         try {
             const content = JSON.parse(await file.text());
             const summary = await api(`/disciplines/import?mode=${mode}`, 'POST', content);
-            showMessage(`Imported: ${summary.added.length} added, ${summary.updated.length} updated, `
-                + `${summary.removed.length} removed`, 'success');
+            showMessage(t('disciplines.imported', {
+                added: summary.added.length, updated: summary.updated.length, removed: summary.removed.length
+            }), 'success');
             await reload();
         } catch (error) {
-            showMessage(error instanceof SyntaxError ? 'The file is not valid JSON' : error.message);
+            showMessage(error instanceof SyntaxError ? t('common.invalidJson') : error.message);
         }
     });
 }
@@ -339,7 +341,7 @@ async function init() {
         setupListeners();
     } catch (error) {
         console.error(error);
-        showMessage(`Could not load data: ${error.message}`);
+        showMessage(t('common.loadError', { error: error.message }));
     }
 }
 
