@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 
 /**
@@ -46,7 +47,11 @@ public class ExternalBackupService {
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private ScheduledExecutorService scheduler;
 
-    // All state below is guarded by this
+    // Serializes the polls and pushes, so two backups are never sent at once. Held
+    // during the upload, so the state below has its own (short-held) monitor.
+    private final ReentrantLock pushLock = new ReentrantLock();
+
+    // All state below is guarded by this; never held during a push, so status() answers at once
     private String lastSeenSignature;
     private String lastPushedSignature;
     private String lastPushedUrl;
@@ -93,17 +98,27 @@ public class ExternalBackupService {
     }
 
     /** One poll: notices changes and pushes a backup when one is due. */
-    synchronized void tick() {
-        AppSettings.ExternalBackup settings = settingsService.getExternalBackup();
-        if (!settings.isEnabled() || settings.getUrl().isEmpty()) {
-            return;
+    void tick() {
+        pushLock.lock();
+        try {
+            AppSettings.ExternalBackup settings = settingsService.getExternalBackup();
+            if (!settings.isEnabled() || settings.getUrl().isEmpty()) {
+                return;
+            }
+            long now = clock.getAsLong();
+            String signature = signature();
+            if (signature == null) {
+                return; // no data.json yet, nothing to back up
+            }
+            if (isDue(settings, signature, now)) {
+                push(settings, signature, now);
+            }
+        } finally {
+            pushLock.unlock();
         }
-        long now = clock.getAsLong();
-        String signature = signature();
-        if (signature == null) {
-            return; // no data.json yet, nothing to back up
-        }
+    }
 
+    private synchronized boolean isDue(AppSettings.ExternalBackup settings, String signature, long now) {
         // A new receiver gets a full backup even if the data did not change
         if (!settings.getUrl().equals(lastPushedUrl)) {
             lastPushedSignature = null;
@@ -114,7 +129,7 @@ public class ExternalBackupService {
         }
         if (signature.equals(lastPushedSignature)) {
             firstUnbackedChange = -1;
-            return;
+            return false;
         }
         if (firstUnbackedChange < 0) {
             firstUnbackedChange = now;
@@ -124,28 +139,33 @@ public class ExternalBackupService {
         }
         boolean quiet = now - lastChange >= settings.getDebounceSeconds() * 1000L;
         boolean overdue = now - firstUnbackedChange >= settings.getMaxDelaySeconds() * 1000L;
-        if ((quiet || overdue) && now >= retryAfter) {
-            push(settings, signature, now);
-        }
+        return (quiet || overdue) && now >= retryAfter;
     }
 
     /** Pushes a backup now, whatever the timing; throws IllegalStateException if it fails or the backup is off. */
-    public synchronized Map<String, Object> runNow() {
-        AppSettings.ExternalBackup settings = settingsService.getExternalBackup();
-        if (!settings.isEnabled() || settings.getUrl().isEmpty()) {
-            throw new IllegalStateException("The external backup is not enabled");
+    public Map<String, Object> runNow() {
+        pushLock.lock();
+        try {
+            AppSettings.ExternalBackup settings = settingsService.getExternalBackup();
+            if (!settings.isEnabled() || settings.getUrl().isEmpty()) {
+                throw new IllegalStateException("The external backup is not enabled");
+            }
+            String signature = signature();
+            if (signature == null) {
+                throw new IllegalStateException("There is no data to back up yet");
+            }
+            if (!push(settings, signature, clock.getAsLong())) {
+                synchronized (this) {
+                    throw new IllegalStateException(lastError);
+                }
+            }
+            return status();
+        } finally {
+            pushLock.unlock();
         }
-        String signature = signature();
-        if (signature == null) {
-            throw new IllegalStateException("There is no data to back up yet");
-        }
-        if (!push(settings, signature, clock.getAsLong())) {
-            throw new IllegalStateException(lastError);
-        }
-        return status();
     }
 
-    /** Pushes the backup; true on success. Caller holds the lock. */
+    /** Pushes the backup; true on success. Caller holds pushLock, not this. */
     private boolean push(AppSettings.ExternalBackup settings, String signature, long now) {
         try {
             byte[] zip = backupService.createBackup();
@@ -161,13 +181,15 @@ public class ExternalBackupService {
             if (response.statusCode() / 100 != 2) {
                 throw new IOException("The receiver answered " + response.statusCode() + ": " + response.body());
             }
-            lastPushedSignature = signature;
-            lastPushedUrl = settings.getUrl();
-            firstUnbackedChange = -1;
-            lastSuccess = Instant.ofEpochMilli(now);
-            lastBackupName = name;
-            lastBackupSize = zip.length;
-            lastError = null;
+            synchronized (this) {
+                lastPushedSignature = signature;
+                lastPushedUrl = settings.getUrl();
+                firstUnbackedChange = -1;
+                lastSuccess = Instant.ofEpochMilli(now);
+                lastBackupName = name;
+                lastBackupSize = zip.length;
+                lastError = null;
+            }
             logger.info("Pushed backup {} ({} bytes) to {}", name, zip.length, settings.getUrl());
             return true;
         } catch (InterruptedException e) {
@@ -178,7 +200,7 @@ public class ExternalBackupService {
         }
     }
 
-    private boolean fail(Exception e, long now) {
+    private synchronized boolean fail(Exception e, long now) {
         lastError = e.getMessage() == null ? e.toString() : e.getMessage();
         lastErrorAt = Instant.ofEpochMilli(now);
         retryAfter = now + RETRY_SECONDS * 1000L;

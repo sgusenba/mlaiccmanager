@@ -211,7 +211,7 @@ public class TeamService {
             List<Map<String, Object>> list = listOf(teams);
 
             Map<String, Object> team = new LinkedHashMap<>();
-            team.put("id", nextId(list));
+            team.put("id", nextId(teams));
             team.put("discipline_id", disciplineId);
             applyRequest(teams, team, discipline, request, registry);
             team.put("created_at", LocalDateTime.now().toString());
@@ -583,13 +583,24 @@ public class TeamService {
     }
 
     /**
-     * Runs save (which stores a new team_of for a team discipline) while no team
-     * can change, unless a stored team has a member whose start would no longer
-     * count: then a ConflictException lists them and nothing is saved.
+     * Runs save (which stores the discipline's edited fields) while no team can
+     * change, unless the edit would leave stored teams behind: then a
+     * ConflictException lists them and nothing is saved. A new team_of must
+     * still count every stored member's start, and a discipline that has
+     * teams cannot stop being a team discipline.
      */
-    public <T> T changeComposition(int disciplineId, List<Integer> teamOf, Callable<T> save) throws Exception {
+    public <T> T changeComposition(int disciplineId, Map<String, Object> request, Callable<T> save) throws Exception {
         return read(teams -> {
-            if (teamOf != null) {
+            Object level = request != null ? request.get("level") : null;
+            if (request != null && request.containsKey("level") && !"team".equalsIgnoreCase(String.valueOf(level))) {
+                List<String> names = teamNames(teams, disciplineId);
+                if (!names.isEmpty()) {
+                    throw new ConflictException("Discipline " + disciplineId + " has the teams "
+                        + String.join(", ", names) + "; delete them before it stops being a team discipline", names);
+                }
+            }
+            if (request != null && request.get("team_of") instanceof List<?> ids) {
+                List<Integer> teamOf = ids.stream().map(i -> ((Number) i).intValue()).toList();
                 Registry registry = registry();
                 List<String> outside = new ArrayList<>();
                 for (Map<String, Object> team : listOf(teams)) {
@@ -611,6 +622,27 @@ public class TeamService {
             }
             return save.call();
         });
+    }
+
+    /**
+     * Runs action (deleting the discipline) while no team can be added, unless
+     * the discipline has teams: then a ConflictException names them.
+     */
+    public <T> T withoutTeams(int disciplineId, Callable<T> action) throws Exception {
+        return read(teams -> {
+            List<String> names = teamNames(teams, disciplineId);
+            if (!names.isEmpty()) {
+                throw new ConflictException("Discipline " + disciplineId + " has the teams "
+                    + String.join(", ", names) + "; delete them first", names);
+            }
+            return action.call();
+        });
+    }
+
+    private static List<String> teamNames(Map<String, Object> teams, int disciplineId) {
+        return listOf(teams).stream()
+            .filter(t -> RelayRules.intOf(t.get("discipline_id")) == disciplineId)
+            .map(t -> String.valueOf(t.get("name"))).toList();
     }
 
     /** How many teams are entered per team discipline. */
@@ -695,12 +727,23 @@ public class TeamService {
         return request != null && request.get("version") instanceof Number n ? n.intValue() : null;
     }
 
-    private static int nextId(List<Map<String, Object>> teams) {
-        int max = 0;
-        for (Map<String, Object> team : teams) {
-            max = Math.max(max, RelayRules.intOf(team.get("id")));
+    /**
+     * The id for a new team, counted in "next_id" so a deleted team's id is
+     * never handed out again (a client may still hold the old team).
+     */
+    private static int nextId(Map<String, Object> teams) {
+        int next = nextIdAtLeast(teams);
+        teams.put("next_id", next + 1);
+        return next;
+    }
+
+    private static int nextIdAtLeast(Map<String, Object> teams) {
+        int next = teams.get("next_id") instanceof Number n ? n.intValue() : 1;
+        for (Map<String, Object> team : listOf(teams)) {
+            next = Math.max(next, RelayRules.intOf(team.get("id")) + 1);
         }
-        return max + 1;
+        teams.put("next_id", next);
+        return next;
     }
 
     private Registry registry() throws Exception {
@@ -722,6 +765,9 @@ public class TeamService {
                     }
                     @SuppressWarnings("unchecked")
                     Map<String, Object> competitor = (Map<String, Object>) raw;
+                    if (!(competitor.get("id") instanceof Number)) {
+                        continue; // broken record: matching it as competitor 0 would only mislead
+                    }
                     int competitorId = RelayRules.intOf(competitor.get("id"));
                     competitors.put(competitorId, competitor);
 
@@ -842,6 +888,8 @@ public class TeamService {
         if (!(teams.get("teams") instanceof List)) {
             teams.put("teams", new ArrayList<>());
         }
+        // Above every stored team, so a team deleted next keeps its id taken (also in older files)
+        nextIdAtLeast(teams);
         return teams;
     }
 

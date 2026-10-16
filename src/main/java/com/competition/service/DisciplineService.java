@@ -92,7 +92,7 @@ public class DisciplineService {
         return dataService.updateCatalog(catalog -> {
             List<Discipline> disciplines = catalog.getDisciplines();
             Discipline d = new Discipline();
-            d.setId(disciplines.stream().mapToInt(Discipline::getId).max().orElse(0) + 1);
+            d.setId(catalog.takeNextId());
             applyCatalogFields(d, data);
             check(d, catalog);
             disciplines.add(d);
@@ -127,7 +127,7 @@ public class DisciplineService {
         dataService.read(data -> dataService.updateCatalog(catalog -> {
             Discipline target = catalog.getDisciplines().stream()
                 .filter(d -> d.getId() == id).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Discipline not found: " + id));
+                .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
             checkNotReferenced(target, "delete it",
                 usesOf(id, data, teamCounts, dataService.loadRankingConfig(), catalog.getDisciplines()));
             catalog.getDisciplines().remove(target);
@@ -295,6 +295,7 @@ public class DisciplineService {
             }
 
             catalog.setMaxDisciplines(next.getMaxDisciplines());
+            catalog.raiseNextId(); // ids removed by a replace stay taken
             catalog.setDisciplines(result);
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put("added", added);

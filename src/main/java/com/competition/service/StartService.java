@@ -13,10 +13,6 @@ public class StartService {
     private DataService dataService;
     private DisciplineService disciplineService;
 
-    public StartService(DataService dataService) {
-        this(dataService, null);
-    }
-
     public StartService(DataService dataService, DisciplineService disciplineService) {
         this.dataService = dataService;
         this.disciplineService = disciplineService;
@@ -30,13 +26,15 @@ public class StartService {
         if (disciplineId == 0) {
             throw new IllegalArgumentException("discipline_id is required");
         }
-        checkTakesStarts(disciplineId);
         String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 
         return dataService.update(data -> {
+            // Checked under the data.json lock (lock order: data.json, then catalog/rankings),
+            // so the discipline cannot change between the check and the save
+            checkTakesStarts(disciplineId);
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
             if (competitorData == null) {
-                throw new IllegalArgumentException("Competitor not found");
+                throw new RecordNotFoundException("Competitor not found");
             }
             checkOneStartRules(competitorData, disciplineId);
 
@@ -51,12 +49,7 @@ public class StartService {
             // Initialize starts for this discipline if it doesn't exist
             List<Map<String, Object>> existingStarts = startsData.computeIfAbsent(String.valueOf(disciplineId), k -> new ArrayList<>());
 
-            // Next number after the highest existing one, so deleting an earlier
-            // start never makes the new start collide with a later one
-            int startNumber = 1;
-            for (Map<String, Object> startData : existingStarts) {
-                startNumber = Math.max(startNumber, ((Number) startData.get("start_number")).intValue() + 1);
-            }
+            int startNumber = nextStartNumber(competitorData, disciplineId, existingStarts);
             // Separated so e.g. 1/12/3 and 11/2/3 cannot produce the same id. Old
             // data.json files still contain unseparated ids, which stay as they are.
             String generatedId = competitorId + "-" + disciplineId + "-" + startNumber;
@@ -85,24 +78,25 @@ public class StartService {
     }
 
     /**
-     * Competitors start in the individual disciplines of the meet's program (the
-     * disciplines its rankings cover), not in team disciplines.
+     * One higher than any start number the competitor ever had in the
+     * discipline (counted in the competitor's "next_start_numbers"), so a
+     * deleted start's id is never handed out again: a team, a lane or a
+     * printed label may still name it. DataService raises the counter above
+     * every stored start on load, so it also holds for older files.
      */
-    private void checkTakesStarts(int disciplineId) throws Exception {
-        if (disciplineService == null) {
-            return;
+    private static int nextStartNumber(Map<String, Object> competitorData, int disciplineId,
+                                       List<Map<String, Object>> existingStarts) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> counters = competitorData.get(DataService.NEXT_START_NUMBERS) instanceof Map<?, ?> m
+            ? (Map<String, Object>) m : new HashMap<>();
+        competitorData.put(DataService.NEXT_START_NUMBERS, counters);
+        String key = String.valueOf(disciplineId);
+        int next = counters.get(key) instanceof Number n ? n.intValue() : 1;
+        for (Map<String, Object> startData : existingStarts) {
+            next = Math.max(next, ((Number) startData.get("start_number")).intValue() + 1);
         }
-        Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
-        if (discipline == null) {
-            throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
-        }
-        if (discipline.isTeam()) {
-            throw new IllegalArgumentException(discipline.getName()
-                + " is a team discipline: competitors start in the disciplines that count for it");
-        }
-        if (!dataService.loadProgramIds().contains(disciplineId)) {
-            throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings");
-        }
+        counters.put(key, next + 1);
+        return next;
     }
 
     /**
@@ -110,9 +104,6 @@ public class StartService {
      * one of its disciplines.
      */
     private void checkOneStartRules(Map<String, Object> competitorData, int disciplineId) throws Exception {
-        if (disciplineService == null) {
-            return;
-        }
         for (RankingDefinition ranking : dataService.loadRankingConfig().getRankings()) {
             if (!ranking.isOneStartPerCompetitor() || !ranking.disciplineIds().contains(disciplineId)) {
                 continue;
@@ -128,6 +119,28 @@ public class StartService {
         }
     }
 
+    /**
+     * Competitors start in the individual disciplines of the meet's program (the
+     * disciplines its rankings cover), not in team disciplines.
+     */
+    private void checkTakesStarts(int disciplineId) throws Exception {
+        Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
+        if (discipline == null) {
+            throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
+        }
+        if (discipline.isTeam()) {
+            throw new IllegalArgumentException(discipline.getName()
+                + " is a team discipline: competitors start in the disciplines that count for it");
+        }
+        if (!dataService.loadProgramIds().contains(disciplineId)) {
+            throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings");
+        }
+    }
+
+    /**
+     * Deletes the start with its result. Lanes and team memberships naming it
+     * are left to the caller, see CascadingDeletes.
+     */
     public void deleteStart(int competitorId, String generatedId) throws Exception {
         dataService.update(data -> {
             @SuppressWarnings("unchecked")
@@ -135,14 +148,14 @@ public class StartService {
 
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
             if (competitorData == null) {
-                throw new IllegalArgumentException("Competitor not found");
+                throw new RecordNotFoundException("Competitor not found");
             }
 
             @SuppressWarnings("unchecked")
             Map<String, List<Map<String, Object>>> startsData = (Map<String, List<Map<String, Object>>>) competitorData.get("starts");
 
             if (startsData == null || startsData.isEmpty()) {
-                throw new IllegalArgumentException("No starts found for competitor");
+                throw new RecordNotFoundException("Start not found");
             }
 
             boolean startFound = false;
@@ -166,7 +179,7 @@ public class StartService {
             }
 
             if (!startFound) {
-                throw new IllegalArgumentException("Start not found");
+                throw new RecordNotFoundException("Start not found");
             }
             return null;
         });

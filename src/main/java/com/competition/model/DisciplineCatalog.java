@@ -28,6 +28,10 @@ public class DisciplineCatalog {
     @JsonProperty("disciplines")
     private List<Discipline> disciplines = new ArrayList<>();
 
+    // The id the next added discipline gets: a deleted discipline's id is never handed out again
+    @JsonProperty("next_id")
+    private int nextId = 1;
+
     public String getFormat() { return format; }
     public void setFormat(String format) { this.format = format; }
 
@@ -36,6 +40,20 @@ public class DisciplineCatalog {
 
     public int getMaxDisciplines() { return maxDisciplines; }
     public void setMaxDisciplines(int maxDisciplines) { this.maxDisciplines = maxDisciplines; }
+
+    public int getNextId() { return nextId; }
+    public void setNextId(int nextId) { this.nextId = nextId; }
+
+    /** Raises next_id above every discipline's id, so an id stays taken after its discipline is deleted. */
+    public void raiseNextId() {
+        disciplines.forEach(d -> nextId = Math.max(nextId, d.getId() + 1));
+    }
+
+    /** The id for a new discipline, counted in next_id. */
+    public int takeNextId() {
+        raiseNextId();
+        return nextId++;
+    }
 
     public List<Discipline> getDisciplines() { return disciplines; }
     public void setDisciplines(List<Discipline> disciplines) { this.disciplines = disciplines != null ? disciplines : new ArrayList<>(); }

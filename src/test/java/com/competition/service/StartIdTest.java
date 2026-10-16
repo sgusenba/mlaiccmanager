@@ -22,10 +22,11 @@ class StartIdTest {
     private ResultService resultService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        ConcurrencyAndVersionTest.writeCatalog(tempDir);
         DataService dataService = TestFiles.dataService(tempDir);
         competitorService = new CompetitorService(dataService);
-        startService = new StartService(dataService);
+        startService = new StartService(dataService, new DisciplineService(dataService));
         resultService = new ResultService(dataService, new DisciplineService(dataService));
     }
 

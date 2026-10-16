@@ -366,30 +366,6 @@
       ]
     },
     {
-      "id": 47,
-      "category": "rifle",
-      "level": "team",
-      "type": "open",
-      "name": "Rigby",
-      "team_size": 3,
-      "team_of": [
-        4,
-        14
-      ]
-    },
-    {
-      "id": 48,
-      "category": "rifle",
-      "level": "team",
-      "type": "open",
-      "name": "Pforzheim",
-      "team_size": 3,
-      "team_of": [
-        7,
-        17
-      ]
-    },
-    {
       "id": 49,
       "category": "rifle",
       "level": "team",
@@ -443,7 +419,7 @@
       "level": "individual",
       "type": "original",
       "name": "28_Tanzutsu_O",
-      "short_name": "TANO",
+      "short_name": "TNZO",
       "shooting_distance": "m25"
     },
     {
@@ -488,7 +464,7 @@
       "level": "individual",
       "type": "reproduction",
       "name": "28_Tanzutsu_R",
-      "short_name": "TANR",
+      "short_name": "TNZR",
       "shooting_distance": "m25"
     },
     {

@@ -4,6 +4,7 @@ import { getState, setState } from '../config.js';
 import { saveResult as apiSaveResult, deleteResult as apiDeleteResult, loadResults, loadCompetitors } from '../api.js';
 import { ean13ToStartId } from '../startBarcode.js';
 import { showMessage, hideElement, showElement, setElementContent, getElementValue, setElementValue, scrollToElement } from '../utils.js';
+import { withButtonFeedback } from '../buttonFeedback.js';
 
 // A result's score is the sum of its shots; older results stored the override as value
 function resultScore(result) {
@@ -146,7 +147,7 @@ function handleResultAction(event) {
             editResult(resultId);
             break;
         case 'delete-result':
-            deleteResult(resultId);
+            deleteResult(resultId, button);
             break;
     }
 }
@@ -378,7 +379,7 @@ function handleResultFormAction(event) {
     
     switch (action) {
         case 'delete-result-for-start':
-            deleteResultForStart();
+            deleteResultForStart(button);
             break;
         case 'clear-start-search':
             clearStartSearch();
@@ -470,14 +471,13 @@ async function saveResult(event) {
     }
     
     try {
-        await apiSaveResult(data);
+        const submitButton = event.submitter ?? event.target.querySelector('button[type="submit"]');
+        await withButtonFeedback(submitButton, () => apiSaveResult(data));
         clearStartSearch();
         
         // Reload results to update the table
         await loadResults();
         renderResults();
-        
-        showMessage(currentEditingResultId ? 'Result updated successfully!' : 'Result saved successfully!', 'success');
     } catch (error) {
         if (error.isConflict || error.isNotFound) {
             await reloadAfterResultConflict(selectedStart.generated_id);
@@ -507,7 +507,7 @@ async function reloadAfterResultConflict(startId) {
 }
 
 // Delete result for current start
-async function deleteResultForStart() {
+async function deleteResultForStart(button) {
     const selectedStart = getState('selectedStart');
     const currentEditingResultId = getState('currentEditingResultId');
     
@@ -521,14 +521,12 @@ async function deleteResultForStart() {
     }
     
     try {
-        await apiDeleteResult(currentEditingResultId, getState('currentEditingResultVersion'));
+        await withButtonFeedback(button, () => apiDeleteResult(currentEditingResultId, getState('currentEditingResultVersion')));
         clearStartSearch();
         
         // Reload results to update the table
         await loadResults();
         renderResults();
-        
-        showMessage('Result deleted successfully!', 'success');
     } catch (error) {
         if (error.isConflict || error.isNotFound) {
             await reloadAfterResultConflict(selectedStart.generated_id);
@@ -546,19 +544,17 @@ function resultDeleteConflictMessage(error) {
 }
 
 // Delete result from table
-export async function deleteResult(id) {
+export async function deleteResult(id, button) {
     if (!confirm('Are you sure you want to delete this result?')) return;
     
     const result = getState('results').find(r => r.id === id);
     
     try {
-        await apiDeleteResult(id, result?.version);
+        await withButtonFeedback(button, () => apiDeleteResult(id, result?.version));
         
         // Reload results to update the table
         await loadResults();
         renderResults();
-        
-        showMessage('Result deleted successfully!', 'success');
     } catch (error) {
         if (error.isConflict || error.isNotFound) {
             await loadResults();

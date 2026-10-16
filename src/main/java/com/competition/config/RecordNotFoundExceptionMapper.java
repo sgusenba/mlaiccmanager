@@ -1,5 +1,7 @@
 package com.competition.config;
 
+import com.competition.resource.ErrorBody;
+
 import com.competition.service.RecordNotFoundException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -14,7 +16,7 @@ public class RecordNotFoundExceptionMapper implements ExceptionMapper<RecordNotF
     public Response toResponse(RecordNotFoundException e) {
         return Response.status(Response.Status.NOT_FOUND)
             .type(MediaType.APPLICATION_JSON)
-            .entity(Map.of("error", e.getMessage()))
+            .entity(ErrorBody.of(e.getMessage()))
             .build();
     }
 }

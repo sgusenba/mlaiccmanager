@@ -119,25 +119,9 @@ class RelayServiceTest {
     }
 
     @Test
-    void breakDefaultsTo15AndOldPerDayBreaksMoveToTheConfig() throws Exception {
+    void breakDefaultsTo15() throws Exception {
         RelayService fresh = new RelayService(tempDir.resolve("fresh.json").toString(), dataService);
         assertEquals(15, ((Map<?, ?>) fresh.getAll().get("config")).get("break_min"));
-
-        Files.writeString(tempDir.resolve("old.json"), """
-            {"config": {"relay_duration_min": 30, "locked": true},
-             "days": [{"id": "day-1", "date": "2026-10-03", "start_time": "09:00", "break_min": 10},
-                      {"id": "day-2", "date": "2026-10-04", "start_time": "08:00", "break_min": 20}],
-             "relays": [{"id": "relay-1", "day_id": "day-1", "sequence_no": 1, "start_time": "09:00"},
-                        {"id": "relay-2", "day_id": "day-1", "sequence_no": 2, "start_time": "09:40"},
-                        {"id": "relay-3", "day_id": "day-2", "sequence_no": 1, "start_time": "08:00"},
-                        {"id": "relay-4", "day_id": "day-2", "sequence_no": 2, "start_time": "08:50"}]}
-            """);
-        RelayService old = new RelayService(tempDir.resolve("old.json").toString(), dataService);
-        Map<String, Object> all = old.getAll();
-        assertEquals(10, ((Map<?, ?>) all.get("config")).get("break_min"));
-        assertTrue(((List<?>) all.get("days")).stream().noneMatch(d -> ((Map<?, ?>) d).containsKey("break_min")));
-        assertEquals("09:40", old.getRelay("relay-2").get("start_time"));
-        assertEquals("08:40", old.getRelay("relay-4").get("start_time"));
     }
 
     @Test
@@ -293,23 +277,6 @@ class RelayServiceTest {
         relayService.setDayLock(dayId, Map.of("locked", false));
         assign(relay1, "m25", 2, "2-52-1");
         relayService.addRelays(dayId, Map.of("count", 1));
-    }
-
-    @Test
-    void oldDistanceLocksBecomeLockedDays() throws Exception {
-        Path oldFile = tempDir.resolve("old-relays.json");
-        Files.writeString(oldFile, """
-            {"days": [{"id": "day1", "date": "2026-10-03", "start_time": "09:00"},
-                      {"id": "day2", "date": "2026-10-04", "start_time": "09:00"}],
-             "locks": [{"day_id": "day1", "range_id": "m25"}]}
-            """);
-        RelayService migrated = new RelayService(oldFile.toString(), dataService);
-        migrated.addRelays("day2", Map.of("count", 1));
-
-        assertThrows(IllegalArgumentException.class, () -> migrated.addRelays("day1", Map.of("count", 1)));
-        String saved = Files.readString(oldFile);
-        assertFalse(saved.contains("\"locks\""));
-        assertTrue(saved.contains("\"locked\" : true"));
     }
 
     @Test

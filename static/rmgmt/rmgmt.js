@@ -2,6 +2,8 @@
 // All relay data comes from /api/rmgmt (stored in relays.json); a lane holds one
 // registered start (e.g. "1-52-1") from data.json.
 
+import { withButtonFeedback } from '../js/buttonFeedback.js';
+
 const API = '/api/rmgmt';
 
 const state = {
@@ -294,10 +296,8 @@ function setupScheduleListeners() {
         event.preventDefault();
         const minutes = parseInt(document.getElementById('relay-duration').value, 10);
         const breakMin = parseInt(document.getElementById('relay-break').value, 10);
-        perform(async () => {
-            await api('/config', 'PUT', { relay_duration_min: minutes, break_min: breakMin });
-            showMessage('Relay duration and break saved, start times recalculated', 'success');
-        }, refreshSettings);
+        perform(() => withButtonFeedback(event.submitter,
+            () => api('/config', 'PUT', { relay_duration_min: minutes, break_min: breakMin })), refreshSettings);
     });
 
     document.getElementById('day-form').addEventListener('submit', (event) => {

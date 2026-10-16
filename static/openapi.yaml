@@ -94,6 +94,7 @@ paths:
     delete:
       tags: [Competitors]
       summary: Delete a competitor
+      description: Also deletes their starts and results, and clears their starts' lanes and team memberships.
       operationId: deleteCompetitor
       parameters:
         - $ref: "#/components/parameters/Version"
@@ -149,10 +150,11 @@ paths:
     delete:
       tags: [Starts]
       summary: Delete a start
+      description: Also deletes its result and clears its lane and team memberships. Its id is never handed out again.
       operationId: deleteStart
       responses:
         "204": { description: Deleted }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   # ---------------------------------------------------------------- Disciplines
@@ -237,7 +239,7 @@ paths:
       operationId: deleteCatalogDiscipline
       responses:
         "204": { description: Deleted }
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
@@ -1427,8 +1429,8 @@ paths:
                   relays: { type: integer }
                   teams: { type: integer }
                   meet: { type: integer, description: 1 if meet details were saved, else 0 }
-                  active_disciplines: { type: integer }
-                  added_disciplines: { type: integer, description: Disciplines added for this competition (ids from 1000) }
+                  rankings: { type: integer, description: The meet's rankings }
+                  disciplines: { type: integer, description: Disciplines in the catalog }
         "500": { $ref: "#/components/responses/ServerError" }
 
   /danger-zone/clear/{target}:
@@ -1443,7 +1445,8 @@ paths:
         - `teams` — all teams
         - `days` — all meet days with their relays and lane assignments; ranges, relay duration and break stay
         - `meet` — the meet details (`meet.json`)
-        - `disciplines` — reset to the shipped catalog (every catalog discipline active); added disciplines go,
+        - `rankings` — all of the meet's rankings; starts, results and teams stay
+        - `disciplines` — reset to the shipped catalog; disciplines it lacks go, from the rankings too,
           with their starts (and those starts' results, lanes and team memberships) and teams
 
         The current data is saved to `backups/pre-clear-<target>-<date>-<time>.zip` first.
@@ -1454,7 +1457,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [results, lanes, starts, competitors, teams, days, meet, disciplines]
+            enum: [results, lanes, starts, competitors, teams, days, meet, rankings, disciplines]
       responses:
         "200":
           description: Cleared
@@ -1726,9 +1729,9 @@ components:
       type: object
       properties:
         id: { type: integer, description: "0 or absent to create" }
-        competitor_id: { type: integer }
-        discipline_id: { type: integer }
-        start_id: { type: string }
+        competitor_id: { type: integer, description: Taken from the start on create }
+        discipline_id: { type: integer, description: Taken from the start on create }
+        start_id: { type: string, description: Required on create; must be an existing start }
         value: { type: number }
         entries:
           type: array

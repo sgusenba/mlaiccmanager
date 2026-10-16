@@ -48,7 +48,7 @@ public class MeetResource {
             logger.warn("Invalid meet details: {}", e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage()))
+                .entity(ErrorBody.of(e.getMessage()))
                 .build();
         } catch (Exception e) {
             logger.error("Failed to update meet details", e);

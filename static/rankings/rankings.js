@@ -2,6 +2,8 @@
 // more entries together; an entry is one discipline or the sum of several.
 // Exported and imported on their own, or loaded from the shipped defaults.
 
+import { withButtonFeedback } from '../js/buttonFeedback.js';
+
 const API = '/api';
 
 const state = {
@@ -243,13 +245,9 @@ function setupListeners() {
             entries
         };
         try {
-            if (state.editing) {
-                await api(`/rankings/${state.editing.id}`, 'PUT', { ...data, version: state.editing.version });
-                showMessage('Ranking updated', 'success');
-            } else {
-                await api('/rankings', 'POST', data);
-                showMessage('Ranking added', 'success');
-            }
+            await withButtonFeedback(event.submitter, () => state.editing
+                ? api(`/rankings/${state.editing.id}`, 'PUT', { ...data, version: state.editing.version })
+                : api('/rankings', 'POST', data));
             hideForm();
             await reload();
         } catch (error) {
@@ -267,8 +265,8 @@ function setupListeners() {
                 showForm(ranking);
             } else if (event.target.closest('.delete-btn')) {
                 if (!confirm(`Delete the ranking ${ranking.name}?`)) return;
-                await api(`/rankings/${id}?version=${ranking.version}`, 'DELETE');
-                showMessage('Ranking deleted', 'success');
+                await withButtonFeedback(event.target.closest('.delete-btn'),
+                    () => api(`/rankings/${id}?version=${ranking.version}`, 'DELETE'));
                 await reload();
             } else if (event.target.closest('.up-btn') || event.target.closest('.down-btn')) {
                 const ids = state.config.rankings.map(r => r.id);
@@ -286,8 +284,8 @@ function setupListeners() {
     document.getElementById('save-max-btn').addEventListener('click', async () => {
         try {
             const max = parseInt(document.getElementById('max-disciplines').value, 10);
-            await api('/rankings/settings', 'PUT', { max_disciplines_per_ranking: max });
-            showMessage('Limit saved', 'success');
+            await withButtonFeedback(document.getElementById('save-max-btn'),
+                () => api('/rankings/settings', 'PUT', { max_disciplines_per_ranking: max }));
             await reload();
         } catch (error) {
             showMessage(error.message);
@@ -297,8 +295,7 @@ function setupListeners() {
     document.getElementById('defaults-btn').addEventListener('click', async () => {
         if (!confirm('Replace this meet\'s rankings with the default rankings?')) return;
         try {
-            await api('/rankings/defaults', 'POST');
-            showMessage('Default rankings loaded', 'success');
+            await withButtonFeedback(document.getElementById('defaults-btn'), () => api('/rankings/defaults', 'POST'));
             hideForm();
             await reload();
         } catch (error) {
@@ -308,7 +305,8 @@ function setupListeners() {
 
     document.getElementById('export-btn').addEventListener('click', async () => {
         try {
-            download(await api('/rankings/export'), `rankings-${today()}.json`);
+            await withButtonFeedback(document.getElementById('export-btn'),
+                async () => download(await api('/rankings/export'), `rankings-${today()}.json`));
         } catch (error) {
             showMessage(error.message);
         }

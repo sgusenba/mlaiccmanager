@@ -145,7 +145,7 @@ public class RankingResource {
             logger.warn("Invalid request ({}): {}", what, e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", e.getMessage() != null ? e.getMessage() : "Invalid request"))
+                .entity(ErrorBody.of(e.getMessage()))
                 .build();
         } catch (Exception e) {
             logger.error("Failed to {}", what, e);

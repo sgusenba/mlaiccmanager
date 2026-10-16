@@ -160,6 +160,10 @@ Several people can use the app at the same time:
 - Competitors and results carry a `version` number. Updates and deletes send back the version the user saw; if someone else saved the record in the meantime, the server answers **409 Conflict** with `{"error": ..., "current": <latest record>}` and the UI loads the latest data so the user can redo the change. Requests without `version` skip this check.
 - Entering a second result for the same start also returns 409 with the existing result.
 - Updating or deleting a record that no longer exists returns **404**.
+- Ids are never handed out twice: a deleted competitor's, start's, result's, team's, lane's, discipline's or ranking's id stays taken (the files keep `next_ids` / `next_id` counters), so a stale page can never change a different record that happens to get the old id.
+- Deleting a start or competitor also clears their lanes and team memberships. A discipline that still has starts or teams, or that a ranking or team discipline counts, cannot be deleted (409); archive it instead.
+
+If `data.json` cannot be read (e.g. after a hand edit), the server refuses to work with it instead of starting empty; repair the file or restore a backup.
 
 Browsers do not refresh on their own; other users' changes show up when switching sections or reloading the page.
 

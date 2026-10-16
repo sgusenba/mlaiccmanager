@@ -13,7 +13,6 @@ import jakarta.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -61,7 +60,9 @@ public class DisciplineResource {
         try {
             return Response.status(Response.Status.CREATED)
                 .entity(disciplineService.createCatalogDiscipline(requestData)).build();
-        } catch (IllegalArgumentException e) {
+        } catch (ConflictException e) {
+            throw e; // mapped to 409
+        } catch (IllegalArgumentException | ClassCastException e) {
             return badRequest(e.getMessage());
         } catch (Exception e) {
             logger.error("Error creating discipline", e);
@@ -72,24 +73,19 @@ public class DisciplineResource {
     @PUT
     @Path("/available-disciplines/{id}")
     public Response updateCatalogDiscipline(@PathParam("id") int id, Map<String, Object> requestData) {
-        return handle("update discipline", () -> {
-            if (requestData != null && requestData.get("team_of") instanceof List<?> ids) {
-                // A new team composition must not leave a stored team member's start out
-                List<Integer> teamOf = ids.stream().map(i -> ((Number) i).intValue()).toList();
-                return teamService.changeComposition(id, teamOf,
-                    () -> disciplineService.updateCatalogDiscipline(id, requestData));
-            }
-            return disciplineService.updateCatalogDiscipline(id, requestData);
-        });
+        // A new team composition or level must not leave a stored team or member's start out
+        return handle("update discipline", () -> teamService.changeComposition(id, requestData,
+            () -> disciplineService.updateCatalogDiscipline(id, requestData)));
     }
 
     @DELETE
     @Path("/available-disciplines/{id}")
     public Response deleteCatalogDiscipline(@PathParam("id") int id) {
-        return handle("delete discipline", () -> {
+        // Teams, then data.json and the catalog: nothing may refer to the discipline once it is gone
+        return handle("delete discipline", () -> teamService.withoutTeams(id, () -> {
             disciplineService.deleteCatalogDiscipline(id);
             return null;
-        });
+        }));
     }
 
     @PUT
@@ -141,7 +137,7 @@ public class DisciplineResource {
             return result != null ? Response.ok(result).build() : Response.noContent().build();
         } catch (ConflictException | RecordNotFoundException e) {
             throw e; // mapped to 409 / 404
-        } catch (IllegalArgumentException | JsonProcessingException e) {
+        } catch (IllegalArgumentException | ClassCastException | JsonProcessingException e) {
             logger.warn("Invalid request ({}): {}", what, e.getMessage());
             return badRequest(e.getMessage());
         } catch (Exception e) {
@@ -156,7 +152,7 @@ public class DisciplineResource {
     private static Response badRequest(String message) {
         return Response.status(Response.Status.BAD_REQUEST)
             .type(MediaType.APPLICATION_JSON)
-            .entity(Map.of("error", message != null ? message : "Invalid request"))
+            .entity(ErrorBody.of(message))
             .build();
     }
 }

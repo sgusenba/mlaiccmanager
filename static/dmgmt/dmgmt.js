@@ -1,3 +1,5 @@
+import { withButtonFeedback } from '../js/buttonFeedback.js';
+
 const API = '/api';
 
 const state = {
@@ -241,13 +243,9 @@ function setupListeners() {
             return;
         }
         try {
-            if (id) {
-                await api(`/available-disciplines/${id}`, 'PUT', data);
-                showMessage('Discipline updated', 'success');
-            } else {
-                await api('/available-disciplines', 'POST', data);
-                showMessage('Discipline created', 'success');
-            }
+            await withButtonFeedback(event.submitter, () => id
+                ? api(`/available-disciplines/${id}`, 'PUT', data)
+                : api('/available-disciplines', 'POST', data));
             hideForm();
             await reload();
         } catch (error) {
@@ -268,8 +266,7 @@ function setupListeners() {
         if (event.target.closest('.delete-btn')) {
             if (!confirm('Delete this discipline? A discipline in use cannot be deleted; archive it instead.')) return;
             try {
-                await api(`/available-disciplines/${id}`, 'DELETE');
-                showMessage('Discipline deleted', 'success');
+                await withButtonFeedback(event.target.closest('.delete-btn'), () => api(`/available-disciplines/${id}`, 'DELETE'));
                 await reload();
             } catch (error) {
                 showMessage(error.message);
@@ -283,8 +280,8 @@ function setupListeners() {
             mapping[select.dataset.disciplineId] = select.value || null;
         });
         try {
-            await api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping });
-            showMessage('Shooting distances saved', 'success');
+            await withButtonFeedback(document.getElementById('save-distances-btn'),
+                () => api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping }));
             await reload();
         } catch (error) {
             showMessage(error.message);
@@ -300,8 +297,8 @@ function setupListeners() {
     document.getElementById('save-max-btn').addEventListener('click', async () => {
         try {
             const max = parseInt(document.getElementById('max-disciplines').value, 10);
-            await api('/disciplines/settings', 'PUT', { max_disciplines: max });
-            showMessage('Limit saved', 'success');
+            await withButtonFeedback(document.getElementById('save-max-btn'),
+                () => api('/disciplines/settings', 'PUT', { max_disciplines: max }));
             await reload();
         } catch (error) {
             showMessage(error.message);
@@ -310,7 +307,8 @@ function setupListeners() {
 
     document.getElementById('export-btn').addEventListener('click', async () => {
         try {
-            download(await api('/disciplines/export'), `disciplines-${today()}.json`);
+            await withButtonFeedback(document.getElementById('export-btn'),
+                async () => download(await api('/disciplines/export'), `disciplines-${today()}.json`));
         } catch (error) {
             showMessage(error.message);
         }

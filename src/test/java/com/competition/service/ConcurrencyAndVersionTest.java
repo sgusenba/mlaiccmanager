@@ -32,12 +32,24 @@ class ConcurrencyAndVersionTest {
     private DisciplineService disciplineService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        writeCatalog(tempDir);
         dataService = TestFiles.dataService(tempDir);
         competitorService = new CompetitorService(dataService);
-        startService = new StartService(dataService);
         disciplineService = new DisciplineService(dataService);
+        startService = new StartService(dataService, disciplineService);
         resultService = new ResultService(dataService, disciplineService);
+    }
+
+    /** A catalog of individual disciplines 1-12, each in a ranking, so starts can be created in them. */
+    static void writeCatalog(java.nio.file.Path dir) throws java.io.IOException {
+        StringBuilder catalog = new StringBuilder("[");
+        for (int id = 1; id <= 12; id++) {
+            catalog.append(id > 1 ? "," : "").append("{\"id\":").append(id)
+                .append(",\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"Event ")
+                .append(id).append("\"}");
+        }
+        TestFiles.writeCatalog(dir, catalog.append("]").toString());
     }
 
     @Test
@@ -132,7 +144,7 @@ class ConcurrencyAndVersionTest {
     void staleResultUpdateIsRejected() throws Exception {
         Competitor competitor = competitorService.createCompetitor(new Competitor("Emil"));
         Result result = new Result(competitor.getId(), 3, 50);
-        result.setStartId("x");
+        result.setStartId(startService.createStart(competitor.getId(), 3).getGeneratedId());
         Result saved = resultService.createResult(result);
 
         Result edit = new Result(competitor.getId(), 3, 60);

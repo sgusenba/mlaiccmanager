@@ -1,3 +1,5 @@
+import { withButtonFeedback } from '../js/buttonFeedback.js';
+
 const API = '/api';
 
 let messageTimer;
@@ -26,24 +28,21 @@ function fileNameOf(response) {
 }
 
 async function downloadBackup() {
-    const button = document.getElementById('download-btn');
-    button.disabled = true;
     try {
-        const response = await fetch(`${API}/backup`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(await errorOf(response));
-        const url = URL.createObjectURL(await response.blob());
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileNameOf(response);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showMessage(`Backup ${link.download} downloaded.`, 'success');
+        await withButtonFeedback(document.getElementById('download-btn'), async () => {
+            const response = await fetch(`${API}/backup`, { cache: 'no-store' });
+            if (!response.ok) throw new Error(await errorOf(response));
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileNameOf(response);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
     } catch (error) {
         showMessage(`Could not create the backup: ${error.message}`);
-    } finally {
-        button.disabled = false;
     }
 }
 
@@ -161,18 +160,19 @@ async function loadExternal() {
     }
 }
 
-async function externalRequest(method, path, body, successText) {
+async function externalRequest(clicked, method, path, body) {
     ext.buttons.forEach(button => { button.disabled = true; });
     try {
-        const response = await fetch(`${API}/backup/external${path}`, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: body ? JSON.stringify(body) : undefined
+        await withButtonFeedback(clicked, async () => {
+            const response = await fetch(`${API}/backup/external${path}`, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : undefined
+            });
+            if (!response.ok) throw new Error(await errorOf(response));
+            const result = await response.json();
+            if (result.settings) renderExternal(result);
         });
-        if (!response.ok) throw new Error(await errorOf(response));
-        const result = await response.json();
-        if (result.settings) renderExternal(result);
-        showMessage(successText, 'success');
     } catch (error) {
         showMessage(error.message);
         if (path === '/run') await loadExternal();
@@ -183,12 +183,12 @@ async function externalRequest(method, path, body, successText) {
 
 ext.form.addEventListener('submit', event => {
     event.preventDefault();
-    externalRequest('PUT', '', formSettings(), 'External backup settings saved.');
+    externalRequest(document.getElementById('ext-save-btn'), 'PUT', '', formSettings());
 });
-document.getElementById('ext-test-btn').addEventListener('click', () =>
-    externalRequest('POST', '/test', formSettings(), 'The receiver accepted the connection.'));
-document.getElementById('ext-run-btn').addEventListener('click', () =>
-    externalRequest('POST', '/run', null, 'Backup sent.'));
+document.getElementById('ext-test-btn').addEventListener('click', event =>
+    externalRequest(event.currentTarget, 'POST', '/test', formSettings()));
+document.getElementById('ext-run-btn').addEventListener('click', event =>
+    externalRequest(event.currentTarget, 'POST', '/run', null));
 ext.url.addEventListener('input', updateUrlWarning);
 loadExternal();
 

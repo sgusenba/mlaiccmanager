@@ -88,9 +88,7 @@ public class RelayService {
     /** Everything the relay page needs at once: config, ranges, days, relays, assignments. */
     public Map<String, Object> getAll() throws Exception {
         return read(relays -> {
-            Map<String, Object> result = new LinkedHashMap<>(relays);
-            result.remove("discipline_ranges");
-            return result;
+            return new LinkedHashMap<>(relays);
         });
     }
 
@@ -218,7 +216,7 @@ public class RelayService {
                 registry.disciplineOrder());
             for (LaneAutoAssigner.Placement placement : plan.placements()) {
                 Map<String, Object> assignment = new LinkedHashMap<>();
-                assignment.put("id", nextId(assignments, "a"));
+                assignment.put("id", nextId(relays, assignments, "a"));
                 assignment.put("relay_id", placement.relayId());
                 assignment.put("range_id", placement.rangeId());
                 assignment.put("lane_no", firstLaneNo(findRange(relays, placement.rangeId())) + placement.laneNo() - 1);
@@ -249,7 +247,7 @@ public class RelayService {
             requireConfigUnlocked(relays);
             List<Map<String, Object>> ranges = listOf(relays, "ranges");
             Map<String, Object> range = new LinkedHashMap<>();
-            range.put("id", nextId(ranges, "range"));
+            range.put("id", nextId(relays, ranges, "range"));
             range.put("name", name);
             range.put("lane_count", laneCount);
             range.put("first_lane_no", firstLane != null ? firstLane : 1);
@@ -324,7 +322,7 @@ public class RelayService {
         return update(relays -> {
             List<Map<String, Object>> days = listOf(relays, "days");
             Map<String, Object> day = new LinkedHashMap<>();
-            day.put("id", nextId(days, "day"));
+            day.put("id", nextId(relays, days, "day"));
             day.put("date", date);
             day.put("start_time", startTime);
             days.add(day);
@@ -379,7 +377,7 @@ public class RelayService {
             List<Map<String, Object>> created = new ArrayList<>();
             for (int i = 0; i < count; i++) {
                 Map<String, Object> relay = new LinkedHashMap<>();
-                relay.put("id", nextId(relayList, "r"));
+                relay.put("id", nextId(relays, relayList, "r"));
                 relay.put("day_id", dayId);
                 relay.put("sequence_no", ++sequenceNo);
                 relay.put("start_time", null);
@@ -532,7 +530,7 @@ public class RelayService {
             }
 
             Map<String, Object> assignment = new LinkedHashMap<>();
-            assignment.put("id", nextId(assignments, "a"));
+            assignment.put("id", nextId(relays, assignments, "a"));
             assignment.put("relay_id", relayId);
             assignment.put("range_id", rangeId);
             assignment.put("lane_no", laneNo);
@@ -883,20 +881,42 @@ public class RelayService {
         return null;
     }
 
-    /** prefix + (highest existing number + 1), e.g. "r12". */
-    private static String nextId(List<Map<String, Object>> items, String prefix) {
-        int max = 0;
+    /**
+     * prefix + a number, e.g. "r12": one higher than any id of that kind ever
+     * handed out (counted in "next_ids"), so a deleted record's id is never
+     * reused, e.g. a lane's assignment id the expected_assignment_id check of
+     * a client that still shows the old lane compares against.
+     */
+    private static String nextId(Map<String, Object> relays, List<Map<String, Object>> items, String prefix) {
+        int next = nextIdAtLeast(relays, items, prefix);
+        counters(relays).put(prefix, next + 1);
+        return prefix + next;
+    }
+
+    /** The next number for prefix, raised above every id of that kind in items. */
+    private static int nextIdAtLeast(Map<String, Object> relays, List<Map<String, Object>> items, String prefix) {
+        Map<String, Object> counters = counters(relays);
+        int next = counters.get(prefix) instanceof Number n ? n.intValue() : 1;
         for (Map<String, Object> item : items) {
             Object id = item.get("id");
             if (id instanceof String s && s.startsWith(prefix)) {
                 try {
-                    max = Math.max(max, Integer.parseInt(s.substring(prefix.length())));
+                    next = Math.max(next, Integer.parseInt(s.substring(prefix.length())) + 1);
                 } catch (NumberFormatException ignored) {
                     // hand-written id, cannot collide with a generated one
                 }
             }
         }
-        return prefix + (max + 1);
+        counters.put(prefix, next);
+        return next;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> counters(Map<String, Object> relays) {
+        if (!(relays.get("next_ids") instanceof Map)) {
+            relays.put("next_ids", new LinkedHashMap<>());
+        }
+        return (Map<String, Object>) relays.get("next_ids");
     }
 
     /** Competitors, their starts and discipline metadata, all read from data.json/disciplines.json. */
@@ -935,6 +955,9 @@ public class RelayService {
                     }
                     @SuppressWarnings("unchecked")
                     Map<String, Object> competitor = (Map<String, Object>) raw;
+                    if (!(competitor.get("id") instanceof Number)) {
+                        continue; // broken record: matching it as competitor 0 would only mislead
+                    }
                     int competitorId = RelayRules.intOf(competitor.get("id"));
                     competitors.put(competitorId, competitor);
 
@@ -946,7 +969,7 @@ public class RelayService {
                             continue;
                         }
                         for (Object startItem : startItems) {
-                            if (!(startItem instanceof Map<?, ?> start)) {
+                            if (!(startItem instanceof Map<?, ?> start) || start.get("generated_id") == null) {
                                 continue;
                             }
                             Map<String, Object> info = new LinkedHashMap<>();
@@ -1146,60 +1169,24 @@ public class RelayService {
         configOf(relays).putIfAbsent("relay_duration_min", DEFAULT_RELAY_DURATION_MIN);
         configOf(relays).putIfAbsent("locked", true);
         configOf(relays).putIfAbsent("auto_assign_enabled", false);
+        configOf(relays).putIfAbsent("break_min", DEFAULT_BREAK_MIN);
         if (!(relays.get("ranges") instanceof List)) {
             relays.put("ranges", defaultRanges());
         }
-        // Older files have no first lane number: their lanes start at 1
-        listOf(relays, "ranges").forEach(range -> range.putIfAbsent("first_lane_no", 1));
         for (String key : new String[] {"days", "relays", "assignments"}) {
             if (!(relays.get(key) instanceof List)) {
                 relays.put(key, new ArrayList<>());
             }
         }
-        migrateRangeLocks(relays);
-        migrateDayBreaks(relays);
+        // Above every stored id, so a record deleted next keeps its id taken
+        for (String[] kind : ID_KINDS) {
+            nextIdAtLeast(relays, listOf(relays, kind[0]), kind[1]);
+        }
     }
 
-    /**
-     * Older files kept a break per day. The break is meet-wide now: it takes
-     * the first day's break (15 if there was none), and every day's relay
-     * times follow from it.
-     */
-    private void migrateDayBreaks(Map<String, Object> relays) {
-        if (configOf(relays).containsKey("break_min")) {
-            return;
-        }
-        List<Map<String, Object>> days = listOf(relays, "days");
-        Set<Integer> dayBreaks = new TreeSet<>();
-        days.forEach(day -> {
-            if (day.get("break_min") != null) {
-                dayBreaks.add(RelayRules.intOf(day.get("break_min")));
-            }
-        });
-        int breakMin = days.stream().map(day -> day.get("break_min")).filter(Objects::nonNull)
-            .findFirst().map(RelayRules::intOf).orElse(DEFAULT_BREAK_MIN);
-        if (dayBreaks.size() > 1) {
-            logger.warn("Meet days had different breaks between relays {}; using {} min for all days", dayBreaks, breakMin);
-        }
-        configOf(relays).put("break_min", breakMin);
-        days.forEach(day -> day.remove("break_min"));
-        days.forEach(day -> recompute(relays, day));
-    }
-
-    /** Older files locked day/distance pairs; a day with any such lock becomes a locked day. */
-    private static void migrateRangeLocks(Map<String, Object> relays) {
-        if (!(relays.remove("locks") instanceof List<?> locks)) {
-            return;
-        }
-        for (Object lock : locks) {
-            if (lock instanceof Map<?, ?> l) {
-                Map<String, Object> day = find(listOf(relays, "days"), l.get("day_id"));
-                if (day != null) {
-                    day.put("locked", true);
-                }
-            }
-        }
-    }
+    /** The lists of relays.json with the prefix of their generated ids. */
+    private static final String[][] ID_KINDS = {
+        {"assignments", "a"}, {"relays", "r"}, {"days", "day"}, {"ranges", "range"}};
 
     private static List<Map<String, Object>> defaultRanges() {
         List<Map<String, Object>> ranges = new ArrayList<>();

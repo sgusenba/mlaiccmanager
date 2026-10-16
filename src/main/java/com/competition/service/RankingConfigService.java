@@ -71,7 +71,7 @@ public class RankingConfigService {
     public RankingDefinition createRanking(Map<String, Object> request) throws Exception {
         RankingDefinition ranking = parse(request);
         return change(ranking, (config, disciplines) -> {
-            ranking.setId(config.getRankings().stream().mapToInt(RankingDefinition::getId).max().orElse(0) + 1);
+            ranking.setId(config.takeNextId());
             ranking.setVersion(0);
             check(ranking, config.getMaxDisciplinesPerRanking(), disciplines);
             config.getRankings().add(ranking);
@@ -204,7 +204,6 @@ public class RankingConfigService {
             }
             List<String> problems = new ArrayList<>();
             Set<Integer> ids = new HashSet<>();
-            int next = 1;
             for (RankingDefinition r : incoming.getRankings()) {
                 if (r.getId() <= 0 || !ids.add(r.getId())) {
                     r.setId(0); // numbered below
@@ -219,9 +218,11 @@ public class RankingConfigService {
             }
             for (RankingDefinition r : incoming.getRankings()) {
                 if (r.getId() == 0) {
-                    while (ids.contains(next)) next++;
-                    r.setId(next);
-                    ids.add(next);
+                    int id = config.takeNextId();
+                    while (!ids.add(id)) {
+                        id = config.takeNextId();
+                    }
+                    r.setId(id);
                 }
             }
             if (!problems.isEmpty()) {
@@ -231,6 +232,7 @@ public class RankingConfigService {
             checkOneStartRules(incoming.getRankings(), data);
 
             config.setMaxDisciplinesPerRanking(incoming.getMaxDisciplinesPerRanking());
+            config.raiseNextId(); // the replaced rankings' ids stay taken
             config.setRankings(incoming.getRankings());
             config.setVersion(config.getVersion() + 1);
             return config;

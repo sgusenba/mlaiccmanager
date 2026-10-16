@@ -412,7 +412,7 @@
     {
       "id": 30,
       "name": "28_Tanzutsu_O",
-      "short_name": "TANO",
+      "short_name": "TNZO",
       "level": "individual",
       "one_start_per_competitor": false,
       "entries": [
@@ -426,7 +426,7 @@
     {
       "id": 31,
       "name": "28_Tanzutsu_R",
-      "short_name": "TANR",
+      "short_name": "TNZR",
       "level": "individual",
       "one_start_per_competitor": false,
       "entries": [
@@ -763,32 +763,6 @@
         {
           "discipline_ids": [
             45
-          ]
-        }
-      ]
-    },
-    {
-      "id": 56,
-      "name": "Pforzheim",
-      "level": "team",
-      "one_start_per_competitor": false,
-      "entries": [
-        {
-          "discipline_ids": [
-            48
-          ]
-        }
-      ]
-    },
-    {
-      "id": 57,
-      "name": "Rigby",
-      "level": "team",
-      "one_start_per_competitor": false,
-      "entries": [
-        {
-          "discipline_ids": [
-            47
           ]
         }
       ]
