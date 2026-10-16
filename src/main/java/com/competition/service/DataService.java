@@ -1,9 +1,10 @@
 package com.competition.service;
 
 import com.competition.model.Discipline;
+import com.competition.model.DisciplineCatalog;
+import com.competition.model.RankingConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,17 +12,15 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
@@ -41,24 +40,32 @@ public class DataService {
     // A plain reentrant lock rather than a read/write lock: loadData() may itself
     // write a default file, and only a handful of users are expected.
     private final ReentrantLock lock = new ReentrantLock();
-    private final ReentrantLock disciplinesLock = new ReentrantLock();
+    // One lock for the catalog and the meet's rankings, which are checked against each other
+    private final ReentrantLock configLock = new ReentrantLock();
 
-    private String dataFilePath;
-    // The shipped MLAIC catalog: tracked in git, replaced on every deploy, never written at runtime.
-    private String disciplinesFilePath;
-    // This installation's edits to the catalog itself (short names), next to the
-    // shipped file. Git-ignored and kept on deploys; applies to every competition.
-    private String catalogLocalFilePath;
-    // What this competition changed on top of the catalog (active list, overrides,
-    // added and removed disciplines). Git-ignored, so deploys leave it alone.
-    private String competitionFilePath;
+    private final String dataFilePath;
+    // This installation's discipline catalog, the same for every meet. Git-ignored, kept on deploys.
+    private final String disciplinesFilePath;
+    // The shipped catalog (tracked in git, replaced on deploys): where disciplines.json starts from.
+    private final String defaultCatalogFilePath;
+    // This meet's rankings. Git-ignored.
+    private final String rankingsFilePath;
 
-    public DataService(String dataFilePath, String disciplinesFilePath, String competitionFilePath) {
+    /** The default catalog is default-disciplines.json next to the disciplines file. */
+    public DataService(String dataFilePath, String disciplinesFilePath, String rankingsFilePath) {
+        this(dataFilePath, disciplinesFilePath, rankingsFilePath,
+             Paths.get(disciplinesFilePath).resolveSibling(DEFAULT_CATALOG_FILE).toString());
+    }
+
+    public DataService(String dataFilePath, String disciplinesFilePath, String rankingsFilePath,
+                       String defaultCatalogFilePath) {
         this.dataFilePath = dataFilePath;
         this.disciplinesFilePath = disciplinesFilePath;
-        this.catalogLocalFilePath = disciplinesFilePath.replaceFirst("\\.json$", "") + ".local.json";
-        this.competitionFilePath = competitionFilePath;
+        this.rankingsFilePath = rankingsFilePath;
+        this.defaultCatalogFilePath = defaultCatalogFilePath;
     }
+
+    public static final String DEFAULT_CATALOG_FILE = "default-disciplines.json";
 
     /** Runs fn against the current data without saving. */
     public <T> T read(DataFunction<T> fn) throws Exception {
@@ -84,18 +91,18 @@ public class DataService {
     }
 
     /**
-     * Runs action while holding both the data.json and the competition.json
+     * Runs action while holding both the data.json and the catalog/rankings
      * lock, so the files can be copied or replaced as a whole (backup/restore).
-     * Lock order: data.json, then disciplines, as ResultService does.
+     * Lock order: data.json, then catalog/rankings.
      */
     public <T> T exclusive(Callable<T> action) throws Exception {
         lock.lock();
         try {
-            disciplinesLock.lock();
+            configLock.lock();
             try {
                 return action.call();
             } finally {
-                disciplinesLock.unlock();
+                configLock.unlock();
             }
         } finally {
             lock.unlock();
@@ -256,357 +263,143 @@ public class DataService {
         return root;
     }
 
+    // --- discipline catalog (disciplines.json) -------------------------------
+
     public List<Discipline> loadDisciplines() throws IOException {
-        disciplinesLock.lock();
+        return loadCatalog().getDisciplines();
+    }
+
+    public DisciplineCatalog loadCatalog() throws IOException {
+        configLock.lock();
         try {
-            return loadDisciplinesInternal();
+            return loadCatalogInternal();
         } finally {
-            disciplinesLock.unlock();
+            configLock.unlock();
         }
     }
 
-    /**
-     * The catalog with this competition's settings applied: removed disciplines
-     * dropped, overridden fields replaced, added disciplines appended and the
-     * active flags set. Without a competition file the catalog is used as is.
-     */
-    private List<Discipline> loadDisciplinesInternal() throws IOException {
-        List<ObjectNode> catalog = loadCatalog();
-        JsonNode settings = loadCompetitionSettings();
-        if (settings == null) {
-            return withCatalogDefaults(toDisciplines(catalog));
-        }
-
-        Set<Integer> removed = new HashSet<>();
-        settings.path("removed_disciplines").forEach(id -> removed.add(id.asInt()));
-        JsonNode overrides = settings.path("discipline_overrides");
-
-        List<ObjectNode> merged = new ArrayList<>();
-        for (ObjectNode entry : catalog) {
-            int id = entry.path("id").asInt();
-            if (removed.contains(id)) {
-                continue;
-            }
-            ObjectNode copy = entry.deepCopy();
-            applyOverrides(copy, overrides.path(String.valueOf(id)));
-            merged.add(copy);
-        }
-        settings.path("custom_disciplines").forEach(entry -> merged.add(((ObjectNode) entry).deepCopy()));
-
-        Set<Integer> active = new HashSet<>();
-        settings.path("active_disciplines").forEach(id -> active.add(id.asInt()));
-        List<Discipline> disciplines = toDisciplines(merged);
-        for (Discipline d : disciplines) {
-            d.setActive(active.contains(d.getId()));
-        }
-        return disciplines;
-    }
-
-    private static void applyOverrides(ObjectNode entry, JsonNode overrides) {
-        for (Iterator<Map.Entry<String, JsonNode>> it = overrides.fields(); it.hasNext(); ) {
-            Map.Entry<String, JsonNode> field = it.next();
-            entry.set(field.getKey(), field.getValue());
-        }
-    }
-
-    /** The catalog as this installation sees it: the shipped file with the local catalog edits applied. */
-    private List<ObjectNode> loadCatalog() throws IOException {
-        List<ObjectNode> catalog = loadShippedCatalog();
-        JsonNode overrides = loadCatalogLocal().path("overrides");
-        for (ObjectNode entry : catalog) {
-            applyOverrides(entry, overrides.path(String.valueOf(entry.path("id").asInt())));
-        }
-        return catalog;
-    }
-
-    private ObjectNode loadCatalogLocal() throws IOException {
-        File localFile = new File(catalogLocalFilePath);
-        JsonNode local = localFile.exists() ? objectMapper.readTree(localFile) : null;
-        return local instanceof ObjectNode o ? o : objectMapper.createObjectNode();
-    }
-
-    /**
-     * Sets a catalog discipline's short name for every competition, stored in
-     * disciplines.local.json so deploys keep it. A value equal to the shipped
-     * one removes the edit; clearing a shipped short name stores an explicit null.
-     *
-     * @return false, with nothing changed, if id is not in the shipped catalog (a discipline added by this competition)
-     */
-    public boolean setCatalogShortName(int id, String shortName) throws IOException {
-        disciplinesLock.lock();
-        try {
-            ObjectNode shipped = loadShippedCatalog().stream()
-                .filter(entry -> entry.path("id").asInt() == id).findFirst().orElse(null);
-            if (shipped == null) {
-                return false;
-            }
-            JsonNode value = shortName != null ? objectMapper.getNodeFactory().textNode(shortName) : null;
-
-            ObjectNode local = loadCatalogLocal();
-            if (!(local.get("overrides") instanceof ObjectNode)) {
-                local.set("overrides", objectMapper.createObjectNode());
-            }
-            ObjectNode overrides = (ObjectNode) local.get("overrides");
-            if (!(overrides.get(String.valueOf(id)) instanceof ObjectNode)) {
-                overrides.set(String.valueOf(id), objectMapper.createObjectNode());
-            }
-            ObjectNode entry = (ObjectNode) overrides.get(String.valueOf(id));
-            if (Objects.equals(shipped.get("short_name"), value)) {
-                entry.remove("short_name");
-            } else {
-                entry.set("short_name", value != null ? value : NullNode.getInstance());
-            }
-            if (entry.isEmpty()) {
-                overrides.remove(String.valueOf(id));
-            }
-
-            File tempFile = new File(catalogLocalFilePath + ".tmp");
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, local);
-            Files.move(tempFile.toPath(), Paths.get(catalogLocalFilePath),
-                       StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            return true;
-        } finally {
-            disciplinesLock.unlock();
-        }
-    }
-
-    private List<ObjectNode> loadShippedCatalog() throws IOException {
-        File disciplinesFile = new File(disciplinesFilePath);
-
-        if (!disciplinesFile.exists()) {
-            logger.warn("Disciplines file not found");
-            return new ArrayList<>();
-        }
-
-        JsonNode rootNode = objectMapper.readTree(disciplinesFile);
-
-        // Handle both old nested structure and new flat structure
-        if (rootNode.isObject() && rootNode.has("disciplines")) {
-            rootNode = rootNode.get("disciplines");
-        }
-        List<ObjectNode> catalog = new ArrayList<>();
-        if (rootNode.isArray()) {
-            rootNode.forEach(entry -> catalog.add((ObjectNode) entry));
-        }
-        return catalog;
-    }
-
-    private JsonNode loadCompetitionSettings() throws IOException {
-        File competitionFile = new File(competitionFilePath);
-        return competitionFile.exists() ? objectMapper.readTree(competitionFile) : null;
-    }
-
-    /**
-     * The catalog as it applies without competition settings: everything active
-     * except the combined rankings, which a meet turns on (while one is on, its
-     * disciplines are ranked only through it).
-     */
-    private static List<Discipline> withCatalogDefaults(List<Discipline> catalog) {
-        catalog.forEach(d -> d.setActive(!DisciplineService.isCombinedRanking(d)));
-        return catalog;
-    }
-
-    private static List<Discipline> toDisciplines(List<ObjectNode> nodes) {
-        return objectMapper.convertValue(nodes,
-            objectMapper.getTypeFactory().constructCollectionType(List.class, Discipline.class));
-    }
-
-    /** Stores the given list as the difference to the catalog in the competition file; the catalog is never written. */
-    public void saveDisciplines(List<Discipline> disciplines) throws IOException {
-        disciplinesLock.lock();
-        try {
-            saveDisciplinesInternal(disciplines);
-        } finally {
-            disciplinesLock.unlock();
-        }
-    }
-
-    /** Loads, modifies and saves disciplines atomically. */
+    /** Loads, modifies and saves the disciplines atomically. Nothing is saved if fn throws. */
     public <T> T updateDisciplines(DisciplineFunction<T> fn) throws Exception {
-        disciplinesLock.lock();
+        return updateCatalog(catalog -> fn.apply(catalog.getDisciplines()));
+    }
+
+    /** Loads, modifies and saves the catalog atomically. Nothing is saved if fn throws. */
+    public <T> T updateCatalog(CatalogFunction<T> fn) throws Exception {
+        configLock.lock();
         try {
-            List<Discipline> disciplines = loadDisciplinesInternal();
-            T result = fn.apply(disciplines);
-            saveDisciplinesInternal(disciplines);
+            DisciplineCatalog catalog = loadCatalogInternal();
+            T result = fn.apply(catalog);
+            saveCatalogInternal(catalog);
             return result;
         } finally {
-            disciplinesLock.unlock();
+            configLock.unlock();
         }
     }
 
     /**
-     * Drops this competition's discipline changes (active list, edits, added and
-     * removed disciplines), so the shipped catalog applies as is. The competition
-     * file is written rather than deleted, so the one-time migration in
-     * ApplicationBinder does not bring the old settings back on the next start.
-     *
-     * @return the ids of the disciplines there are now
+     * The catalog. Without a disciplines.json, or with one of the old layout
+     * (a plain list, from before the catalog was this installation's own), it
+     * starts as the shipped default-disciplines.json; an old file is kept as
+     * disciplines.legacy.json.
      */
-    public Set<Integer> resetDisciplines() throws IOException {
-        disciplinesLock.lock();
-        try {
-            List<Discipline> catalog = withCatalogDefaults(toDisciplines(loadCatalog()));
-            saveDisciplinesInternal(catalog, new LinkedHashSet<>(), new ProgramOptions());
-            Set<Integer> ids = new HashSet<>();
-            catalog.forEach(d -> ids.add(d.getId()));
-            return ids;
-        } finally {
-            disciplinesLock.unlock();
+    private DisciplineCatalog loadCatalogInternal() throws IOException {
+        File file = new File(disciplinesFilePath);
+        if (file.exists()) {
+            JsonNode root = objectMapper.readTree(file);
+            if (isCatalog(root)) {
+                return objectMapper.treeToValue(root, DisciplineCatalog.class);
+            }
+            Path legacy = Paths.get(disciplinesFilePath.replaceFirst("\\.json$", "") + ".legacy.json");
+            Files.move(file.toPath(), legacy, StandardCopyOption.REPLACE_EXISTING);
+            logger.warn("{} has the old layout; kept as {}, starting from the default catalog", file, legacy);
         }
+        DisciplineCatalog catalog = defaultCatalog();
+        if (catalog != null) {
+            saveCatalogInternal(catalog);
+            logger.info("Created {} from {} ({} disciplines)", file, defaultCatalogFilePath, catalog.getDisciplines().size());
+            return catalog;
+        }
+        return new DisciplineCatalog();
     }
 
-    /** Whether the competition file exists yet; see ApplicationBinder for the one-time migration. */
-    public boolean hasCompetitionSettings() {
-        return new File(competitionFilePath).exists();
+    /** Whether the JSON is a discipline catalog (or a disciplines export) of the current format. */
+    public static boolean isCatalog(JsonNode root) {
+        return root != null && root.isObject() && DisciplineCatalog.FORMAT.equals(root.path("format").asText())
+            && root.path("disciplines").isArray();
+    }
+
+    /** The shipped default catalog, or null if there is none. */
+    public DisciplineCatalog defaultCatalog() throws IOException {
+        File file = new File(defaultCatalogFilePath);
+        if (!file.exists()) {
+            return null;
+        }
+        JsonNode root = objectMapper.readTree(file);
+        if (!isCatalog(root)) {
+            logger.warn("{} is not a discipline catalog", file);
+            return null;
+        }
+        return objectMapper.treeToValue(root, DisciplineCatalog.class);
+    }
+
+    private void saveCatalogInternal(DisciplineCatalog catalog) throws IOException {
+        catalog.setFormat(DisciplineCatalog.FORMAT);
+        catalog.setFormatVersion(DisciplineCatalog.FORMAT_VERSION);
+        writeJson(disciplinesFilePath, catalog);
+    }
+
+    // --- the meet's rankings (rankings.json) --------------------------------
+
+    public RankingConfig loadRankingConfig() throws IOException {
+        configLock.lock();
+        try {
+            return loadRankingConfigInternal();
+        } finally {
+            configLock.unlock();
+        }
     }
 
     /**
-     * The events ("category|event") whose original and reproduction disciplines
-     * are ranked together in this competition.
+     * Loads, modifies and saves the meet's rankings atomically, with the catalog
+     * at hand to check them against. Nothing is saved if fn throws.
      */
-    public Set<String> loadCombinedEvents() throws IOException {
-        disciplinesLock.lock();
+    public <T> T updateRankingConfig(RankingConfigFunction<T> fn) throws Exception {
+        configLock.lock();
         try {
-            return loadCombinedEventsInternal();
+            RankingConfig config = loadRankingConfigInternal();
+            T result = fn.apply(config, loadCatalogInternal());
+            writeJson(rankingsFilePath, config);
+            return result;
         } finally {
-            disciplinesLock.unlock();
+            configLock.unlock();
         }
     }
 
-    /** Loads, modifies and saves the combined events atomically. */
-    public <T> T updateCombinedEvents(CombinedEventsFunction<T> fn) throws Exception {
-        disciplinesLock.lock();
-        try {
-            Set<String> combinedEvents = loadCombinedEventsInternal();
-            T result = fn.apply(combinedEvents);
-            saveDisciplinesInternal(loadDisciplinesInternal(), combinedEvents);
-            return result;
-        } finally {
-            disciplinesLock.unlock();
+    /** No rankings.json yet: no rankings, and the catalog's limit of disciplines per ranking. */
+    private RankingConfig loadRankingConfigInternal() throws IOException {
+        File file = new File(rankingsFilePath);
+        if (file.exists()) {
+            return objectMapper.readValue(file, RankingConfig.class);
         }
+        RankingConfig config = new RankingConfig();
+        config.setMaxDisciplinesPerRanking(loadCatalogInternal().getMaxDisciplines());
+        return config;
     }
 
     /**
-     * Loads, modifies and saves the disciplines (their active flags) and the
-     * combined events together, so a meet's program changes in one step.
+     * The meet's program: the disciplines its rankings cover. Only these take
+     * starts (individual) or teams (team).
      */
-    public <T> T updateProgram(ProgramFunction<T> fn) throws Exception {
-        return updateProgram((disciplines, combinedEvents, options) -> fn.apply(disciplines, combinedEvents));
+    public Set<Integer> loadProgramIds() throws IOException {
+        Set<Integer> ids = new LinkedHashSet<>();
+        loadRankingConfig().getRankings().forEach(r -> ids.addAll(r.disciplineIds()));
+        return ids;
     }
 
-    /** {@link #updateProgram(ProgramFunction)}, also with the program's options. */
-    public <T> T updateProgram(ProgramOptionsFunction<T> fn) throws Exception {
-        disciplinesLock.lock();
-        try {
-            List<Discipline> disciplines = loadDisciplinesInternal();
-            Set<String> combinedEvents = loadCombinedEventsInternal();
-            ProgramOptions options = loadProgramOptionsInternal();
-            T result = fn.apply(disciplines, combinedEvents, options);
-            saveDisciplinesInternal(disciplines, combinedEvents, options);
-            return result;
-        } finally {
-            disciplinesLock.unlock();
-        }
-    }
-
-    /** The meet program's options (competition.json). */
-    public ProgramOptions loadProgramOptions() throws IOException {
-        disciplinesLock.lock();
-        try {
-            return loadProgramOptionsInternal();
-        } finally {
-            disciplinesLock.unlock();
-        }
-    }
-
-    private ProgramOptions loadProgramOptionsInternal() throws IOException {
-        ProgramOptions options = new ProgramOptions();
-        JsonNode settings = loadCompetitionSettings();
-        if (settings != null) {
-            options.oneStartPerCombinedRanking = settings.path("one_start_per_combined_ranking").asBoolean(false);
-        }
-        return options;
-    }
-
-    private Set<String> loadCombinedEventsInternal() throws IOException {
-        Set<String> combinedEvents = new LinkedHashSet<>();
-        JsonNode settings = loadCompetitionSettings();
-        if (settings != null) {
-            settings.path("combined_events").forEach(key -> combinedEvents.add(key.asText()));
-        }
-        return combinedEvents;
-    }
-
-    private void saveDisciplinesInternal(List<Discipline> disciplines) throws IOException {
-        saveDisciplinesInternal(disciplines, loadCombinedEventsInternal());
-    }
-
-    private void saveDisciplinesInternal(List<Discipline> disciplines, Set<String> combinedEvents) throws IOException {
-        saveDisciplinesInternal(disciplines, combinedEvents, loadProgramOptionsInternal());
-    }
-
-    private void saveDisciplinesInternal(List<Discipline> disciplines, Set<String> combinedEvents,
-            ProgramOptions options) throws IOException {
-        Map<Integer, ObjectNode> catalogById = new LinkedHashMap<>();
-        for (ObjectNode entry : loadCatalog()) {
-            catalogById.put(entry.path("id").asInt(), entry);
-        }
-
-        List<Integer> active = new ArrayList<>();
-        Map<String, ObjectNode> overrides = new LinkedHashMap<>();
-        List<ObjectNode> custom = new ArrayList<>();
-        Set<Integer> present = new HashSet<>();
-        for (Discipline d : disciplines) {
-            present.add(d.getId());
-            if (d.isActive()) {
-                active.add(d.getId());
-            }
-            ObjectNode node = objectMapper.valueToTree(d);
-            node.remove("active");
-            ObjectNode base = catalogById.get(d.getId());
-            if (base == null) {
-                custom.add(node);
-                continue;
-            }
-            ObjectNode diff = objectMapper.createObjectNode();
-            Set<String> fields = new HashSet<>();
-            base.fieldNames().forEachRemaining(fields::add);
-            node.fieldNames().forEachRemaining(fields::add);
-            fields.remove("id");
-            fields.remove("active");
-            for (String field : fields) {
-                JsonNode value = node.get(field);
-                if (!Objects.equals(base.get(field), value)) {
-                    // A field cleared here but set in the catalog is stored as an explicit null
-                    diff.set(field, value != null ? value : NullNode.getInstance());
-                }
-            }
-            if (diff.size() > 0) {
-                overrides.put(String.valueOf(d.getId()), diff);
-            }
-        }
-        List<Integer> removed = new ArrayList<>();
-        for (Integer id : catalogById.keySet()) {
-            if (!present.contains(id)) {
-                removed.add(id);
-            }
-        }
-
-        Map<String, Object> settings = new LinkedHashMap<>();
-        settings.put("active_disciplines", active);
-        settings.put("discipline_overrides", overrides);
-        settings.put("custom_disciplines", custom);
-        settings.put("removed_disciplines", removed);
-        settings.put("combined_events", combinedEvents);
-        if (options.oneStartPerCombinedRanking) {
-            settings.put("one_start_per_combined_ranking", true);
-        }
-
-        File tempFile = new File(competitionFilePath + ".tmp");
-        objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, settings);
-        Files.move(tempFile.toPath(), Paths.get(competitionFilePath),
-                   StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        logger.debug("Competition settings saved successfully");
+    private static void writeJson(String path, Object value) throws IOException {
+        File tempFile = new File(path + ".tmp");
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(tempFile, value);
+        Files.move(tempFile.toPath(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
     @FunctionalInterface
@@ -615,27 +408,13 @@ public class DataService {
     }
 
     @FunctionalInterface
-    public interface ProgramFunction<T> {
-        T apply(List<Discipline> disciplines, Set<String> combinedEvents) throws Exception;
+    public interface CatalogFunction<T> {
+        T apply(DisciplineCatalog catalog) throws Exception;
     }
 
     @FunctionalInterface
-    public interface ProgramOptionsFunction<T> {
-        T apply(List<Discipline> disciplines, Set<String> combinedEvents, ProgramOptions options) throws Exception;
-    }
-
-    /** Options of the meet program, stored in competition.json. */
-    public static class ProgramOptions {
-        /**
-         * While a combined ranking (e.g. KUC) is ranked, a competitor may start in only one of its
-         * disciplines. Off: a competitor may start in several and is ranked on their best result.
-         */
-        public boolean oneStartPerCombinedRanking;
-    }
-
-    @FunctionalInterface
-    public interface CombinedEventsFunction<T> {
-        T apply(Set<String> combinedEvents) throws Exception;
+    public interface RankingConfigFunction<T> {
+        T apply(RankingConfig config, DisciplineCatalog catalog) throws Exception;
     }
 
     private Map<String, Object> createDefaultData() {

@@ -23,26 +23,25 @@ class TeamServiceTest {
     private TeamService teamService;
 
     private static final String CATALOG = "["
-        + individual(1, "original", "No 1 Miquelet") + ","
-        + individual(11, "reproduction", "No 1 Miquelet") + ","
-        + individual(21, "combined", "No 1 Miquelet") + ","
-        + individual(3, "original", "No 3 Minie") + ","
-        + "{\"id\":50,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 5 Cominazzo\"},"
-        + team(31, "original", "No 9 Gustav Adolph", "No 1 Miquelet", 3) + ","
-        + team(39, "original", "No 31 Halikko", "No 1 Miquelet", 3) + ","
-        + team(42, "reproduction", "No 29 Lucca", "No 1 Miquelet", 3) + ","
-        + team(47, "open", "Open Miquelet", "No 1 Miquelet", 3) + ","
-        + team(46, "open", "No 11 Versailles", "Nos. 9 + 10 (aggregate)", 6)
+        + individual(1, "original", "1_Miquelet_O") + ","
+        + individual(11, "reproduction", "1_Miquelet_R") + ","
+        + individual(3, "original", "3_Minie_O") + ","
+        + "{\"id\":50,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"5_Cominazzo_O\"},"
+        + team(31, "original", "9_Gustav Adolph", "[1]", 3) + ","
+        + team(39, "original", "31_Halikko", "[1]", 3) + ","
+        + team(42, "reproduction", "29_Lucca", "[11]", 3) + ","
+        + team(47, "open", "Open Miquelet", "[1,11]", 3) + ","
+        + team(46, "open", "11_Versailles", "[3]", 6)
         + "]";
 
-    private static String individual(int id, String type, String event) {
+    private static String individual(int id, String type, String name) {
         return "{\"id\":" + id + ",\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"" + type
-            + "\",\"event\":\"" + event + "\"}";
+            + "\",\"name\":\"" + name + "\"}";
     }
 
-    private static String team(int id, String type, String event, String basedOn, int size) {
+    private static String team(int id, String type, String name, String teamOf, int size) {
         return "{\"id\":" + id + ",\"category\":\"rifle\",\"level\":\"team\",\"type\":\"" + type
-            + "\",\"event\":\"" + event + "\",\"based_on\":\"" + basedOn + "\",\"team_size\":" + size + "}";
+            + "\",\"name\":\"" + name + "\",\"team_of\":" + teamOf + ",\"team_size\":" + size + "}";
     }
 
     private static String competitor(int id, String name, String club, String country, String... startIds) {
@@ -74,7 +73,7 @@ class TeamServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG);
+        TestFiles.writeCatalog(tempDir, CATALOG);
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":["
             + competitor(1, "Anna", "SG Wien", "Austria", "1-1-1", "1-1-2", "1-3-1") + ","
             + competitor(2, "Ben", "SG Wien", "Austria", "2-1-1") + ","
@@ -99,11 +98,8 @@ class TeamServiceTest {
             + result(9, "10-1-1", 10, 10)
             + "]}");
 
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
-            tempDir.resolve("competition.json").toString());
+        dataService = TestFiles.dataService(tempDir);
         teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
-        // The catalog above still has based_on only, as before "results that count" existed
-        assertEquals(List.of(31, 39, 42, 47), teamService.migrateCompositions());
     }
 
     private Map<String, Object> create(int disciplineId, String name, String... members) throws Exception {
@@ -120,19 +116,6 @@ class TeamServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> eligible = (List<Map<String, Object>>) discipline.get("eligible_disciplines");
         return eligible.stream().map(e -> e.get("id")).toList();
-    }
-
-    @Test
-    void oldTeamDisciplinesGetTheirResultsThatCountFromBasedOnOnce() throws Exception {
-        List<Map<String, Object>> disciplines = teamService.getTeamDisciplines();
-        assertEquals(5, disciplines.size());
-        assertEquals(List.of(1), eligibleIds(disciplines, 31), "original team: the original");
-        assertEquals(List.of(11), eligibleIds(disciplines, 42), "reproduction team: the reproduction");
-        assertEquals(List.of(1, 11, 21), eligibleIds(disciplines, 47), "open team: all of them");
-        // based_on names no event: nothing counts until results that count are ticked
-        assertEquals(List.of(), eligibleIds(disciplines, 46));
-        // Done once: a second start changes nothing
-        assertEquals(List.of(), teamService.migrateCompositions());
     }
 
     @Test
@@ -164,7 +147,7 @@ class TeamServiceTest {
         ConflictException conflict = assertThrows(ConflictException.class, () -> create(31, "Second", "1-1-2", "3-1-1"));
         assertTrue(conflict.getMessage().contains("First"));
 
-        // Another team discipline based on the same event may use the same start
+        // Another team discipline counting the same discipline may use the same start
         assertNotNull(create(39, "Halikko", "1-1-1"));
         assertTrue(Files.exists(tempDir.resolve("teams.json")));
     }
@@ -239,13 +222,65 @@ class TeamServiceTest {
     }
 
     @Test
-    void mainRankingServesTeamRankingForTeamDisciplines() throws Exception {
+    void aTeamRankingRanksTheTeamsOfItsDisciplines() throws Exception {
         create(31, "X", "1-1-1", "2-1-1", "3-1-1");
-        RankingService rankingService = new RankingService(dataService, new DisciplineService(dataService), teamService);
-        Map<String, Object> ranking = rankingService.getRanking(31);
+        RankingService rankingService = new RankingService(dataService, teamService);
+        Map<String, Object> ranking = rankingService.getRankingResult(rankingOf(31));
         assertEquals("team", ranking.get("kind"));
         assertEquals(1, ((List<?>) ranking.get("rankings")).size());
-        assertTrue(rankingService.getAllRankings().containsKey(31));
+        assertTrue(rankingService.getAllRankingResults().stream().anyMatch(r -> r.get("kind").equals("team")));
+    }
+
+    @Test
+    void aPooledTeamRankingRanksTheTeamsOfSeveralTeamDisciplinesTogether() throws Exception {
+        create(31, "Adolph", "1-1-1");     // 19
+        create(39, "Halikko", "4-1-1");    // 20
+        RankingConfigService config = new RankingConfigService(dataService, teamService, "none");
+        Map<String, Object> request = new HashMap<>();
+        request.put("name", "Miquelet teams");
+        request.put("level", "team");
+        request.put("entries", List.of(Map.of("discipline_ids", List.of(31)), Map.of("discipline_ids", List.of(39))));
+        int id = config.createRanking(request).getId();
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) new RankingService(dataService, teamService)
+            .getRankingResult(id).get("rankings");
+        assertEquals(List.of("Halikko", "Adolph"), names(rows));
+        assertEquals(List.of("31_Halikko", "9_Gustav Adolph"), rows.stream().map(r -> r.get("discipline_tag")).toList());
+
+        // A team ranking cannot add up team disciplines
+        request.put("entries", List.of(Map.of("label", "Sum", "discipline_ids", List.of(31, 39))));
+        assertThrows(IllegalArgumentException.class, () -> config.createRanking(request));
+    }
+
+    @Test
+    void oneTeamPerCompetitorAcrossARankingThatAllowsOne() throws Exception {
+        RankingConfigService config = new RankingConfigService(dataService, teamService, "none");
+        Map<String, Object> request = new HashMap<>();
+        request.put("name", "Miquelet teams");
+        request.put("level", "team");
+        request.put("one_start_per_competitor", true);
+        request.put("entries", List.of(Map.of("discipline_ids", List.of(31)), Map.of("discipline_ids", List.of(39))));
+        config.createRanking(request);
+
+        create(31, "Adolph", "1-1-1");
+        ConflictException conflict = assertThrows(ConflictException.class, () -> create(39, "Halikko", "1-1-2"));
+        assertTrue(conflict.getMessage().contains("Adolph"));
+        assertNotNull(create(42, "Lucca", "5-11-1"), "Lucca is not ranked together with them");
+    }
+
+    @Test
+    void teamsOnlyForTeamDisciplinesOfTheMeetsRankings() throws Exception {
+        RankingConfigService config = new RankingConfigService(dataService, teamService, "none");
+        config.deleteRanking(rankingOf(47), null);
+        assertThrows(IllegalArgumentException.class, () -> create(47, "Open", "1-1-1"));
+        // Not offered on the team page either
+        assertTrue(teamService.getTeamDisciplines().stream().noneMatch(d -> ((Number) d.get("id")).intValue() == 47));
+    }
+
+    private int rankingOf(int disciplineId) throws Exception {
+        return dataService.loadRankingConfig().getRankings().stream()
+            .filter(r -> r.disciplineIds().contains(disciplineId)).findFirst().orElseThrow().getId();
     }
 
     private void setTieBreak(String teamName, Double tieBreak) throws Exception {
@@ -268,18 +303,9 @@ class TeamServiceTest {
     }
 
     @Test
-    void storedTeamMembersKeepCountingAfterTheMigration() throws Exception {
-        // Versailles' based_on names no event, but a stored team has a Minie start: that discipline counts from now on
-        Files.writeString(tempDir.resolve("teams.json"),
-            "{\"teams\":[{\"id\":1,\"discipline_id\":46,\"name\":\"Old\",\"members\":[\"1-3-1\"]}]}");
-        assertEquals(List.of(46), teamService.migrateCompositions());
-        assertEquals(List.of(3), eligibleIds(teamService.getTeamDisciplines(), 46));
-    }
-
-    @Test
     void teamOfDecidesWhichStartsCount() throws Exception {
         DisciplineService disciplineService = new DisciplineService(dataService);
-        // Halikko (original, based on Miquelet) set to count original and reproduction starts
+        // Halikko (counting the Miquelet original) set to count original and reproduction starts
         disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11)));
         assertEquals(List.of(1, 11), eligibleIds(teamService.getTeamDisciplines(), 39));
         assertNotNull(create(39, "Mixed", "1-1-1", "5-11-1"), "Eve's reproduction start now counts");
@@ -300,6 +326,13 @@ class TeamServiceTest {
         teamService.changeComposition(39, List.of(1, 11, 3),
             () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11, 3))));
         assertEquals(List.of(1, 11, 3), eligibleIds(teamService.getTeamDisciplines(), 39));
+
+        // At most the catalog's limit of disciplines (4)
+        assertThrows(IllegalArgumentException.class,
+            () -> disciplineService.updateCatalogDiscipline(39, Map.of("team_of", List.of(1, 11, 3, 50, 2))));
+        disciplineService.setMaxDisciplines(3);
+        assertThrows(IllegalArgumentException.class, () -> disciplineService.setMaxDisciplines(2),
+            "Halikko counts 3 disciplines");
     }
 
     private static List<Object> ranks(List<Map<String, Object>> ranking) {

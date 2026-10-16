@@ -23,15 +23,16 @@ class LaneAutoAssignTest {
     private RelayService relayService;
     private String dayId;
 
-    // 1 Miquelet original, 11 reproduction, 21 combined: all m50; 2 Maximilian original: m100;
+    // 1 Miquelet original, 11 reproduction, 21 open: all m50; 2 Maximilian original: m100;
     // 40 Free has no range; 31 is a team discipline
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), "["
+        // The rankings follow this order (one per discipline): the lane queue does too
+        TestFiles.writeCatalog(tempDir, "["
             + discipline(1, "individual", "original", "Miquelet", "m50") + ","
-            + discipline(2, "individual", "original", "Maximilian", "m100") + ","
             + discipline(11, "individual", "reproduction", "Miquelet", "m50") + ","
-            + discipline(21, "individual", "combined", "Miquelet", "m50") + ","
+            + discipline(21, "individual", "open", "Miquelet", "m50") + ","
+            + discipline(2, "individual", "original", "Maximilian", "m100") + ","
             + discipline(31, "team", "original", "Gustav Adolph", null) + ","
             + discipline(40, "individual", "original", "Free", null) + "]");
 
@@ -52,8 +53,7 @@ class LaneAutoAssignTest {
         Files.writeString(tempDir.resolve("data.json"),
             "{\"competitors\":[" + competitors + "],\"results\":[],\"disciplines\":[],\"teams\":[]}");
 
-        DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
-            tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
+        DataService dataService = TestFiles.dataService(tempDir);
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
 
         relayService.setConfigLock(Map.of("locked", false));
@@ -66,7 +66,7 @@ class LaneAutoAssignTest {
 
     private static String discipline(int id, String level, String type, String event, String distance) {
         return "{\"id\":" + id + ",\"category\":\"rifle\",\"level\":\"" + level + "\",\"type\":\"" + type
-            + "\",\"event\":\"" + event + "\"" + (distance != null ? ",\"shooting_distance\":\"" + distance + "\"" : "") + "}";
+            + "\",\"name\":\"" + event + "\"" + (distance != null ? ",\"shooting_distance\":\"" + distance + "\"" : "") + "}";
     }
 
     private static String start(int competitor, int discipline) {
@@ -158,7 +158,7 @@ class LaneAutoAssignTest {
         relayService.autoAssign(Map.of());
 
         Map<Integer, TreeSet<Integer>> byDiscipline = relaysByDiscipline();
-        // 2 lanes on 50m, 4 starters each: original, reproduction, combined take two relays each, in a row
+        // 2 lanes on 50m, 4 starters each: original, reproduction, open take two relays each, in a row
         assertEquals(new TreeSet<>(List.of(1, 2)), byDiscipline.get(1));
         assertEquals(new TreeSet<>(List.of(3, 4)), byDiscipline.get(11));
         assertEquals(new TreeSet<>(List.of(5, 6)), byDiscipline.get(21));

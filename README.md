@@ -1,24 +1,24 @@
 # MLAICC Manager
 
-A Java backend for managing historical firearms shooting competitions (MLAIC events). It handles competitors, starts, results, and rankings for historical rifle and pistol competitions, with support for original, reproduction, and combined categories.
+A Java backend for managing historical firearms shooting competitions (MLAIC events). It handles competitors, starts, results, and rankings for historical rifle and pistol competitions, with support for original and reproduction categories and rankings that rank disciplines together or add them up.
 
 ## Features
 
 - **Competitor management** — add, edit, and delete competitors with full details (name, gender, club, email, phone, address, year of birth)
 - **Start management** — register competitors for specific disciplines with unique start IDs
-- **Discipline configuration** — pre-configured historical firearms disciplines (rifle and pistol, original/reproduction/combined, individual/team)
+- **Disciplines and rankings** — the disciplines (what is shot, rifle and pistol, original/reproduction/open, individual/team) are the installation's catalog, the same at every meet; a meet's **rankings** (Wertungen) say what is ranked: one discipline, several ranked together (e.g. Whitworth O/R), or sums of disciplines (e.g. Remington_O = Colt + Donald Malson_O). Both are exported and imported as files of their own
 - **Results management** — record detailed results with individual scoring entries and override values
 - **Results-only port** — port `5001` serves nothing but the Enter Results page (`/results/`) and the API calls it needs, so result entry stations can be given that port without reaching the rest of the app
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
-- **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance, an optional short name (used in the lane assignments CSV; for catalog disciplines it is saved to the catalog for every competition) and, for team disciplines, which individual disciplines' starts count for a team ("Results that count", e.g. Nagashino = Tanegashima O + R, Nobunaga = Tanegashima O only; saved per competition)
-- **Ranking page** — separate page at `/ranking` that shows just one result per competitor and discipline (the best one), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 0 (misses) and prints cleanly or exports it as a Word or Excel file, optionally one discipline per page
-- **Todos page** — separate page at `/todos` that lists the ranking entries still needing a tie-break value: same result and same number of 10s, 9s, … 1s as another entry of the discipline, with the tie-break missing or the same; laid out like the Ranking page without the rank, empty when there is nothing to do
-- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes; an optional auto mode (off until switched on) fills all unlocked days at the click of a button, keeping a discipline in consecutive relays and original/reproduction/combined of an event back to back
-- **Meet program** — on the page at `/meet`: per event whether its original and/or reproduction is shot and whether both are ranked combined (one ranking), and which team rankings there are
-- **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes) and a race bib (A4 landscape) per starter, exports all lane assignments as a CSV file, and prints or exports as a Word document the target labels (one per lane assignment, or a left and a right one, tiled on A4 in an adjustable size, default 105 x 48 mm, with the start ID as a 10 x 10 mm QR code); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
+- **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance, an optional short name (a label for lists and the lane assignments CSV; it need not be unique, everything refers to the id), archiving (a discipline in use cannot be deleted) and, for team disciplines, which individual disciplines' starts count for a team ("Results that count", 1 to the catalog's limit, default 4, e.g. Nagashino = Tanegashima O + R, Nobunaga = Tanegashima O only); exports and imports the catalog (merge or replace)
+- **Ranking setup** — separate page at `/rankings` for the meet's rankings: name, short name, individual or team, what is ranked (entries: one discipline each, or a named sum of several), at most a per-meet number of disciplines per ranking (default 4), and optionally one start per competitor (team: one team); loads the shipped default rankings (one per discipline, plus Remington and Schulhof), exports and imports them. The disciplines the rankings cover are the meet's program: only they take starts and teams
+- **Ranking page** — separate page at `/ranking` that shows the meet's rankings, each competitor once on their best result (then the next, see below), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 0 (misses) and prints cleanly or exports it as a Word or Excel file, optionally one ranking per page
+- **Todos page** — separate page at `/todos` that lists the ranking entries still needing a tie-break value: same result and same number of 10s, 9s, … 1s as another entry of the ranking, with the tie-break missing or the same; laid out like the Ranking page without the rank, empty when there is nothing to do
+- **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes; an optional auto mode (off until switched on) fills all unlocked days at the click of a button, keeping a discipline in consecutive relays and the disciplines in the meet's ranking order
+- **Meet details and printouts** — separate page at `/meet` for the meet's name, venue, host and dates, which prints or exports as a Word document a start card (one A4 page per starter with their relays and lanes, the rankings each of their disciplines counts in, and their teams with their team rankings) and a race bib (A4 landscape) per starter, exports all lane assignments as a CSV file, and prints or exports as a Word document the target labels (one per lane assignment, or a left and a right one, tiled on A4 in an adjustable size, default 105 x 48 mm, with the start ID as a 10 x 10 mm QR code); the ranking can be printed or exported with a cover page and a statistics page (starters and starts per country and discipline)
 - **Backup & restore** — separate page at `/backup` to download all data as one zip file and to restore it from one
-- **Danger Zone** — separate page at `/danger` to clear results, lane assignments, starts, competitors, teams, meet days and relays or the meet details, or to reset the discipline settings; locked until its master switch is on, and each button needs its own switch as well
+- **Danger Zone** — separate page at `/danger` to clear results, lane assignments, starts, competitors, teams, meet days and relays, the meet details or the rankings, or to reset the discipline catalog; locked until its master switch is on, and each button needs its own switch as well
 - **JSON file storage** — simple file-based storage, no database required
 
 ## Technology Stack
@@ -80,9 +80,10 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 
 - **`/`** (`static/index.html` + `static/js/`) — competitors, starts and result entry, split into modules under `static/js/modules/`
 - **`/results`** (`static/results/`) — just the result entry of `/#results`, without the sidebar; the only page on port 5001
-- **`/ranking`** (`static/ranking/`) — the ranking: printable, one result per competitor and discipline, team disciplines with their team ranking (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether "Intermediate Result" or "Final Result" is printed as a watermark across the ranking pages (not the cover and statistics pages); the start id is shown in small print below each name
+- **`/ranking`** (`static/ranking/`) — the ranking: printable, one row per competitor and ranking, team rankings with their teams (`static/js/teamRanking.js`); its Export button offers Print, Word (.docx) or Excel (.xlsx) and whether to add the cover and statistics pages (`static/ranking/printPages.js`, files built by `static/ranking/rankingExport.js`) and whether "Intermediate Result" or "Final Result" is printed as a watermark across the ranking pages (not the cover and statistics pages); the start id is shown in small print below each name
 - **`/todos`** (`static/todos/`) — the entries that still need a tie-break, drawn with the Ranking page's cards (`static/ranking/rankingCard.js`)
 - **`/dmgmt`** (`static/dmgmt/`) — discipline management page
+- **`/rankings`** (`static/rankings/`) — the meet's rankings (ranking setup)
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
 - **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) the lane assignments CSV (`static/meet/laneExport.js`) and the target labels (`static/meet/labelExport.js`, QR codes by `static/js/qrCode.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
@@ -94,9 +95,10 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 ## Data Storage
 
 - **`data.json`** — competitors (with their starts) and results. Created automatically on first run. Contains real personal data, so it is git-ignored — never commit it. Ids that follow from other data are not stored: a start's discipline comes from the key it is filed under, and a result's competitor and discipline from its start.
-- **`disciplines.json`** — the MLAIC discipline catalog (event names, categories, levels, default shooting distance). Tracked in the repo, shipped with every release and replaced on every deploy, so the app never writes to it.
-- **`disciplines.local.json`** — this installation's edits to the catalog itself: the short names set on the discipline management page for catalog disciplines. They apply to every competition, survive a Discipline Settings reset and are kept on deploys, which only replace `disciplines.json`. Created on the first edit; git-ignored.
-- **`competition.json`** — what this competition changes on top of the catalog: the active disciplines, edited fields (e.g. a different shooting distance), disciplines added (ids from 1000 up) or removed on the discipline management page. Only differences are stored, so a new catalog release still comes through. Created on first start (from the old `active_disciplines` in `data.json`, or from `disciplines.previous.json`, the runtime-edited catalog the deploy script saves aside once); git-ignored.
+- **`default-disciplines.json`** — the shipped MLAIC discipline catalog (names, short names, categories, levels, types, default shooting distance, team compositions). Tracked in the repo and replaced on every deploy; the app only reads it.
+- **`default-rankings.json`** — the shipped default rankings: one per discipline, plus Remington_O/R and Schulhof_O/RS/RU as sums. Loaded on the Ranking Setup page (Load Defaults); disciplines the installation's catalog lacks are left out.
+- **`disciplines.json`** — this installation's discipline catalog (format `mlaic-disciplines`, also the export format), the same for every meet: the disciplines and the limit of disciplines a team may count. Created from `default-disciplines.json` on first start and from then on edited on the Disciplines page; deploys leave it alone. A file of the older layout (a plain list) is kept as `disciplines.legacy.json` and replaced by the shipped catalog. Git-ignored.
+- **`rankings.json`** — this meet's rankings and its limit of disciplines per ranking. Created on the first change on the Ranking Setup page; git-ignored. The disciplines its rankings cover are the meet's program.
 - **`teams.json`** — the teams of the team disciplines (name, member start ids, tie-break value, notes). Created on the first saved team; git-ignored like `data.json`. Members are only referenced by start id.
 - **`appsettings.json`** — machine-specific settings (the external backup's receiver URL and token, or the backup receiver's token). Created on the first save on the Backup page; git-ignored, not part of the backup zip. Missing means everything is off.
 - **`meet.json`** — the meet's name, venue, host and optional first/last day. Created on the first save on the Meet page; git-ignored like `data.json`.
@@ -104,9 +106,9 @@ Each page talks to the backend directly via `fetch` calls to the `/api` endpoint
 
 ### Backup and restore
 
-The **Backup & Restore** page (`/backup`) downloads `data.json`, `competition.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json` and `disciplines.local.json`) as one zip file (`mlaiccmanager-backup-<date>-<time>.zip`, plus a `backup-info.json` with the time it was taken). The zip contains the competitors' personal data, so keep it safe.
+The **Backup & Restore** page (`/backup`) downloads `data.json`, `rankings.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json`) as one zip file (`mlaiccmanager-backup-<date>-<time>.zip`, plus a `backup-info.json` with the time it was taken). The zip contains the competitors' personal data, so keep it safe.
 
-Restoring a backup replaces all these files; a file the backup does not contain is removed, so the app is exactly in the state the backup was taken in. The one exception is `disciplines.json`: a backup without it (taken before the catalog was included) keeps the current catalog. A restored `disciplines.json` stays until the next update replaces it with the shipped one; the short names in `disciplines.local.json` are kept either way. Before that, the current files are saved to `backups/pre-restore-<date>-<time>.zip` next to `data.json`, so a restore can be undone by restoring that file. An upload that is not a zip, has no `data.json` or holds a file that is not a JSON object (or, for `disciplines.json`, a discipline list) is rejected and changes nothing. Backup and restore hold every file's lock, so they never see or leave a half-saved state. The page does not refresh other open pages: reload them after a restore.
+Restoring a backup replaces all these files; a file the backup does not contain is removed, so the app is exactly in the state the backup was taken in. The one exception is `disciplines.json`: a backup without it keeps the current catalog. Backups taken before disciplines and rankings were separated cannot be restored (their catalog has the old layout). Before that, the current files are saved to `backups/pre-restore-<date>-<time>.zip` next to `data.json`, so a restore can be undone by restoring that file. An upload that is not a zip, has no `data.json` or holds a file that is not a JSON object (or, for `disciplines.json`, a discipline catalog of the current format) is rejected and changes nothing. Backup and restore hold every file's lock, so they never see or leave a half-saved state. The page does not refresh other open pages: reload them after a restore.
 
 ### Automatic external backup
 
@@ -145,7 +147,8 @@ The **Danger Zone** page (`/danger`), the last entry under Management, clears on
 | Teams | every team | — |
 | Meet Days & Relays | every meet day and relay, locked days included | their lane assignments (ranges, relay duration and break stay) |
 | Meet Details | the meet's name, venue, host and dates | — |
-| Discipline Settings (reset) | this competition's discipline changes, so the shipped catalog applies like on a fresh install | added disciplines' starts (with their results, lanes and team memberships) and teams |
+| Rankings | every ranking of the meet | — (starts, results and teams stay; no discipline is in the program until rankings are set up again) |
+| Discipline Catalog (reset) | the installation's catalog, back to the shipped one like on a fresh install | disciplines the shipped catalog lacks: from the rankings, with their starts (results, lanes, team memberships) and teams |
 
 Before every clear, all data files are saved to `backups/pre-clear-<what>-<date>-<time>.zip`, so a clear can be undone by restoring that file on the Backup & Restore page. Like backup and restore, a clear holds every file's lock.
 
@@ -174,14 +177,29 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 - `POST /api/competitors/{competitorId}/starts` — create a start for a competitor. The start ID is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`); starts created before this format keep their old unseparated IDs. Returns `409` if the ID is already used by any start or result.
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
 
-Starts still filed under the old combined disciplines (ids 21–30 and 60–65, removed from the catalog when combining became a ranking setting) are moved once at startup to their event's original discipline, keeping their ids, and the event is ranked combined (whether a start was shot as an original or a reproduction does not matter for a combined ranking).
+A start is only taken for an individual discipline of the meet's program (one of its rankings covers it). A ranking with "one start per competitor" takes a competitor in only one of its disciplines.
 
-### Disciplines
-- `GET /api/active-disciplines` — get currently active disciplines (stored in `competition.json`)
-- `POST /api/active-disciplines` — set active disciplines, flipping each catalog entry's `active` flag (optional `base_ids`: the list the change is based on; 409 if it changed meanwhile)
-- `DELETE /api/active-disciplines/{id}` — deactivate a single discipline
-- `GET /api/available-disciplines` — get all disciplines (the catalog with this competition's changes applied)
+### Disciplines (the installation's catalog)
+- `GET /api/available-disciplines` — every discipline of the catalog
+- `POST /api/available-disciplines` — add a discipline (the next free id)
+- `PUT /api/available-disciplines/{id}` — change a discipline; a team discipline's `team_of` change is refused while a stored team member's start would stop counting, a level or category change while the discipline is in use
+- `DELETE /api/available-disciplines/{id}` — delete a discipline; 409 while rankings, team disciplines, starts or teams use it (archive it instead: `active: false`)
 - `PUT /api/available-disciplines/shooting-distances` — map disciplines to the range they fire on, e.g. `{"shooting_distances": {"52": "m25"}}`; only the listed disciplines change, and an empty string clears the mapping so the discipline may be assigned to any range
+- `GET|PUT /api/disciplines/settings` — `{"max_disciplines": 4}`: how many disciplines a team discipline may count (and a new meet's default limit per ranking)
+- `GET /api/disciplines/export` — the catalog as a file (`{"format": "mlaic-disciplines", "version": 1, "max_disciplines": 4, "disciplines": [...]}`)
+- `POST /api/disciplines/import?mode=merge|replace` — import such a file: merge adds and updates by id, replace also removes what the file lacks; all checked first, nothing changes on an error
+- `GET /api/active-disciplines` — the meet's program: the ids of the disciplines its rankings cover
+
+### Rankings (`/api/rankings`, the meet's)
+- `GET /api/rankings` — `{"max_disciplines_per_ranking": 4, "rankings": [...]}`, each ranking `{id, name, short_name, level, one_start_per_competitor, entries: [{label, discipline_ids}], version}`
+- `POST /api/rankings`, `PUT /api/rankings/{id}` (send `version`), `DELETE /api/rankings/{id}?version=N` — change one; refused if it leaves a discipline with starts or teams out of every ranking, or breaks its one-start rule
+- `PUT /api/rankings/order` — `{"ids": [...]}`: the order they are listed, printed and lanes are filled in
+- `PUT /api/rankings/settings` — `{"max_disciplines_per_ranking": 4}`
+- `GET /api/rankings/by-discipline` — the rankings each discipline counts in (for the start cards)
+- `GET /api/rankings/export`, `POST /api/rankings/import` — the rankings as a file of their own (`{"format": "mlaic-rankings", ...}`, by discipline id; each entry also lists `discipline_short_names` for the reader); an import replaces the meet's rankings and is refused as a whole on an unknown discipline id
+- `POST /api/rankings/defaults` — replace the meet's rankings with the shipped default rankings
+- `GET /api/rankings/results` — every ranking's result in the meet's order (those with nothing to rank yet left out)
+- `GET /api/rankings/{id}/result` — one ranking's result
 
 ### Results (`/api/results`)
 - `GET /api/results` — list results (optional discipline filter)
@@ -189,25 +207,18 @@ Starts still filed under the old combined disciplines (ids 21–30 and 60–65, 
 - `PUT /api/results/{id}` — update a result (send `version`)
 - `DELETE /api/results/{id}?version=N` — delete a result
 
-### Rankings (`/api/ranking`)
-- `GET /api/ranking` — list rankings
-- `GET /api/ranking/{disciplineId}` — get ranked results for a discipline
-- `GET /api/ranking/best` — like `GET /api/ranking`, but with one result per competitor: each competitor's best result
-- `GET /api/ranking/best/{disciplineId}` — one discipline's ranking with one result per competitor (team disciplines: the team ranking)
-
 ### Scoring and tie-breaks
 
 - An individual result's score is the sum of its shots (`entries`); `value` is stored alongside. The result's `override_value` is a **tie-break value, and the lower value wins** (distance of the furthest shot from the centre); it no longer replaces the score. A result without it loses a tie against one with it.
 - The results page records a result as the number of shots per ring (10, 9, … 0 for a miss), which must add up to 10 shots. It is saved as the list of the 10 shots, best ring first, so `entries` keeps its format.
-- Individual ranking: best four results, then the number of 10s, 9s, … 7s, then the tie-break.
-- One-result ranking (`/api/ranking/best`, `/ranking` page): each competitor's best result only, ranked by its score, then its 10s, 9s, … 1s, then its tie-break (lower wins). Identical results share the rank.
+- Individual ranking: each competitor once. Their results that count are every result in one of the ranking's single disciplines, and per sum entry the best result of each of its disciplines added up (as soon as there is one; a missing one counts as nothing; ring counts added up, tie-break the furthest shot of them). Ranked by the best of those results, then the next one (another start, or another entry of the ranking; another result beats none), then the best one's 10s, 9s, … 1s, then its tie-break (lower wins). Identical standings share the rank. The other results are listed below the competitor.
 
 ### Teams (`/api/teams`)
 
 Backs the standalone page at `/tmgmt` and stores everything in `teams.json`.
 
-- A team belongs to a team discipline (`level: "team"`) and has up to `team_size` members (3 unless the catalog says otherwise). A member is one registered start in one of the individual disciplines ticked as the team discipline's "results that count" (`team_of`, set on the Disciplines page), e.g. Nagashino takes Tanegashima original and reproduction starts, Nobunaga only original ones. A team discipline with none ticked accepts no starts. Team disciplines saved before this existed get theirs once at startup from their old `based_on` text where it names an event.
-- A competitor is in at most one team per team discipline, and at most once per team. The same start may count for different team disciplines that count the same discipline (e.g. *Gustav Adolph* and *Halikko*).
+- A team belongs to a team discipline (`level: "team"`) and has up to `team_size` members (3 unless the catalog says otherwise). A member is one registered start in one of the individual disciplines ticked as the team discipline's "results that count" (`team_of`, set on the Disciplines page), e.g. Nagashino takes Tanegashima original and reproduction starts, Nobunaga only original ones. Teams are entered only for the team disciplines of the meet's team rankings. A team ranking ranks the teams of one or more team disciplines together (team disciplines are not added up: teams exist per discipline).
+- A competitor is in at most one team per team discipline (per team ranking, if it allows one team per competitor), and at most once per team. The same start may count for different team disciplines that count the same discipline (e.g. *Gustav Adolph* and *Halikko*).
 - A blank name becomes the club all members share, else the country they share, else `Team <id>`.
 - Team ranking: the sum of the members' individual scores (max 300 for 3 × 100), then the number of 10s over all members' shots, then 9s, … 1s, then the team's `tie_break` (lower wins). Teams with identical values share the rank. A member without a result counts 0 and the team is flagged `complete: false`.
 
@@ -252,10 +263,8 @@ Backs the page at `/meet` and stores everything in `meet.json`.
 
 - `GET /api/meet` — `name`, `location`, `host`, `date_from`, `date_to` (`YYYY-MM-DD` or `null`) and `version`; empty until first saved
 - `PUT /api/meet` — replace all of them (send `version`; 409 if someone else saved first, 400 for a bad date or a first day after the last)
-- `GET /api/meet/program` — the program: the individual events (disciplines grouped by category and event, e.g. 15_Vetterli_O and 15_Vetterli_R) with its disciplines (whether shot, number of starts) and whether it is ranked combined, the team disciplines with whether they are ranked, their composition and number of teams, and a `base` to send back
-- `PUT /api/meet/program` — `{events: {<key>: {active: [ids shot], combined: true|false}}, teams: [ids], base}`; events left out stay as they are. Saved as the active disciplines and combined events in `competition.json`. 409 if someone else changed the program since `base`, or when combining while a competitor starts in both original and reproduction; 400 for an unknown event or discipline, or combining an event without both original and reproduction shot
 
-When the dates are empty, the printouts use the first and last meet day of the relay management. The start card lists every start of a starter with day, relay, time, range and lane, then the starts that have no lane yet. The starter ID printed on the start card and race bib is the competitor ID. Start cards and race bibs are printed sorted by country, then club, then name (starters without a country or club come last). The search field above each starter list filters it by starter ID, name, club or country (case- and accent-insensitive, every word must match); with "All matching starters" selected, only the matching starters are printed, and a search with a single match selects that starter.
+When the dates are empty, the printouts use the first and last meet day of the relay management. The start card lists every start of a starter with day, relay, time, range and lane, then the starts that have no lane yet; below each discipline it names the meet's rankings the discipline counts in (e.g. Whitworth_O: Whitworth O/R, Whitworth O), and a second table lists the starter's teams with their team rankings. The starter ID printed on the start card and race bib is the competitor ID. Start cards and race bibs are printed sorted by country, then club, then name (starters without a country or club come last). The search field above each starter list filters it by starter ID, name, club or country (case- and accent-insensitive, every word must match); with "All matching starters" selected, only the matching starters are printed, and a search with a single match selects that starter.
 
 The **Export Start Cards** and **Export Race Bibs** buttons ask for the format: **Print** opens the browser's print dialog (choose "Save as PDF" there for a PDF file), **Word (.docx)** downloads the same pages as a Word document to edit or print. The Ranking page's **Export** button offers Print, Word and Excel: the Word document has the ranking laid out like the printout (with the cover and statistics pages when chosen, and one discipline per page when that option is on); the Excel workbook has one sheet per discipline (team disciplines one row per team with its members) with numbers as numbers, and a Statistics sheet when the statistics are chosen. The last chosen format is remembered.
 
@@ -329,7 +338,7 @@ Every release also includes a self-contained Windows zip with Java bundled. Noth
 2. Unzip it to a local folder such as `C:\mlaiccmanager`. Don't use a OneDrive-synced Desktop or Documents folder: sync locks can break the app's saves.
 3. Double-click `start.bat`. The app opens in the browser at http://localhost:5000. Closing the console window stops it. If tablets on the network need access, allow Java in the Windows Firewall prompt. Result entry stations can use port 5001, which shows only the Enter Results page.
 
-On every start, `start.bat` checks for a newer build and swaps it in. It only replaces `mlaiccmanager.jar`, `static\` and `disciplines.json`, so your data is never touched. When offline, it simply starts the current version. To freeze the version, for example during a competition, create an empty file named `no-auto-update` in the folder. All data (`data.json`, `competition.json`, `logs\`, …) lives in that folder. To upgrade the bundled Java, download the zip again and copy your data files over.
+On every start, `start.bat` checks for a newer build and swaps it in. It only replaces `mlaiccmanager.jar`, `static\` and the shipped defaults (`default-disciplines.json`, `default-rankings.json`), so your data, catalog and rankings are never touched. When offline, it simply starts the current version. To freeze the version, for example during a competition, create an empty file named `no-auto-update` in the folder. All data (`data.json`, `disciplines.json`, `rankings.json`, `logs\`, …) lives in that folder. To upgrade the bundled Java, download the zip again and copy your data files over.
 
 ## License
 

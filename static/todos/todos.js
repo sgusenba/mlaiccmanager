@@ -1,4 +1,4 @@
-// Todos page: the entries of the ranking (/api/ranking/best) that still need
+// Todos page: the entries of the rankings (/api/rankings/results) that still need
 // a tie-break value. Entries tie when they have the same result and the same
 // number of 10s, 9s, ... 1s; the tie-break (lower wins) then decides, so a
 // group of tied entries is a todo while one of them has no tie-break or two
@@ -39,7 +39,7 @@ function needsTieBreak(data, group) {
     return tieBreaks.includes(null) || new Set(tieBreaks).size < tieBreaks.length;
 }
 
-/** The groups of tied entries of one discipline that still need a tie-break, in ranking order. */
+/** The groups of tied entries of one ranking that still need a tie-break, in ranking order. */
 function tieBreakTodos(data) {
     const groups = new Map();
     for (const row of data.rankings || []) {
@@ -78,7 +78,7 @@ function render(rankings) {
 
 async function load() {
     try {
-        render(Object.values(await api('/ranking/best') || {}));
+        render(await api('/rankings/results') || []);
     } catch (error) {
         showMessage(`Error loading the ranking: ${error.message}`);
     }

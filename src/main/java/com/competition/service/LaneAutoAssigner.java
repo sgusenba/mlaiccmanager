@@ -21,9 +21,9 @@ import java.util.TreeMap;
  * days are left out by the caller).
  *
  * <p>Soft goals: the starts of one discipline are placed one after the other,
- * so a discipline occupies a contiguous run of relays, and the disciplines of
- * one event (original, reproduction, combined) follow each other. Both come
- * from filling every relay from a queue sorted by event and type: a start
+ * so a discipline occupies a contiguous run of relays, and the disciplines
+ * ranked together follow each other. Both come from filling every relay from
+ * a queue sorted by the meet's ranking order: a start
  * whose competitor already shoots in the relay is skipped and moves to the next
  * relay, where it comes first again.
  */
@@ -31,17 +31,8 @@ public final class LaneAutoAssigner {
     private LaneAutoAssigner() {
     }
 
-    /** A discipline's place in the queue: events keep catalog order, types go original, reproduction, combined. */
-    public record DisciplineOrder(int disciplineId, String familyKey, int familyRank, int typeRank) {
-        static int typeRank(String type) {
-            if (type == null) return 3;
-            return switch (type) {
-                case "original" -> 0;
-                case "reproduction" -> 1;
-                case "combined" -> 2;
-                default -> 3;
-            };
-        }
+    /** A discipline's place in the queue: the meet's ranking order, so disciplines ranked together follow each other. */
+    public record DisciplineOrder(int disciplineId, int rank) {
     }
 
     public record Range(String id, String name, int laneCount) {
@@ -87,8 +78,7 @@ public final class LaneAutoAssigner {
         }
 
         Comparator<Pending> queueOrder = Comparator
-            .comparingInt((Pending p) -> rankOf(order, p.disciplineId()).familyRank())
-            .thenComparingInt(p -> rankOf(order, p.disciplineId()).typeRank())
+            .comparingInt((Pending p) -> rankOf(order, p.disciplineId()).rank())
             .thenComparingInt(Pending::disciplineId)
             .thenComparingInt(Pending::competitorId)
             .thenComparing(Pending::startId);
@@ -147,7 +137,7 @@ public final class LaneAutoAssigner {
 
     private static DisciplineOrder rankOf(Map<Integer, DisciplineOrder> order, int disciplineId) {
         DisciplineOrder rank = order.get(disciplineId);
-        return rank != null ? rank : new DisciplineOrder(disciplineId, "", Integer.MAX_VALUE, 3);
+        return rank != null ? rank : new DisciplineOrder(disciplineId, Integer.MAX_VALUE);
     }
 
     /**

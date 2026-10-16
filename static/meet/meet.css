@@ -342,3 +342,10 @@ body.print-preview .print-page {
 .target-label .tl-score-head td {
     border-top: 0.8mm double #000;
 }
+
+/* The rankings a start's discipline counts in, below its name */
+.start-card .card-rankings {
+    font-size: 0.75em;
+    color: #555;
+    font-style: normal;
+}

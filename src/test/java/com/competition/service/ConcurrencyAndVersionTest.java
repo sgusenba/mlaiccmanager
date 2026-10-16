@@ -33,8 +33,7 @@ class ConcurrencyAndVersionTest {
 
     @BeforeEach
     void setUp() {
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
-            tempDir.resolve("competition.json").toString());
+        dataService = TestFiles.dataService(tempDir);
         competitorService = new CompetitorService(dataService);
         startService = new StartService(dataService);
         disciplineService = new DisciplineService(dataService);
@@ -158,25 +157,40 @@ class ConcurrencyAndVersionTest {
     }
 
     @Test
-    void activeDisciplineChangesDoNotOverwriteEachOther() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"),
-            "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"A\"},"
-                + "{\"id\":2,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"B\"},"
-                + "{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"C\"},"
-                + "{\"id\":4,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"D\"}]");
+    void rankingChangesDoNotOverwriteEachOther() throws Exception {
+        TestFiles.writeCatalog(tempDir,
+            "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"A\"},"
+                + "{\"id\":2,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"B\"}]");
+        RankingConfigService config = new RankingConfigService(dataService, null, "none");
 
-        disciplineService.setActiveDisciplines(List.of(1, 2, 3), null);
+        // Rankings added at the same time are all kept
+        int threads = 10;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            String name = "Ranking " + i;
+            futures.add(pool.submit(() -> {
+                go.await();
+                return config.createRanking(java.util.Map.of("name", name,
+                    "entries", List.of(java.util.Map.of("discipline_ids", List.of(1)),
+                        java.util.Map.of("discipline_ids", List.of(2)))));
+            }));
+        }
+        go.countDown();
+        for (Future<?> future : futures) {
+            future.get();
+        }
+        pool.shutdown();
+        assertEquals(2 + threads, config.getConfig().getRankings().size());
 
-        // Two users deactivate different disciplines from the same starting point
-        disciplineService.deactivateDiscipline(1);
-        disciplineService.deactivateDiscipline(2);
-        assertEquals(List.of(3), disciplineService.getActiveDisciplines());
-
-        // A bulk save based on an outdated list is rejected
-        assertThrows(ConflictException.class,
-            () -> disciplineService.setActiveDisciplines(List.of(1, 2, 3, 4), List.of(1, 2, 3)));
-        disciplineService.setActiveDisciplines(List.of(3, 4), List.of(3));
-        assertEquals(List.of(3, 4), disciplineService.getActiveDisciplines());
+        // An edit based on an outdated version is rejected
+        int id = config.getConfig().getRankings().get(0).getId();
+        java.util.Map<String, Object> edit = new java.util.HashMap<>(java.util.Map.of("name", "Renamed",
+            "entries", List.of(java.util.Map.of("discipline_ids", List.of(1)))));
+        edit.put("version", 0);
+        assertEquals(1, config.updateRanking(id, edit).getVersion());
+        assertThrows(ConflictException.class, () -> config.updateRanking(id, edit));
     }
 
     @Test

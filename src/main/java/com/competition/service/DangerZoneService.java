@@ -1,6 +1,7 @@
 package com.competition.service;
 
-import com.competition.model.Discipline;
+import com.competition.model.DisciplineCatalog;
+import com.competition.model.RankingDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ public class DangerZoneService {
 
     /** What can be cleared, in the order the page lists it. */
     public static final List<String> TARGETS = List.of(
-        "results", "lanes", "starts", "competitors", "teams", "days", "meet", "disciplines");
+        "results", "lanes", "starts", "competitors", "teams", "days", "meet", "rankings", "disciplines");
 
     private final DataService dataService;
     private final TeamService teamService;
@@ -62,10 +63,8 @@ public class DangerZoneService {
             counts.put("teams", teamService.getTeams(null).size());
             Map<String, Object> meet = meetService.get();
             counts.put("meet", DataService.getVersion(meet) > 0 ? 1 : 0);
-            List<Discipline> disciplines = dataService.loadDisciplines();
-            counts.put("active_disciplines", disciplines.stream().filter(Discipline::isActive).count());
-            counts.put("added_disciplines",
-                disciplines.stream().filter(d -> d.getId() >= DisciplineService.FIRST_CUSTOM_ID).count());
+            counts.put("rankings", dataService.loadRankingConfig().getRankings().size());
+            counts.put("disciplines", dataService.loadDisciplines().size());
             return counts;
         });
     }
@@ -90,6 +89,7 @@ public class DangerZoneService {
                 case "teams" -> cleared.put("teams", teamService.deleteTeams(id -> true));
                 case "days" -> relayService.clearDays().forEach((key, n) -> cleared.put(label(key), n));
                 case "meet" -> cleared.put("meet details", meetService.clear() ? 1 : 0);
+                case "rankings" -> cleared.put("rankings", clearRankings());
                 case "disciplines" -> resetDisciplines(cleared);
                 default -> throw new IllegalStateException(target);
             }
@@ -150,10 +150,41 @@ public class DangerZoneService {
         clearStartReferences(startIds, cleared);
     }
 
-    /** Back to the shipped catalog; starts and teams of disciplines that are gone then go with them. */
+    /** Deletes the meet's rankings; starts and teams stay, but nothing is in the program any more. */
+    private int clearRankings() throws Exception {
+        return dataService.updateRankingConfig((config, catalog) -> {
+            int n = config.getRankings().size();
+            config.getRankings().clear();
+            config.setVersion(config.getVersion() + 1);
+            return n;
+        });
+    }
+
+    /**
+     * Back to the shipped catalog, like a fresh install. Disciplines it lacks go,
+     * from the rankings too, with their starts and teams.
+     */
     private void resetDisciplines(Map<String, Integer> cleared) throws Exception {
-        Set<Integer> remaining = dataService.resetDisciplines();
-        cleared.put("discipline settings", 1);
+        DisciplineCatalog defaults = dataService.defaultCatalog();
+        if (defaults == null) {
+            throw new IllegalArgumentException("There is no shipped catalog (" + DataService.DEFAULT_CATALOG_FILE + ")");
+        }
+        Set<Integer> remaining = new HashSet<>();
+        defaults.getDisciplines().forEach(d -> remaining.add(d.getId()));
+        dataService.updateCatalog(catalog -> {
+            catalog.setMaxDisciplines(defaults.getMaxDisciplines());
+            catalog.setDisciplines(defaults.getDisciplines());
+            return null;
+        });
+        cleared.put("discipline catalog", 1);
+        dataService.updateRankingConfig((config, catalog) -> {
+            for (RankingDefinition ranking : config.getRankings()) {
+                ranking.getEntries().forEach(e -> e.getDisciplineIds().removeIf(id -> !remaining.contains(id)));
+                ranking.getEntries().removeIf(e -> e.getDisciplineIds().isEmpty());
+            }
+            config.getRankings().removeIf(r -> r.getEntries().isEmpty());
+            return null;
+        });
         clearStarts(id -> id >= 0 && !remaining.contains(id), cleared);
         cleared.put("teams", teamService.deleteTeams(id -> !remaining.contains(id)));
     }

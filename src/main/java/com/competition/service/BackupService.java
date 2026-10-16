@@ -28,10 +28,9 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Backup and restore of all runtime data as one zip file: data.json,
- * competition.json, teams.json, relays.json, meet.json and the discipline
- * catalog (disciplines.json as shipped, disciplines.local.json with this
- * installation's edits to it). A backup without disciplines.json (taken before
- * the catalog was included) leaves the current catalog in place on restore.
+ * rankings.json, teams.json, relays.json, meet.json and the discipline catalog
+ * (disciplines.json). A backup without disciplines.json leaves the current
+ * catalog in place on restore.
  *
  * <p>Both directions hold every file's lock, so a backup is a consistent
  * snapshot and a restore replaces all files at once. Lock order: meet.json,
@@ -48,10 +47,9 @@ public class BackupService {
 
     /** The runtime data files, in the order they are written to the zip. data.json is required on restore. */
     static final List<String> FILES = List.of(
-        "data.json", "competition.json", "teams.json", "relays.json", "meet.json",
-        "disciplines.json", "disciplines.local.json");
+        "data.json", "rankings.json", "teams.json", "relays.json", "meet.json", "disciplines.json");
     static final String REQUIRED_FILE = "data.json";
-    /** The shipped catalog: a JSON array (or an object with a "disciplines" array), kept if a backup lacks it. */
+    /** The discipline catalog, kept if a backup lacks it. */
     static final String CATALOG_FILE = "disciplines.json";
     static final String MANIFEST = "backup-info.json";
     static final String SAFETY_COPY_DIR = "backups";
@@ -189,7 +187,7 @@ public class BackupService {
 
     /**
      * The data files of an uploaded backup, each checked to be a JSON object
-     * (the catalog a discipline list).
+     * (the catalog a discipline catalog).
      * Entries are matched by file name, so a zip of a folder holding the files
      * works too; anything else in the zip is ignored.
      */
@@ -217,8 +215,8 @@ public class BackupService {
                     throw new IllegalArgumentException(name + " in the backup is not valid JSON");
                 }
                 if (name.equals(CATALOG_FILE)) {
-                    if (json == null || !(json.isArray() || json.path("disciplines").isArray())) {
-                        throw new IllegalArgumentException(name + " in the backup is not a discipline list");
+                    if (!DataService.isCatalog(json)) {
+                        throw new IllegalArgumentException(name + " in the backup is not a discipline catalog of this version");
                     }
                 } else if (json == null || !json.isObject()) {
                     throw new IllegalArgumentException(name + " in the backup is not a JSON object");

@@ -4,7 +4,7 @@
 # the container — normally via mlaiccmanager-deploy.timer, but can be run
 # manually or on demand.
 #
-# The jar (+ static/ + disciplines.json) is built by
+# The jar (+ static/ + the default catalog and rankings) is built by
 # .github/workflows/release.yml on every push to main and published as a
 # tarball attached to a rolling "latest" release. This script just
 # downloads that one URL — no git, Maven, or JDK needed on the container,
@@ -73,13 +73,10 @@ log "Deploying to $RUN_DIR"
 mkdir -p "$RUN_DIR/logs"
 rm -rf "$RUN_DIR/static"
 cp -r "$TMP_DIR/extract/static" "$RUN_DIR/static"
-# Before competition.json existed, disciplines.json was edited at runtime.
-# Keep that copy once so the app can carry the edits over on its next start.
-if [ ! -f "$RUN_DIR/competition.json" ] && [ -f "$RUN_DIR/disciplines.json" ] \
-   && [ ! -f "$RUN_DIR/disciplines.previous.json" ]; then
-  cp "$RUN_DIR/disciplines.json" "$RUN_DIR/disciplines.previous.json"
-fi
-cp "$TMP_DIR/extract/disciplines.json" "$RUN_DIR/disciplines.json"
+# The shipped defaults only; disciplines.json (this installation's catalog,
+# started from default-disciplines.json) and rankings.json are left alone
+cp "$TMP_DIR/extract/default-disciplines.json" "$RUN_DIR/default-disciplines.json"
+cp "$TMP_DIR/extract/default-rankings.json" "$RUN_DIR/default-rankings.json"
 cp "$TMP_DIR/extract/mlaiccmanager.jar" "$RUN_DIR/mlaiccmanager.jar"
 echo "$NEW_SHA" > "$STATE_FILE"
 

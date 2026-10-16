@@ -66,12 +66,11 @@ public class RelayService {
                             Map<Integer, String> disciplineLevels,
                             Map<Integer, String> disciplineShootingDistances,
                             List<Integer> activeDisciplines,
-                            Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder,
-                            Set<Integer> aggregateDisciplines) {
+                            Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder) {
 
-        /** Team starts and aggregate starts (e.g. Remington, whose results come from other disciplines) take no lane. */
+        /** Team disciplines take no lane: their teams' members shoot in individual disciplines. */
         boolean takesNoLane(int disciplineId) {
-            return "team".equals(disciplineLevels.get(disciplineId)) || aggregateDisciplines.contains(disciplineId);
+            return "team".equals(disciplineLevels.get(disciplineId));
         }
 
         Map<String, Integer> competitorOfStart() {
@@ -306,7 +305,7 @@ public class RelayService {
             List<String> mapped = new ArrayList<>();
             for (Discipline discipline : dataService.loadDisciplines()) {
                 if (rangeId.equals(discipline.getShootingDistance())) {
-                    mapped.add(discipline.getEvent());
+                    mapped.add(discipline.getName());
                 }
             }
             if (!mapped.isEmpty()) {
@@ -506,9 +505,7 @@ public class RelayService {
             int disciplineId = RelayRules.intOf(start.get("discipline_id"));
             if (registry.takesNoLane(disciplineId)) {
                 throw new IllegalArgumentException(disciplineName(registry, disciplineId)
-                    + (registry.aggregateDisciplines().contains(disciplineId)
-                        ? " adds up the results of other disciplines and takes no lane"
-                        : " is a team discipline and cannot be assigned to a lane"));
+                    + " is a team discipline and cannot be assigned to a lane");
             }
             String mapped = shootingDistanceOfDiscipline(registry, disciplineId);
             if (mapped != null && !mapped.equals(rangeId)) {
@@ -630,7 +627,7 @@ public class RelayService {
                 for (Map<String, Object> start : entry.getValue()) {
                     String startId = (String) start.get("start_id");
                     List<Map<String, Object>> entries = byStart.getOrDefault(startId, List.of());
-                    if (entries.isEmpty() && registry.aggregateDisciplines().contains(RelayRules.intOf(start.get("discipline_id")))) {
+                    if (entries.isEmpty() && registry.takesNoLane(RelayRules.intOf(start.get("discipline_id")))) {
                         noLane.add(startSummary(start, registry));
                         continue;
                     }
@@ -907,32 +904,23 @@ public class RelayService {
         Map<Integer, String> disciplineNames = new LinkedHashMap<>();
         Map<Integer, String> disciplineLevels = new LinkedHashMap<>();
         Map<Integer, String> disciplineShootingDistances = new LinkedHashMap<>();
-        List<Integer> activeDisciplineIds = new ArrayList<>();
         Map<Integer, LaneAutoAssigner.DisciplineOrder> disciplineOrder = new HashMap<>();
-        Map<String, Integer> familyRanks = new HashMap<>();
-        Set<Integer> aggregateDisciplines = new HashSet<>();
+        // The meet's program (the disciplines its rankings cover) in ranking order: the
+        // disciplines ranked together follow each other in the lane queue
+        List<Integer> activeDisciplineIds = new ArrayList<>(dataService.loadProgramIds());
+        for (int i = 0; i < activeDisciplineIds.size(); i++) {
+            disciplineOrder.put(activeDisciplineIds.get(i),
+                new LaneAutoAssigner.DisciplineOrder(activeDisciplineIds.get(i), i));
+        }
         for (Discipline discipline : dataService.loadDisciplines()) {
-            if (DisciplineService.isAggregate(discipline)) {
-                aggregateDisciplines.add(discipline.getId());
-            }
-            // original, reproduction and combined of one event form a family
-            String family = Objects.toString(discipline.getCategory(), "") + "|" + DisciplineService.matchKey(discipline.getEvent());
-            if (!familyRanks.containsKey(family)) {
-                familyRanks.put(family, familyRanks.size());
-            }
-            disciplineOrder.put(discipline.getId(), new LaneAutoAssigner.DisciplineOrder(discipline.getId(), family,
-                familyRanks.get(family), LaneAutoAssigner.DisciplineOrder.typeRank(discipline.getType())));
             disciplineNames.put(discipline.getId(), discipline.getType() != null
-                ? discipline.getEvent() + " (" + discipline.getType() + ")"
-                : discipline.getEvent());
+                ? discipline.getName() + " (" + discipline.getType() + ")"
+                : discipline.getName());
             if (discipline.getLevel() != null) {
                 disciplineLevels.put(discipline.getId(), discipline.getLevel());
             }
             if (discipline.getShootingDistance() != null && !discipline.getShootingDistance().isBlank()) {
                 disciplineShootingDistances.put(discipline.getId(), discipline.getShootingDistance());
-            }
-            if (discipline.isActive()) {
-                activeDisciplineIds.add(discipline.getId());
             }
         }
 
@@ -973,7 +961,7 @@ public class RelayService {
             }
 
             return new Registry(competitors, starts, disciplineNames, disciplineLevels, disciplineShootingDistances,
-                activeDisciplineIds, disciplineOrder, aggregateDisciplines);
+                activeDisciplineIds, disciplineOrder);
         });
     }
 

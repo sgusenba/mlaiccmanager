@@ -7,9 +7,10 @@
 #     -Force   redeploy even if the downloaded bundle is unchanged
 #
 # Reuses the same mlaiccmanager-dist.tar.gz the Linux container pulls
-# (Windows 10+ ships tar.exe). Only mlaiccmanager.jar, static\ and
-# disciplines.json are replaced; data.json, competition.json, teams,
-# relays, logs\ and backups are never touched. The bundled jre\ is not
+# (Windows 10+ ships tar.exe). Only mlaiccmanager.jar, static\ and the
+# shipped defaults (default-disciplines.json, default-rankings.json) are
+# replaced; data.json, disciplines.json, rankings.json, teams, relays,
+# logs\ and backups are never touched. The bundled jre\ is not
 # updated here — download the full zip again for a newer Java.
 #
 # Never fails the launch: if offline or anything goes wrong, it prints a
@@ -64,7 +65,8 @@ try {
     $Static = Join-Path $RunDir 'static'
     if (Test-Path $Static) { Remove-Item -Path $Static -Recurse -Force }
     Copy-Item -Path (Join-Path $Extract 'static') -Destination $Static -Recurse
-    Copy-Item -Path (Join-Path $Extract 'disciplines.json') -Destination $RunDir -Force
+    Copy-Item -Path (Join-Path $Extract 'default-disciplines.json') -Destination $RunDir -Force
+    Copy-Item -Path (Join-Path $Extract 'default-rankings.json') -Destination $RunDir -Force
     Copy-Item -Path (Join-Path $Extract 'mlaiccmanager.jar') -Destination $RunDir -Force
     Set-Content -Path $StateFile -Value $NewSha -NoNewline -Encoding Ascii
     Log "Deployed build $NewSha"

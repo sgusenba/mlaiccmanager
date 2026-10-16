@@ -1,7 +1,7 @@
 name: Build and release
 
-# Builds the jar with Maven and publishes it (plus static/ and
-# disciplines.json) as a single tarball attached to a rolling "latest"
+# Builds the jar with Maven and publishes it (plus static/ and the default
+# discipline catalog and rankings) as a single tarball attached to a rolling "latest"
 # release. deploy/download-deploy.sh on the target container just
 # downloads that one URL — no git/Maven/JDK needed there.
 
@@ -34,7 +34,8 @@ jobs:
           cp target/mlaiccmanager-*.jar dist-bundle/mlaiccmanager.jar
           cp -r static dist-bundle/static
           echo "{\"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > dist-bundle/static/build-info.json
-          cp disciplines.json dist-bundle/disciplines.json
+          cp default-disciplines.json dist-bundle/default-disciplines.json
+          cp default-rankings.json dist-bundle/default-rankings.json
           tar -czf mlaiccmanager-dist.tar.gz -C dist-bundle .
 
       # Portable Windows zip: the same bundle plus a Windows JRE and the

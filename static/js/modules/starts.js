@@ -54,14 +54,14 @@ function populateActiveDisciplinesDropdown() {
     const availableDisciplines = getState('availableDisciplines');
     const activeDisciplines = getState('activeDisciplines');
     
-    // Competitors start in a combined ranking's disciplines (KUCRS), not in the combined ranking (KUCR)
+    // The meet's program (the disciplines its rankings cover); competitors start in individual disciplines only
     const activeDisciplinesList = availableDisciplines.filter(discipline =>
-        activeDisciplines.includes(discipline.id) && !discipline.combined_of?.length
+        activeDisciplines.includes(discipline.id) && discipline.level !== 'team'
     );
     
     dropdown.innerHTML = '<option value="">Select Discipline</option>' +
         activeDisciplinesList.map(discipline => 
-            `<option value="${discipline.id}">${discipline.event} (${discipline.category})</option>`
+            `<option value="${discipline.id}">${discipline.name} (${discipline.category})</option>`
         ).join('');
 }
 
@@ -95,7 +95,7 @@ function displayStartsTable(competitor) {
             return `
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${discipline ? discipline.event : 'Unknown'}
+                        ${discipline ? discipline.name : 'Unknown'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${start.start_number}

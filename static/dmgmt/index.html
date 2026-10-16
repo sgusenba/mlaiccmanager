@@ -20,13 +20,13 @@
                 <form id="discipline-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <input type="hidden" id="form-id" value="">
                     <div>
-                        <label for="form-event" class="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
-                        <input type="text" id="form-event" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miquelet">
+                        <label for="form-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miquelet">
                     </div>
                     <div>
                         <label for="form-short-name" class="block text-sm font-medium text-gray-700 mb-1">Short Name</label>
                         <input type="text" id="form-short-name" maxlength="30" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Miq O" title="Used in the lane assignments export">
-                        <p id="short-name-hint" class="mt-1 text-xs text-gray-500">Saved to the discipline catalog: applies to every competition and is kept on updates.</p>
+                        <p class="mt-1 text-xs text-gray-500">A label for lists and exports; it need not be unique.</p>
                     </div>
                     <div>
                         <label for="form-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -40,8 +40,6 @@
                         <select id="form-level" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="individual">Individual</option>
                             <option value="team">Team</option>
-                            <option value="aggregate">Aggregate (e.g. Remington)</option>
-                            <option value="combined">Combined ranking (e.g. KUCR = KUCRS + KUCRU)</option>
                         </select>
                     </div>
                     <div>
@@ -50,23 +48,12 @@
                             <option value="original">Original</option>
                             <option value="reproduction">Reproduction</option>
                             <option value="open">Open</option>
-                            <option value="combined" hidden>Combined (original + reproduction)</option>
                         </select>
                     </div>
                     <div id="team-of-group" class="md:col-span-2 lg:col-span-3">
                         <span class="block text-sm font-medium text-gray-700 mb-1">Results that count</span>
-                        <p class="text-xs text-gray-500 mb-2">The individual disciplines whose starts can be team members (at least one).</p>
+                        <p id="team-of-hint" class="text-xs text-gray-500 mb-2">The individual disciplines whose starts can be team members.</p>
                         <div id="form-team-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
-                    </div>
-                    <div id="aggregate-of-group" class="md:col-span-2 lg:col-span-3 hidden">
-                        <span class="block text-sm font-medium text-gray-700 mb-1">Events that are added up</span>
-                        <p class="text-xs text-gray-500 mb-2">Individual events of the same category and type whose best results are summed (at least one). Competitors are entered in the aggregate, but it has no results or lane of its own.</p>
-                        <div id="form-aggregate-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
-                    </div>
-                    <div id="combined-of-group" class="md:col-span-2 lg:col-span-3 hidden">
-                        <span class="block text-sm font-medium text-gray-700 mb-1">Disciplines ranked together</span>
-                        <p class="text-xs text-gray-500 mb-2">Individual disciplines of the same category, of any type (at least two). Competitors start in these; when a meet ranks the combined ranking, they are ranked only through it, each competitor once on their best result.</p>
-                        <div id="form-combined-of" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1"></div>
                     </div>
                     <div id="team-size-group">
                         <label for="form-team-size" class="block text-sm font-medium text-gray-700 mb-1">Team Size</label>
@@ -78,6 +65,11 @@
                             <option value="">any distance</option>
                         </select>
                     </div>
+                    <div class="flex items-end">
+                        <label class="flex items-center gap-2 text-sm cursor-pointer" title="An archived discipline is offered for no new ranking; its history stays">
+                            <input type="checkbox" id="form-active" class="h-4 w-4" checked> Active
+                        </label>
+                    </div>
                     <div class="flex items-end gap-2 md:col-span-2 lg:col-span-3">
                         <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Save</button>
                         <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancel</button>
@@ -86,9 +78,31 @@
             </div>
 
             <p class="mb-6 px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm no-print">
-                Which disciplines this meet shoots, and whether original and reproduction are ranked combined, is set in
-                the <a href="/meet/" class="underline font-medium">Program on the Meet page</a>.
+                The disciplines are the same at every meet. What a meet ranks, and which disciplines it therefore
+                shoots, is set on the <a href="/rankings/" class="underline font-medium">Rankings page</a>.
             </p>
+
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
+                <div class="flex flex-wrap items-end gap-6">
+                    <div>
+                        <label for="max-disciplines" class="block text-sm font-medium text-gray-700 mb-1">Disciplines a team may count, at most</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="max-disciplines" min="1" max="20" class="w-24 px-3 py-2 border border-gray-300 rounded-md">
+                            <button id="save-max-btn" class="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Save</button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Also the default limit of disciplines per ranking for a new meet.</p>
+                    </div>
+                    <div class="flex flex-wrap items-end gap-2 ml-auto">
+                        <button id="export-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Export Disciplines</button>
+                        <select id="import-mode" class="px-2 py-2 border border-gray-300 rounded-md text-sm" title="Merge: add and update by id. Replace: also remove the disciplines the file lacks">
+                            <option value="merge">Import: merge</option>
+                            <option value="replace">Import: replace</option>
+                        </select>
+                        <button id="import-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Import Disciplines…</button>
+                        <input type="file" id="import-file" accept=".json,application/json" class="hidden">
+                    </div>
+                </div>
+            </div>
 
             <!-- Discipline List -->
             <div class="bg-white rounded-lg shadow-md p-6">
@@ -104,12 +118,12 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Short Name</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Info</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shooting Distance</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Actions</th>
                             </tr>

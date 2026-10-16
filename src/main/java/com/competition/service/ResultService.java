@@ -58,7 +58,7 @@ public class ResultService {
                     enrichedResult.put("competitor_id", resultData.get("competitor_id"));
                     enrichedResult.put("competitor_name", competitorData.get("name"));
                     enrichedResult.put("discipline_id", resultData.get("discipline_id"));
-                    enrichedResult.put("event_name", discipline.getEvent());
+                    enrichedResult.put("event_name", discipline.getName());
                     enrichedResult.put("value", resultData.get("value"));
                     enrichedResult.put("entries", resultData.get("entries"));
                     enrichedResult.put("override_value", resultData.get("override_value"));
@@ -74,17 +74,6 @@ public class ResultService {
     }
 
     public Result createResult(Result result) throws Exception {
-        // An aggregate's start (e.g. Remington) is ranked on its components' results, it gets none itself
-        Discipline discipline = disciplineService != null
-            ? disciplineService.getAvailableDisciplineById(result.getDisciplineId()) : null;
-        if (DisciplineService.isAggregate(discipline)) {
-            throw new IllegalArgumentException(discipline.getEvent() + " takes no result of its own: enter the "
-                + String.join(" and ", discipline.getAggregateOf()) + " results instead");
-        }
-        if (DisciplineService.isCombinedRanking(discipline)) {
-            throw new IllegalArgumentException(discipline.getEvent()
-                + " is a combined ranking: enter the result in the discipline that was shot");
-        }
         return dataService.update(data -> {
             List<Map<String, Object>> resultsData = resultsOf(data);
 

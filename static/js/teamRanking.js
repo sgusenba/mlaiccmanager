@@ -7,17 +7,22 @@ export const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c =
 /** "Miquelet (original)": the event alone is ambiguous, it exists once per type. */
 export const disciplineDisplayName = (event, type) => (type ? `${event} (${type})` : event);
 
-/** Whether a ranking ranks several disciplines together: an event's original and reproduction, or a combined ranking (KUC). */
-export const isCombined = (discipline) => discipline?.type === 'combined' || !!discipline?.combined_of?.length;
+/** Whether a ranking ranks several entries together (e.g. Whitworth_O and Whitworth_R): each row then says which. */
+export const isCombined = (ranking) => !!ranking?.pooled;
 
-/** Header of the column with the discipline shot: "O/R", or "Disc." in a combined ranking (KUCRS, KUCRU, ...). */
-export const typeHeader = (discipline) => (discipline?.combined_of?.length ? 'Disc.' : 'O/R');
+/** Header of the column with the entry a row's result is from. */
+export const typeHeader = () => 'Disc.';
 
-/** An aggregate ranking (Remington) adds up other disciplines' results: one column per component. */
-export const componentsOf = (discipline) => discipline?.components || [];
+/** Whether a ranking adds up disciplines (e.g. Remington_O = Colt + Donald Malson_O) in one of its entries. */
+export const hasSums = (ranking) => (ranking?.entries || []).some(e => e.discipline_ids.length > 1);
 
-/** In a combined ranking: the discipline the competitor shot (e.g. "KUCRS"), else "O" (original) or "R" (reproduction). */
-export const typeTag = (row) => row.discipline_tag || ({ original: 'O', reproduction: 'R' }[row.discipline_type] || '');
+/** The entry a row's result is from, e.g. "WHITO" or "Remington_O". */
+export const typeTag = (row) => row.discipline_tag || '';
+
+/** What a ranking ranks, e.g. "WHITO | WHITR" or "Remington_O (COLT + MALO)". */
+export const entriesLine = (ranking) => (ranking?.entries || [])
+    .map(e => (e.discipline_ids.length > 1 ? `${e.label} (${e.short_names.join(' + ')})` : e.short_names[0]))
+    .join(' | ');
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -47,26 +52,27 @@ function memberLine(member) {
 export const missingTieBreakCell = '<span class="inline-block px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs font-medium">missing</span>';
 
 /**
- * Card with the ranked teams of one team discipline (response of /api/teams/ranking/{id}).
+ * Card with the ranked teams of one team ranking (response of /api/rankings/{id}/result).
  * showRank: false leaves out the rank column. rowClass(team, index): extra
  * classes for a row. markMissingTieBreak: shows a missing tie-break as such instead of "-".
  */
 export function teamRankingCard(data, { extraClass = '', showRank = true, rowClass = () => '', markMissingTieBreak = false } = {}) {
-    const discipline = data.discipline;
+    const ranking = data.ranking;
+    const pooled = isCombined(ranking);
     const header = `
         <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">
-                ${escapeHtml(disciplineDisplayName(discipline.name, discipline.type))}
-                <span class="text-sm text-gray-500 ml-2">${escapeHtml(discipline.category)} team</span>
+                ${escapeHtml(ranking.name)}
+                <span class="text-sm text-gray-500 ml-2">${escapeHtml(ranking.category)} team</span>
             </h3>
-            <p class="text-sm text-gray-500">From ${escapeHtml((discipline.composition || []).join(' + ') || '-')} · ${discipline.team_size} shooters per team</p>
+            <p class="text-sm text-gray-500">${pooled ? `${escapeHtml(entriesLine(ranking))} · ` : ''}From ${escapeHtml((ranking.composition || []).join(' + ') || '-')} · ${ranking.team_size} shooters per team</p>
         </div>`;
 
     if (!data.rankings || data.rankings.length === 0) {
         return `
             <div class="bg-white rounded-lg shadow-md ${extraClass}">
                 ${header}
-                <div class="p-6 text-center text-gray-500">No teams entered for this discipline yet.</div>
+                <div class="p-6 text-center text-gray-500">No teams entered for this ranking yet.</div>
             </div>`;
     }
 
@@ -80,6 +86,7 @@ export function teamRankingCard(data, { extraClass = '', showRank = true, rowCla
                             <tr>
                                 ${showRank ? '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>' : ''}
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                                ${pooled ? '<th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Disc.</th>' : ''}
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
                                 <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                                 ${RINGS.map(ring => `<th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">${ring}s</th>`).join('')}
@@ -95,6 +102,7 @@ export function teamRankingCard(data, { extraClass = '', showRank = true, rowCla
                                         ${team.complete ? '' : '<span class="inline-block mt-1 text-xs font-normal px-2 py-0.5 rounded bg-yellow-100 text-yellow-800">incomplete</span>'}
                                         ${team.notes ? `<div class="text-xs font-normal text-gray-500 mt-1">${escapeHtml(team.notes)}</div>` : ''}
                                     </td>
+                                    ${pooled ? `<td class="px-2 py-3 text-center text-sm font-normal">${escapeHtml(team.discipline_tag || '')}</td>` : ''}
                                     <td class="px-4 py-3 font-normal min-w-[16rem]">${team.members.map(memberLine).join('') || '<span class="text-sm text-gray-400">-</span>'}</td>
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm">${formatScore(team.total)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${team.freq_counts[ring] ?? 0}</td>`).join('')}

@@ -1,15 +1,14 @@
 // Meet page: the meet's name, venue, host and dates, and the printouts made
 // from them: a start card per starter (A4 portrait) and a race bib per
 // starter (A4 landscape), printed or exported as Word documents, plus the
-// lane assignments as a CSV file and as target labels (printed or Word), and
-// the program: which disciplines are shot and how (program.js).
+// lane assignments as a CSV file and as target labels (printed or Word).
+// The meet's rankings are set on the Rankings page.
 
 import { escapeHtml, formatDateRange, loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { laneRows, toCsv } from './laneExport.js';
 import { LABEL_PAGE_SIZE, labelSize, labelsPerSheet, targetLabels, targetLabelsDocx, targetLabelsHtml } from './labelExport.js';
 import { raceBibsDocx, startCardsDocx } from './wordExport.js';
-import { initProgram } from './program.js';
 
 const PAGE_SIZES = {
     cards: '@page { size: A4 portrait; margin: 12mm; }',
@@ -182,7 +181,18 @@ function meetLine() {
     return [meet.location, meet.dateText].filter(Boolean).map(escapeHtml).join(' · ');
 }
 
-function scheduledRow(entry) {
+/** The names of the meet's rankings a discipline counts in, e.g. "Whitworth O/R, Whitworth O". */
+export const rankingNames = (rankingsByDiscipline, disciplineId) =>
+    (rankingsByDiscipline?.[disciplineId] || []).map(r => r.name).join(', ');
+
+// The discipline shot, with the rankings it counts in below it
+function disciplineCell(start, rankingsByDiscipline) {
+    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id);
+    return `${escapeHtml(start.discipline_name ?? '')}${rankings
+        ? `<div class="card-rankings">Rankings: ${escapeHtml(rankings)}</div>` : ''}`;
+}
+
+function scheduledRow(entry, rankingsByDiscipline) {
     return `
         <tr>
             <td>${escapeHtml(formatDay(entry.date))}</td>
@@ -190,34 +200,43 @@ function scheduledRow(entry) {
             <td class="num">${escapeHtml(entry.start_time ?? '')}</td>
             <td class="num">${escapeHtml(entry.range_name ?? '')}</td>
             <td class="num">${escapeHtml(entry.lane_no ?? '')}</td>
-            <td>${escapeHtml(entry.discipline_name ?? '')}</td>
+            <td>${disciplineCell(entry, rankingsByDiscipline)}</td>
             <td class="mono">${escapeHtml(entry.start_id)}</td>
         </tr>`;
 }
 
-function unscheduledRow(start) {
+function unscheduledRow(start, rankingsByDiscipline, note = 'not yet scheduled') {
     return `
         <tr class="unscheduled">
-            <td colspan="5">not yet scheduled</td>
-            <td>${escapeHtml(start.discipline_name ?? '')}</td>
+            <td colspan="5">${note}</td>
+            <td>${disciplineCell(start, rankingsByDiscipline)}</td>
             <td class="mono">${escapeHtml(start.start_id)}</td>
         </tr>`;
 }
 
-// A start that takes no lane (e.g. Remington, whose results come from other disciplines)
-function noLaneRow(start) {
+// The starter's teams, each with the team rankings it counts in
+function teamsTable(teams, rankingsByDiscipline) {
+    if (!teams.length) return '';
     return `
-        <tr class="unscheduled">
-            <td colspan="5">no lane needed</td>
-            <td>${escapeHtml(start.discipline_name ?? '')}</td>
-            <td class="mono">${escapeHtml(start.start_id)}</td>
-        </tr>`;
+            <h4>Teams (${teams.length})</h4>
+            <table>
+                <thead><tr><th>Team</th><th>Team discipline</th><th>Rankings</th></tr></thead>
+                <tbody>
+                    ${teams.map(team => `
+                        <tr>
+                            <td>${escapeHtml(team.name)}</td>
+                            <td>${escapeHtml(team.discipline_name ?? '')}</td>
+                            <td>${escapeHtml(rankingNames(rankingsByDiscipline, team.discipline_id))}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
 }
 
-function startCard(competitor, row, printedAt) {
+function startCard(competitor, row, printedAt, { rankingsByDiscipline, teamsByCompetitor } = {}) {
     const scheduled = row?.scheduled || [];
     const unscheduled = row?.unscheduled || [];
     const noLane = row?.no_lane || [];
+    const teams = teamsByCompetitor?.get(competitor.id) || [];
     const count = scheduled.length + unscheduled.length + noLane.length;
     const starts = count
         ? `
@@ -226,9 +245,9 @@ function startCard(competitor, row, printedAt) {
                     <tr><th>Day</th><th>Relay</th><th>Time</th><th>Range</th><th>Lane</th><th>Discipline</th><th>Start ID</th></tr>
                 </thead>
                 <tbody>
-                    ${scheduled.map(scheduledRow).join('')}
-                    ${unscheduled.map(unscheduledRow).join('')}
-                    ${noLane.map(noLaneRow).join('')}
+                    ${scheduled.map(entry => scheduledRow(entry, rankingsByDiscipline)).join('')}
+                    ${unscheduled.map(start => unscheduledRow(start, rankingsByDiscipline)).join('')}
+                    ${noLane.map(start => unscheduledRow(start, rankingsByDiscipline, 'no lane needed')).join('')}
                 </tbody>
             </table>`
         : '<p class="card-empty">No starts registered.</p>';
@@ -255,6 +274,7 @@ function startCard(competitor, row, printedAt) {
             </div>
             <h4>Starts (${count})</h4>
             ${starts}
+            ${teamsTable(teams, rankingsByDiscipline)}
             <footer class="card-foot">
                 <span>${escapeHtml(competitor.name)} · ${escapeHtml(competitor.id)}</span>
                 <span>Printed ${escapeHtml(printedAt)}</span>
@@ -284,23 +304,35 @@ function bib(competitor) {
 async function loadPrintout(kind) {
     const selected = document.getElementById(`${kind}-starter`).value;
     const query = document.getElementById(`${kind}-search`).value;
-    const [starters, overview] = await Promise.all([
+    const cards = kind === 'cards';
+    const [starters, overview, rankingsByDiscipline, teams] = await Promise.all([
         loadStarters(),
-        kind === 'cards' ? api('/rmgmt/overview') : null,
+        cards ? api('/rmgmt/overview') : null,
+        cards ? api('/rankings/by-discipline') : null,
+        cards ? api('/teams') : null,
         refreshMeet()
     ]);
     const chosen = (selected ? starters.filter(c => String(c.id) === selected) : matchingStarters(starters, query))
         .sort(printOrder);
     if (chosen.length === 0) throw new Error('There are no starters to export.');
     const rows = new Map((overview?.rows || []).map(row => [row.competitor?.id, row]));
-    return { chosen, rows, printedAt: new Date().toLocaleString() };
+    // Each competitor's teams
+    const teamsByCompetitor = new Map();
+    for (const team of teams || []) {
+        for (const member of team.members || []) {
+            if (member.competitor_id === undefined || member.competitor_id === null) continue;
+            if (!teamsByCompetitor.has(member.competitor_id)) teamsByCompetitor.set(member.competitor_id, []);
+            teamsByCompetitor.get(member.competitor_id).push(team);
+        }
+    }
+    return { chosen, rows, printedAt: new Date().toLocaleString(), extras: { rankingsByDiscipline, teamsByCompetitor } };
 }
 
 /** Fills the print area for 'cards' or 'bibs' with the selected starters' pages. */
 async function renderPrintout(kind) {
-    const { chosen, rows, printedAt } = await loadPrintout(kind);
+    const { chosen, rows, printedAt, extras } = await loadPrintout(kind);
     const pages = kind === 'cards'
-        ? chosen.map(c => startCard(c, rows.get(c.id), printedAt))
+        ? chosen.map(c => startCard(c, rows.get(c.id), printedAt, extras))
         : chosen.map(bib);
     document.getElementById('page-size').textContent = PAGE_SIZES[kind];
     document.getElementById('print-area').innerHTML = pages.join('');
@@ -308,9 +340,9 @@ async function renderPrintout(kind) {
 }
 
 async function exportWord(kind) {
-    const { chosen, rows, printedAt } = await loadPrintout(kind);
+    const { chosen, rows, printedAt, extras } = await loadPrintout(kind);
     const file = kind === 'cards'
-        ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay })
+        ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay, ...extras })
         : raceBibsDocx(meet, chosen);
     downloadBlob(file, exportFileName(FILE_PREFIXES[kind], 'docx'));
     const what = kind === 'cards' ? 'start card' : 'race bib';
@@ -478,7 +510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-        await Promise.all([refreshMeet(), refreshStarterSelects(), initProgram({ api, showMessage })]);
+        await Promise.all([refreshMeet(), refreshStarterSelects()]);
     } catch (error) {
         showMessage(`Error loading the meet: ${error.message}`);
     }

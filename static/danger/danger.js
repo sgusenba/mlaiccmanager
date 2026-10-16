@@ -55,12 +55,19 @@ const ITEMS = [
         count: c => (c.meet ? 'set' : 'empty')
     },
     {
+        target: 'rankings',
+        title: 'Rankings',
+        what: "the meet's rankings",
+        description: "Deletes every ranking of this meet. Starts, results and teams stay, but no discipline is in the program any more until rankings are set up again.",
+        count: c => plural(c.rankings, 'ranking')
+    },
+    {
         target: 'disciplines',
-        title: 'Discipline Settings',
+        title: 'Discipline Catalog',
         action: 'Reset',
-        what: 'the discipline settings',
-        description: 'Resets the disciplines to the shipped catalog, like a fresh install: every catalog discipline active, edits (e.g. the range) undone, removed ones back. Added disciplines are deleted, with their starts, results, lane assignments and teams.',
-        count: c => `${c.active_disciplines} active, ${c.added_disciplines} added`
+        what: 'the discipline catalog',
+        description: 'Resets the disciplines to the shipped catalog, like a fresh install: edits (e.g. the range) undone, removed ones back. Disciplines the shipped catalog lacks are deleted, from the rankings too, with their starts, results, lane assignments and teams.',
+        count: c => plural(c.disciplines, 'discipline')
     }
 ];
 

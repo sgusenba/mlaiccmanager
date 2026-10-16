@@ -1,45 +1,44 @@
 package com.competition.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * A discipline of the installation's catalog (disciplines.json): something
+ * that is shot, so competitors start in it and get a lane (individual), or
+ * that teams are entered for (team). Disciplines are the same at every meet;
+ * what is ranked, and how, is a meet's rankings (see RankingDefinition).
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Discipline {
     @JsonProperty("id")
     private int id;
-    
+
     @JsonProperty("category")
     private String category;
-    
+
+    // "individual" or "team"
     @JsonProperty("level")
     private String level;
-    
+
+    // "original", "reproduction" or "open"; shown and used for the lane order only
     @JsonProperty("type")
     private String type;
-    
-    @JsonProperty("event")
-    private String event;
 
+    @JsonProperty("name")
+    @JsonAlias("event")
+    private String name;
+
+    // A display label, e.g. KUCRS; need not be unique, everything refers to the id
     @JsonProperty("short_name")
     private String shortName;
-    
-    @JsonProperty("scoring_type")
-    private String scoringType;
-    
-    @JsonProperty("unit")
-    private String unit;
-    
-    @JsonProperty("description")
-    private String description;
-    
-    @JsonProperty("created_at")
-    private String createdAt;
-    
-    @JsonProperty("based_on")
-    private String basedOn;
-    
+
     @JsonProperty("team_size")
     private Integer teamSize;
 
@@ -50,28 +49,12 @@ public class Discipline {
     @JsonProperty("shooting_distance")
     private String shootingDistance;
 
-    // Set on an aggregate discipline (e.g. Remington): the events, of the same
-    // category and type, whose results are added up. It has no starts of its own.
-    @JsonProperty("aggregate_of")
-    private List<String> aggregateOf;
-
-    // Set on a combined ranking (e.g. KUCR = KUCRS + KUCRU): the individual disciplines,
-    // of the same category, ranked together. Competitors start in those, not in it.
-    @JsonProperty("combined_of")
-    private List<Integer> combinedOf;
-
+    // False: archived, offered for no new ranking, its history stays
     @JsonProperty("active")
     private boolean active = true;
 
-    // Constructors
     public Discipline() {}
 
-    public Discipline(String event, String category) {
-        this.event = event;
-        this.category = category;
-    }
-
-    // Getters and Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -84,26 +67,11 @@ public class Discipline {
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 
-    public String getEvent() { return event; }
-    public void setEvent(String event) { this.event = event; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
     public String getShortName() { return shortName; }
     public void setShortName(String shortName) { this.shortName = shortName; }
-
-    public String getScoringType() { return scoringType; }
-    public void setScoringType(String scoringType) { this.scoringType = scoringType; }
-
-    public String getUnit() { return unit; }
-    public void setUnit(String unit) { this.unit = unit; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
-
-    public String getBasedOn() { return basedOn; }
-    public void setBasedOn(String basedOn) { this.basedOn = basedOn; }
 
     public Integer getTeamSize() { return teamSize; }
     public void setTeamSize(Integer teamSize) { this.teamSize = teamSize; }
@@ -114,12 +82,16 @@ public class Discipline {
     public String getShootingDistance() { return shootingDistance; }
     public void setShootingDistance(String shootingDistance) { this.shootingDistance = shootingDistance; }
 
-    public List<String> getAggregateOf() { return aggregateOf; }
-    public void setAggregateOf(List<String> aggregateOf) { this.aggregateOf = aggregateOf; }
-
-    public List<Integer> getCombinedOf() { return combinedOf; }
-    public void setCombinedOf(List<Integer> combinedOf) { this.combinedOf = combinedOf; }
-
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    /** The short name, else the name: how the discipline is tagged in lists. */
+    public String label() {
+        return shortName != null && !shortName.isBlank() ? shortName : name;
+    }
+
+    @JsonIgnore
+    public boolean isTeam() {
+        return "team".equalsIgnoreCase(level);
+    }
 }

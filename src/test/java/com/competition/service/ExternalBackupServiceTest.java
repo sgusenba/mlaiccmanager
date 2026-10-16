@@ -54,10 +54,9 @@ class ExternalBackupServiceTest {
         });
         receiver.start();
 
-        Files.writeString(tempDir.resolve("disciplines.json"), "[{\"id\":1,\"level\":\"individual\"}]");
+        TestFiles.writeCatalog(tempDir, "[{\"id\":1,\"level\":\"individual\"}]");
         writeData();
-        DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
-            tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
+        DataService dataService = TestFiles.dataService(tempDir);
         TeamService teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
         RelayService relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
         MeetService meetService = new MeetService(tempDir.resolve("meet.json").toString());

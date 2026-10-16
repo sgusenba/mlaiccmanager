@@ -13,10 +13,25 @@ const START_COLUMNS = [38, 17, 18, 20, 14, 49, 30];
 
 const idSize = (id) => (String(id).length >= 5 ? 32 : String(id).length === 4 ? 38 : 44);
 
-function startCard(meet, competitor, row, printedAt, formatDay, first) {
+const rankingNames = (rankingsByDiscipline, disciplineId) =>
+    (rankingsByDiscipline?.[disciplineId] || []).map(r => r.name).join(', ');
+
+// The discipline shot, with the rankings it counts in below it
+function disciplineCell(start, rankingsByDiscipline, style = {}) {
+    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id);
+    return {
+        paragraphs: [
+            paragraph(start.discipline_name ?? '', { size: 10, ...style }),
+            ...(rankings ? [paragraph(`Rankings: ${rankings}`, { size: 7.5, color: GREY, italic: false })] : [])
+        ]
+    };
+}
+
+function startCard(meet, competitor, row, printedAt, formatDay, first, { rankingsByDiscipline, teamsByCompetitor } = {}) {
     const scheduled = row?.scheduled || [];
     const unscheduled = row?.unscheduled || [];
     const noLane = row?.no_lane || [];
+    const teams = teamsByCompetitor?.get(competitor.id) || [];
     const header = [
         paragraph(meet.name || 'Start Card', { size: 20, bold: true, pageBreakBefore: !first, keepNext: true }),
         ...[meetLine(meet), meet.host ? `Host: ${meet.host}` : ''].filter(Boolean)
@@ -56,7 +71,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first) {
                 { text: entry.start_time ?? '', align: 'center' },
                 { text: entry.range_name ?? '', align: 'center' },
                 { text: entry.lane_no ?? '', align: 'center' },
-                entry.discipline_name ?? '',
+                disciplineCell(entry, rankingsByDiscipline),
                 { text: entry.start_id, mono: true }
             ]),
             ...[...unscheduled.map(start => ['not yet scheduled', start]), ...noLane.map(start => ['no lane needed', start])]
@@ -65,7 +80,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first) {
                     color: '555555',
                     cells: [
                         { text: note, span: 5 },
-                        start.discipline_name ?? '',
+                        disciplineCell(start, rankingsByDiscipline, { italic: true, color: '555555' }),
                         { text: start.start_id, mono: true, italic: false }
                     ]
                 }))
@@ -77,19 +92,31 @@ function startCard(meet, competitor, row, printedAt, formatDay, first) {
         { text: `Printed ${printedAt}`, align: 'right', borders: { top: 0.75 } }
     ]], { widths: [CARD_WIDTH / 2, CARD_WIDTH / 2], borders: 'none', size: 8, color: GREY });
 
+    // The starter's teams, each with the team rankings it counts in
+    const teamPart = teams.length ? [
+        paragraph(`Teams (${teams.length})`, { size: 13, bold: true, spaceBefore: 14, spaceAfter: 5, keepNext: true }),
+        table([
+            { cells: ['Team', 'Team discipline', 'Rankings'], size: 8.5, caps: true },
+            ...teams.map(team => [team.name ?? '', team.discipline_name ?? '',
+                rankingNames(rankingsByDiscipline, team.discipline_id)])
+        ], { widths: [56, 60, CARD_WIDTH - 116], header: true, size: 10, borderPt: 0.75, padding: 1.2 })
+    ] : [];
+
     return [
         ...header,
         starter,
         paragraph(`Starts (${count})`, { size: 13, bold: true, spaceBefore: 18, spaceAfter: 5, keepNext: true }),
         starts,
-        paragraph('', { spaceAfter: 18 }), // keeps the two tables apart
+        ...teamPart,
+        paragraph('', { spaceAfter: 18 }), // keeps the tables apart from the foot
         foot
     ];
 }
 
 /** One start card per starter; rows: the starter overview rows by competitor ID. */
-export function startCardsDocx(meet, competitors, rows, { printedAt, formatDay }) {
-    const body = competitors.flatMap((c, i) => startCard(meet, c, rows.get(c.id), printedAt, formatDay, i === 0));
+export function startCardsDocx(meet, competitors, rows, { printedAt, formatDay, rankingsByDiscipline, teamsByCompetitor }) {
+    const body = competitors.flatMap((c, i) => startCard(meet, c, rows.get(c.id), printedAt, formatDay, i === 0,
+        { rankingsByDiscipline, teamsByCompetitor }));
     return docx(body, { margin: 12 });
 }
 

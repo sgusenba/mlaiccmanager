@@ -1,0 +1,636 @@
+{
+  "format": "mlaic-disciplines",
+  "version": 1,
+  "max_disciplines": 4,
+  "disciplines": [
+    {
+      "id": 1,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "1_Miquelet_O",
+      "short_name": "MIQO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 2,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "2_Maximilian_O",
+      "short_name": "MAXO",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 3,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "3_Minie_O",
+      "short_name": "MINO",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 4,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "4_Whitworth_O",
+      "short_name": "WHITO",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 5,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "8_Walkyrie_O",
+      "short_name": "WALO",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 6,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "14_Tanegashima_O",
+      "short_name": "TANO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 7,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "15_Vetterli_O",
+      "short_name": "VETO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 8,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "16_Hizadai_O",
+      "short_name": "HIZO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 9,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "36_Pennsylvania_O",
+      "short_name": "PENO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 10,
+      "category": "rifle",
+      "level": "individual",
+      "type": "original",
+      "name": "37_Lamarmora_O",
+      "short_name": "LAMO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 11,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "1_Miquelet_R",
+      "short_name": "MIQR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 12,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "2_Maximilian_R",
+      "short_name": "MAXR",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 13,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "3_Minie_R",
+      "short_name": "MINR",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 14,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "4_Whitworth_R",
+      "short_name": "WHITR",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 15,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "8_Walkyrie_R",
+      "short_name": "WALR",
+      "shooting_distance": "m100"
+    },
+    {
+      "id": 16,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "14_Tanegashima_R",
+      "short_name": "TANR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 17,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "15_Vetterli_R",
+      "short_name": "VETR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 18,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "16_Hizadai_R",
+      "short_name": "HIZR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 19,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "36_Pennsylvania_R",
+      "short_name": "PENR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 20,
+      "category": "rifle",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "37_Lamarmora_R",
+      "short_name": "LAMR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 31,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "9_Gustav Adolph",
+      "team_size": 3,
+      "team_of": [
+        1
+      ]
+    },
+    {
+      "id": 32,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "10_Pauly",
+      "team_size": 3,
+      "team_of": [
+        3
+      ]
+    },
+    {
+      "id": 33,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "17_Amazons",
+      "team_size": 3,
+      "team_of": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": 34,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "19_Nagashino",
+      "team_size": 3,
+      "team_of": [
+        6,
+        16
+      ]
+    },
+    {
+      "id": 35,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "20_Rigby",
+      "team_size": 3,
+      "team_of": [
+        4,
+        14
+      ]
+    },
+    {
+      "id": 36,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "24_Pforzheim",
+      "team_size": 3,
+      "team_of": [
+        7,
+        17
+      ]
+    },
+    {
+      "id": 37,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "26_Wedgnock",
+      "team_size": 3,
+      "team_of": [
+        2
+      ]
+    },
+    {
+      "id": 38,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "27_Nobunaga",
+      "team_size": 3,
+      "team_of": [
+        6
+      ]
+    },
+    {
+      "id": 39,
+      "category": "rifle",
+      "level": "team",
+      "type": "reproduction",
+      "name": "31_Halikko",
+      "team_size": 3,
+      "team_of": [
+        11
+      ]
+    },
+    {
+      "id": 40,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "43_Hibuta",
+      "team_size": 3,
+      "team_of": [
+        8
+      ]
+    },
+    {
+      "id": 41,
+      "category": "rifle",
+      "level": "team",
+      "type": "original",
+      "name": "XX_Königgrätz",
+      "team_size": 3,
+      "team_of": [
+        10
+      ]
+    },
+    {
+      "id": 42,
+      "category": "rifle",
+      "level": "team",
+      "type": "reproduction",
+      "name": "29_Lucca",
+      "team_size": 3,
+      "team_of": [
+        12
+      ]
+    },
+    {
+      "id": 43,
+      "category": "rifle",
+      "level": "team",
+      "type": "reproduction",
+      "name": "32_Magenta",
+      "team_size": 3,
+      "team_of": [
+        13
+      ]
+    },
+    {
+      "id": 44,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "40_Enfield",
+      "team_size": 3,
+      "team_of": [
+        10,
+        20
+      ]
+    },
+    {
+      "id": 45,
+      "category": "rifle",
+      "level": "team",
+      "type": "reproduction",
+      "name": "44_Hinawa",
+      "team_size": 3,
+      "team_of": [
+        18
+      ]
+    },
+    {
+      "id": 46,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "11_GP of Versailles",
+      "team_size": 6,
+      "team_of": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": 47,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "Rigby",
+      "team_size": 3,
+      "team_of": [
+        4,
+        14
+      ]
+    },
+    {
+      "id": 48,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "Pforzheim",
+      "team_size": 3,
+      "team_of": [
+        7,
+        17
+      ]
+    },
+    {
+      "id": 49,
+      "category": "rifle",
+      "level": "team",
+      "type": "open",
+      "name": "42_Kossuth",
+      "team_size": 3,
+      "team_of": [
+        9,
+        19
+      ]
+    },
+    {
+      "id": 50,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "5_Cominazzo_O",
+      "short_name": "COMO",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 51,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "6_Kuchenreuter_O",
+      "short_name": "KUCO",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 52,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "7_Colt",
+      "short_name": "COLT",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 53,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "23_Donald Malson O",
+      "short_name": "MALO",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 54,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "28_Tanzutsu_O",
+      "short_name": "TANO",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 55,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "5_Cominazzo_R",
+      "short_name": "COMR",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 56,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "6_Kuchenreuter_RU",
+      "short_name": "KUCRU",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 57,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "12_Mariette",
+      "short_name": "MAR",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 58,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "23_Donald Malson R",
+      "short_name": "MALR",
+      "shooting_distance": "m50"
+    },
+    {
+      "id": 59,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "28_Tanzutsu_R",
+      "short_name": "TANR",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 60,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "91_Meixner_RS",
+      "short_name": "MEIXRS",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 61,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "91_Meixner_RU",
+      "short_name": "MEIXRU",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 62,
+      "category": "pistol",
+      "level": "individual",
+      "type": "reproduction",
+      "name": "6_Kuchenreuter_RS",
+      "short_name": "KUCRS",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 63,
+      "category": "pistol",
+      "level": "individual",
+      "type": "original",
+      "name": "91_Meixner_O",
+      "short_name": "MEIXO",
+      "shooting_distance": "m25"
+    },
+    {
+      "id": 66,
+      "category": "pistol",
+      "level": "team",
+      "type": "original",
+      "name": "18_Boutet",
+      "team_size": 3,
+      "team_of": [
+        51
+      ]
+    },
+    {
+      "id": 67,
+      "category": "pistol",
+      "level": "team",
+      "type": "open",
+      "name": "25_Wogdon",
+      "team_size": 3,
+      "team_of": [
+        50,
+        55
+      ]
+    },
+    {
+      "id": 68,
+      "category": "pistol",
+      "level": "team",
+      "type": "original",
+      "name": "30_Adams",
+      "team_size": 3,
+      "team_of": [
+        52
+      ]
+    },
+    {
+      "id": 69,
+      "category": "pistol",
+      "level": "team",
+      "type": "original",
+      "name": "41_Egg",
+      "team_size": 3,
+      "team_of": [
+        50
+      ]
+    },
+    {
+      "id": 70,
+      "category": "pistol",
+      "level": "team",
+      "type": "reproduction",
+      "name": "13_Peterlongo",
+      "team_size": 3,
+      "team_of": [
+        57
+      ]
+    },
+    {
+      "id": 71,
+      "category": "pistol",
+      "level": "team",
+      "type": "reproduction",
+      "name": "33_Forsyth",
+      "team_size": 3,
+      "team_of": [
+        56
+      ]
+    },
+    {
+      "id": 72,
+      "category": "pistol",
+      "level": "team",
+      "type": "open",
+      "name": "39_Kunitomo",
+      "team_size": 3,
+      "team_of": [
+        54,
+        59
+      ]
+    },
+    {
+      "id": 73,
+      "category": "pistol",
+      "level": "team",
+      "type": "open",
+      "name": "45_El Alamo",
+      "team_size": 3,
+      "team_of": [
+        53,
+        58
+      ]
+    },
+    {
+      "id": 76,
+      "category": "pistol",
+      "level": "team",
+      "type": "open",
+      "name": "92_Springfield",
+      "short_name": "SPRING",
+      "team_size": 3,
+      "team_of": [
+        60,
+        61,
+        63
+      ]
+    }
+  ]
+}

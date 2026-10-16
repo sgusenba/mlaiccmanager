@@ -22,13 +22,13 @@ class DangerZoneServiceTest {
     private DangerZoneService dangerZoneService;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // Discipline 1 is in the catalog, 1000 was added for this competition
-    private static final String CATALOG = "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"event\":\"Miquelet\"},"
-        + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"event\":\"Gustav Adolph\",\"based_on\":\"Miquelet\"}]";
-    private static final String COMPETITION = "{\"active_disciplines\":[1,31,1000],\"discipline_overrides\":{},"
-        + "\"custom_disciplines\":[{\"id\":1000,\"category\":\"rifle\",\"level\":\"individual\",\"event\":\"Extra\"},"
-        + "{\"id\":1001,\"category\":\"rifle\",\"level\":\"team\",\"event\":\"Extra Team\",\"based_on\":\"Extra\"}],"
-        + "\"removed_disciplines\":[]}";
+    // Disciplines 1 and 31 are in the shipped catalog, 1000 and 1001 were added by this installation
+    private static final String SHIPPED = "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Miquelet\"},"
+        + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"name\":\"Gustav Adolph\",\"team_of\":[1]}]";
+    private static final String CATALOG = "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Miquelet\"},"
+        + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"name\":\"Gustav Adolph\",\"team_of\":[1]},"
+        + "{\"id\":1000,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Extra\"},"
+        + "{\"id\":1001,\"category\":\"rifle\",\"level\":\"team\",\"name\":\"Extra Team\",\"team_of\":[1000]}]";
     private static final String DATA = "{\"competitors\":["
         + "{\"id\":1,\"name\":\"Anna\",\"starts\":{\"1\":[{\"generated_id\":\"1-1-1\",\"start_number\":1}],"
         + "\"1000\":[{\"generated_id\":\"1-1000-1\",\"start_number\":1}]}},"
@@ -45,15 +45,14 @@ class DangerZoneServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG);
-        Files.writeString(tempDir.resolve("competition.json"), COMPETITION);
+        TestFiles.writeCatalog(tempDir, CATALOG);
+        Files.writeString(tempDir.resolve(DataService.DEFAULT_CATALOG_FILE), TestFiles.catalog(SHIPPED));
         Files.writeString(tempDir.resolve("data.json"), DATA);
         Files.writeString(tempDir.resolve("teams.json"), TEAMS);
         Files.writeString(tempDir.resolve("relays.json"), RELAYS);
         Files.writeString(tempDir.resolve("meet.json"), MEET);
 
-        DataService dataService = new DataService(tempDir.resolve("data.json").toString(),
-            tempDir.resolve("disciplines.json").toString(), tempDir.resolve("competition.json").toString());
+        DataService dataService = TestFiles.dataService(tempDir);
         TeamService teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
         RelayService relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
         MeetService meetService = new MeetService(tempDir.resolve("meet.json").toString());
@@ -78,12 +77,6 @@ class DangerZoneServiceTest {
         return values;
     }
 
-    private static List<String> textsOf(JsonNode array) {
-        List<String> texts = new ArrayList<>();
-        array.forEach(item -> texts.add(item.asText()));
-        return texts;
-    }
-
     @SuppressWarnings("unchecked")
     private static Map<String, Integer> cleared(Map<String, Object> result) {
         return (Map<String, Integer>) result.get("cleared");
@@ -100,8 +93,8 @@ class DangerZoneServiceTest {
         assertEquals(1, summary.get("relays"));
         assertEquals(2, summary.get("teams"));
         assertEquals(1, summary.get("meet"));
-        assertEquals(3L, summary.get("active_disciplines"));
-        assertEquals(2L, summary.get("added_disciplines"));
+        assertEquals(4, summary.get("rankings"));
+        assertEquals(4, summary.get("disciplines"));
     }
 
     @Test
@@ -197,6 +190,14 @@ class DangerZoneServiceTest {
     }
 
     @Test
+    void clearRankingsKeepsStartsAndTeams() throws Exception {
+        assertEquals(4, cleared(dangerZoneService.clear("rankings")).get("rankings"));
+        assertEquals(0, read("rankings.json").path("rankings").size());
+        assertEquals(3, startIds(read("data.json")).size());
+        assertEquals(2, read("teams.json").path("teams").size());
+    }
+
+    @Test
     void resetDisciplinesDropsAddedDisciplinesWithTheirStartsAndTeams() throws Exception {
         Map<String, Object> result = dangerZoneService.clear("disciplines");
 
@@ -205,10 +206,10 @@ class DangerZoneServiceTest {
         assertEquals(1, cleared(result).get("lane assignments"));
         assertEquals(1, cleared(result).get("teams"));
 
-        JsonNode competition = read("competition.json");
-        assertEquals(List.of("1", "31"), textsOf(competition.path("active_disciplines")),
-            "like a fresh install: the whole catalog is active");
-        assertEquals(0, competition.path("custom_disciplines").size());
+        assertEquals(List.of("1", "31"), values(read("disciplines.json").path("disciplines"), "id"),
+            "like a fresh install: the shipped catalog");
+        // The rankings of the added disciplines are gone
+        assertEquals(List.of("Miquelet", "Gustav Adolph"), values(read("rankings.json").path("rankings"), "name"));
         JsonNode data = read("data.json");
         assertEquals(List.of("1-1-1", "2-1-1"), startIds(data).stream().sorted().toList());
         assertEquals(List.of("1-1-1"), values(data.path("results"), "start_id"));

@@ -27,7 +27,7 @@ tags:
   - name: Meet
     description: Backs the `/meet` page; the meet's name, venue, host and dates live in `meet.json`.
   - name: Backup
-    description: Backs the `/backup` page; the zip holds `data.json`, `competition.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json`, `disciplines.local.json`).
+    description: Backs the `/backup` page; the zip holds `data.json`, `rankings.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json`).
   - name: Danger zone
     description: Backs the `/danger` page; clears one kind of data at a time, saving a safety copy first.
   - name: Build info
@@ -159,112 +159,22 @@ paths:
   /active-disciplines:
     get:
       tags: [Disciplines]
-      summary: Get the ids of the active disciplines
-      operationId: getActiveDisciplines
+      summary: The meet's program
+      description: The ids of the disciplines the meet's rankings cover, in ranking order. Only they take starts (individual) and teams (team).
+      operationId: getProgram
       responses:
         "200":
-          description: Active discipline ids
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/IdList" }
-        "500": { $ref: "#/components/responses/ServerError" }
-    post:
-      tags: [Disciplines]
-      summary: Set the active disciplines
-      description: |
-        Flips each catalog entry's `active` flag. Optionally send `base_ids` (the list
-        the change is based on); returns `409` if it changed in the meantime.
-      operationId: setActiveDisciplines
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                discipline_ids:
-                  type: array
-                  items: { type: integer }
-                base_ids:
-                  type: array
-                  items: { type: integer }
-      responses:
-        "200":
-          description: The new active discipline ids
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/IdList" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
-
-  /active-disciplines/{id}:
-    parameters:
-      - $ref: "#/components/parameters/IntId"
-    delete:
-      tags: [Disciplines]
-      summary: Deactivate a single discipline
-      operationId: deactivateDiscipline
-      responses:
-        "200":
-          description: The remaining active discipline ids
+          description: Discipline ids
           content:
             application/json:
               schema: { $ref: "#/components/schemas/IdList" }
         "500": { $ref: "#/components/responses/ServerError" }
 
-  /combined-events:
-    get:
-      tags: [Disciplines]
-      summary: Get the events whose original and reproduction can be ranked together
-      description: |
-        Every individual event with exactly one original and one reproduction discipline
-        (e.g. Miquelet; not Colt or Mariette), and whether this competition ranks them combined.
-        A combined event has one ranking, listed under the original's id, whose rows carry
-        `discipline_type` (`original` / `reproduction`). Team rankings are not affected.
-      operationId: getCombinedEvents
-      responses:
-        "200":
-          description: The combinable events
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/CombinedEvent" }
-        "500": { $ref: "#/components/responses/ServerError" }
-    put:
-      tags: [Disciplines]
-      summary: Rank an event's original and reproduction together or separately
-      description: |
-        Stored in `competition.json` (`combined_events`). Combining is rejected with 409 while
-        a competitor starts in both disciplines (`current` lists their names); while combined,
-        adding a start in the other discipline of the pair is rejected with 409 as well.
-      operationId: setCombinedEvent
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [key, combined]
-              properties:
-                key: { type: string, example: "rifle|Miquelet" }
-                combined: { type: boolean }
-      responses:
-        "200":
-          description: All combinable events after the change
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/CombinedEvent" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
   /available-disciplines:
     get:
       tags: [Disciplines]
       summary: Get the discipline catalog
-      description: The catalog with this competition's changes applied.
+      description: The installation's catalog (disciplines.json), the same for every meet.
       operationId: getAvailableDisciplines
       responses:
         "200":
@@ -278,6 +188,7 @@ paths:
     post:
       tags: [Disciplines]
       summary: Add a discipline to the catalog
+      description: It gets the next id after the highest one.
       operationId: createCatalogDiscipline
       requestBody:
         required: true
@@ -290,6 +201,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Discipline" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   /available-disciplines/{id}:
@@ -298,7 +210,10 @@ paths:
     put:
       tags: [Disciplines]
       summary: Update a catalog discipline
-      description: Only the fields present in the request are changed.
+      description: |
+        Only the fields present in the request are changed. `409` if a new `team_of` would
+        leave a stored team member's start out, or if the level or category of a discipline
+        in use (rankings, team disciplines, starts, teams) changes.
       operationId: updateCatalogDiscipline
       requestBody:
         required: true
@@ -312,14 +227,18 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Discipline" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
     delete:
       tags: [Disciplines]
       summary: Delete a catalog discipline
+      description: "`409` while rankings, team disciplines, starts or teams use it: archive it instead (`active: false`)."
       operationId: deleteCatalogDiscipline
       responses:
         "204": { description: Deleted }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   /available-disciplines/shooting-distances:
@@ -354,6 +273,83 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/Discipline" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /disciplines/settings:
+    get:
+      tags: [Disciplines]
+      summary: The catalog's settings
+      operationId: getDisciplineSettings
+      responses:
+        "200":
+          description: The settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisciplineSettings" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    put:
+      tags: [Disciplines]
+      summary: Set how many disciplines a team discipline may count
+      description: Refused below what a team discipline counts now. Also a new meet's default limit of disciplines per ranking.
+      operationId: setDisciplineSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisciplineSettings" }
+      responses:
+        "200":
+          description: The settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisciplineSettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /disciplines/export:
+    get:
+      tags: [Disciplines]
+      summary: The catalog as a file of its own
+      operationId: exportDisciplines
+      responses:
+        "200":
+          description: The disciplines file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisciplineCatalog" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /disciplines/import:
+    post:
+      tags: [Disciplines]
+      summary: Import a disciplines file
+      description: |
+        `merge` (default) adds new ids and updates existing ones; `replace` also removes the
+        disciplines the file lacks. Everything is checked first: a removed discipline still in
+        use, or a level or category change of one in use, refuses the whole import (`409`).
+      operationId: importDisciplines
+      parameters:
+        - name: mode
+          in: query
+          schema: { type: string, enum: [merge, replace], default: merge }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisciplineCatalog" }
+      responses:
+        "200":
+          description: What changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added: { type: array, items: { type: integer } }
+                  updated: { type: array, items: { type: integer } }
+                  removed: { type: array, items: { type: integer } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
   # -------------------------------------------------------------------- Results
@@ -432,77 +428,248 @@ paths:
         "500": { $ref: "#/components/responses/ServerError" }
 
   # ------------------------------------------------------------------- Rankings
-  /ranking:
+  /rankings:
     get:
       tags: [Rankings]
-      summary: Rankings of all disciplines that have results
-      operationId: getAllRankings
+      summary: The meet's rankings
+      operationId: getRankings
       responses:
         "200":
-          description: Rankings keyed by discipline id
+          description: The rankings, in the meet's order
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: { $ref: "#/components/schemas/DisciplineRanking" }
+              schema: { $ref: "#/components/schemas/RankingConfig" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      tags: [Rankings]
+      summary: Add a ranking
+      description: |
+        Every discipline must exist and have the ranking's level; a discipline is in a ranking
+        once (it may be in several rankings); a sum of several disciplines needs a `label`; a
+        team ranking has single team disciplines only, each counting at most the meet's limit
+        of disciplines; the ranking covers at most `max_disciplines_per_ranking` disciplines.
+      operationId: createRanking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RankingDefinition" }
+      responses:
+        "200":
+          description: The created ranking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingDefinition" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
-  /ranking/{disciplineId}:
+  /rankings/{id}:
     parameters:
-      - $ref: "#/components/parameters/DisciplineId"
+      - $ref: "#/components/parameters/IntId"
     get:
       tags: [Rankings]
-      summary: Ranking of one discipline
-      description: For team disciplines this returns the team ranking (`kind` = `team`).
-      operationId: getRanking
+      summary: One ranking
+      operationId: getRankingDefinition
       responses:
         "200":
           description: The ranking
           content:
             application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/DisciplineRanking"
-                  - $ref: "#/components/schemas/TeamRanking"
+              schema: { $ref: "#/components/schemas/RankingDefinition" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
-
-  /ranking/best:
-    get:
+    put:
       tags: [Rankings]
-      summary: One-result rankings of all disciplines that have starts or results
-      description: Each competitor is ranked on their best result only (score, then its 10s ... 1s, then its tie-break, lower wins); competitors with a start but no result follow without a rank. Team disciplines return the team ranking.
-      operationId: getAllBestResultRankings
+      summary: Change a ranking
+      description: |
+        Send `version`. `409` if someone else changed it meanwhile, if a discipline with
+        starts or teams would be in no ranking any more, or if `one_start_per_competitor`
+        is on while a competitor starts in (team: is in teams of) two of its disciplines.
+      operationId: updateRanking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RankingDefinition" }
       responses:
         "200":
-          description: Rankings keyed by discipline id
+          description: The changed ranking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingDefinition" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    delete:
+      tags: [Rankings]
+      summary: Delete a ranking
+      description: "`409` if a discipline with starts or teams would be in no ranking any more."
+      operationId: deleteRanking
+      parameters:
+        - $ref: "#/components/parameters/Version"
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/order:
+    put:
+      tags: [Rankings]
+      summary: Reorder the rankings
+      description: Ids left out keep their order after the listed ones. The order is also the lane queue's.
+      operationId: reorderRankings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids: { type: array, items: { type: integer } }
+      responses:
+        "200":
+          description: The rankings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/settings:
+    put:
+      tags: [Rankings]
+      summary: Set how many disciplines a ranking may cover
+      operationId: setRankingSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_disciplines_per_ranking: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: The rankings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/by-discipline:
+    get:
+      tags: [Rankings]
+      summary: The rankings each discipline counts in
+      operationId: getRankingsByDiscipline
+      responses:
+        "200":
+          description: Keyed by discipline id
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties:
-                  oneOf:
-                    - $ref: "#/components/schemas/BestResultDisciplineRanking"
-                    - $ref: "#/components/schemas/TeamRanking"
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      name: { type: string }
+                      short_name: { type: string, nullable: true }
         "500": { $ref: "#/components/responses/ServerError" }
 
-  /ranking/best/{disciplineId}:
-    parameters:
-      - $ref: "#/components/parameters/DisciplineId"
+  /rankings/export:
     get:
       tags: [Rankings]
-      summary: One-result ranking of one discipline
-      description: For team disciplines this returns the team ranking (`kind` = `team`).
-      operationId: getBestResultRanking
+      summary: The rankings as a file of their own
+      description: By discipline id; each entry also lists `discipline_short_names` for the reader, which an import ignores.
+      operationId: exportRankings
       responses:
         "200":
-          description: The ranking
+          description: The rankings file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingsFile" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/import:
+    post:
+      tags: [Rankings]
+      summary: Replace the meet's rankings with those of a rankings file
+      description: Everything is checked first; an unknown discipline id or a ranking that does not fit changes nothing (`400`).
+      operationId: importRankings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RankingsFile" }
+      responses:
+        "200":
+          description: The rankings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/defaults:
+    post:
+      tags: [Rankings]
+      summary: Replace the meet's rankings with the shipped default rankings
+      description: Disciplines the installation's catalog lacks are left out, and so is a ranking left with nothing.
+      operationId: loadDefaultRankings
+      responses:
+        "200":
+          description: The rankings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/results:
+    get:
+      tags: [Rankings]
+      summary: Every ranking's result, in the meet's order
+      description: Rankings with no starts, results or teams yet are left out.
+      operationId: getRankingResults
+      responses:
+        "200":
+          description: The results
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/BestResultDisciplineRanking"
-                  - $ref: "#/components/schemas/TeamRanking"
+                type: array
+                items: { $ref: "#/components/schemas/RankingResult" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rankings/{id}/result:
+    parameters:
+      - $ref: "#/components/parameters/IntId"
+    get:
+      tags: [Rankings]
+      summary: One ranking's result
+      description: |
+        Individual: each competitor once, on their results that count (every result of a single
+        discipline, the best results of a sum's disciplines added up), best first: ranked by the
+        best one, then the next one, then the best one's 10s ... 1s, then its tie-break (lower
+        wins). Competitors with a start but no result follow without a rank. Team: the teams of
+        its team disciplines ranked together.
+      operationId: getRankingResult
+      responses:
+        "200":
+          description: The result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RankingResult" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/ServerError" }
 
@@ -747,12 +914,12 @@ paths:
       summary: Assign the lanes of all unlocked days automatically
       description: |
         Only allowed while the auto mode is switched on (`400` otherwise). Every start
-        of an active, individual discipline without a lane gets one on its discipline's
-        distance (disciplines without a distance are placed on the least busy one as a
-        whole). A start takes one lane, a competitor has at most one lane per relay and
-        a distance never holds more starts than it has lanes. A discipline is kept in
-        consecutive relays, and original, reproduction and combined of one event follow
-        each other. Locked days are never changed. Starts that do not fit are returned
+        of an individual discipline of the meet's program without a lane gets one on its
+        discipline's distance (disciplines without a distance are placed on the least busy
+        one as a whole). A start takes one lane, a competitor has at most one lane per relay
+        and a distance never holds more starts than it has lanes. A discipline is kept in
+        consecutive relays, and the disciplines follow each other in the meet's ranking
+        order. Locked days are never changed. Starts that do not fit are returned
         in `unplaced` with the reason; they are not an error.
       operationId: autoAssignLanes
       requestBody:
@@ -1113,76 +1280,6 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
-  /meet/program:
-    get:
-      tags: [Meet]
-      summary: Which events the meet shoots and how, and which team rankings there are
-      description: |
-        `events`: the individual disciplines grouped by category and event (key e.g.
-        `rifle|Vetterli`), each with its disciplines (`active`, number of `starts`),
-        whether it can be combined and whether it is. `teams`: the team disciplines with
-        `active`, their composition and number of teams. `combined_rankings`: the combined
-        rankings (e.g. KUC) with `active` and their `disciplines` (each with `active`).
-        `base`: send it back when saving.
-      operationId: getProgram
-      responses:
-        "200":
-          description: The program
-          content:
-            application/json:
-              schema: { type: object }
-        "500": { $ref: "#/components/responses/ServerError" }
-    put:
-      tags: [Meet]
-      summary: Set the program
-      description: |
-        `events` maps event keys to the ids of their disciplines that are shot and whether
-        original and reproduction are ranked combined (only with both shot); events left
-        out stay as they are. `teams` lists the team
-        disciplines to rank (left out: unchanged). `combined_rankings` lists the combined
-        rankings to rank (left out: unchanged); each needs all its disciplines shot, and
-        one whose disciplines are no longer all shot stops being ranked. Saved as the
-        active disciplines and the combined events. `409` if the program changed since
-        `base`, or when combining an event's original and reproduction while a competitor
-        starts in both. A combined ranking ranks a competitor who starts in several of its
-        disciplines once, on their best result, unless `one_start_per_combined_ranking` is
-        on: then ranking one (or turning the option on) is refused with `409` while a
-        competitor starts in more than one of its disciplines.
-      operationId: setProgram
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                events:
-                  type: object
-                  additionalProperties:
-                    type: object
-                    properties:
-                      active: { type: array, items: { type: integer } }
-                      combined: { type: boolean }
-                teams: { type: array, items: { type: integer } }
-                combined_rankings: { type: array, items: { type: integer } }
-                one_start_per_combined_ranking:
-                  type: boolean
-                  description: "While a combined ranking is ranked, a competitor may start in only one of its disciplines (409 if one already starts in several). Off (default): several starts, the best result counts. Left out: unchanged"
-                base:
-                  type: object
-                  properties:
-                    active_ids: { type: array, items: { type: integer } }
-                    combined_keys: { type: array, items: { type: string } }
-      responses:
-        "200":
-          description: The saved program
-          content:
-            application/json:
-              schema: { type: object }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
-
   # --------------------------------------------------------------------- Backup
   /backup:
     get:
@@ -1448,15 +1545,6 @@ components:
       type: object
       properties:
         error: { type: string }
-    CombinedEvent:
-      type: object
-      properties:
-        key: { type: string, example: "rifle|Miquelet" }
-        category: { type: string }
-        event: { type: string }
-        original_id: { type: integer }
-        reproduction_id: { type: integer }
-        combined: { type: boolean }
     ConflictError:
       type: object
       properties:
@@ -1551,53 +1639,88 @@ components:
       type: object
       properties:
         id: { type: integer }
-        category: { type: string }
-        level: { type: string, description: "e.g. `individual` or `team`" }
-        type: { type: string }
-        event: { type: string }
-        short_name: { type: string, description: Short name used in the lane assignments export }
-        scoring_type: { type: string }
-        unit: { type: string }
-        description: { type: string }
-        created_at: { type: string }
+        category: { type: string, enum: [rifle, pistol] }
+        level: { type: string, enum: [individual, team] }
+        type: { type: string, description: "`original`, `reproduction` or `open`; shown and used for the lane order" }
+        name: { type: string }
+        short_name: { type: string, description: A label for lists and exports; it need not be unique }
         team_size: { type: integer }
         team_of:
           type: array
           items: { type: integer }
-          description: Team discipline only. The individual disciplines whose starts count for its teams ("results that count")
+          description: Team discipline only. The individual disciplines of its category whose starts count for its teams, 1 to the catalog's `max_disciplines`
         shooting_distance: { type: string, description: Range id the discipline fires on }
-        aggregate_of:
-          type: array
-          items: { type: string }
-          description: Aggregate discipline (e.g. Remington) only. Events of the same category and type whose best results are added up; it has no starts of its own
-        combined_of:
-          type: array
-          items: { type: integer }
-          description: Combined ranking (e.g. KUCR = KUCRS + KUCRU) only. The individual disciplines of its category ranked together, each competitor once on their best result; competitors start in those, it has no starts or lane of its own. While it is active, its disciplines are ranked only through it
-        active: { type: boolean }
+        active: { type: boolean, description: False when archived }
     DisciplineInput:
       type: object
       properties:
         category: { type: string }
         level: { type: string }
         type: { type: string }
-        event: { type: string }
-        short_name: { type: string, description: "Short name used in the lane assignments export; empty or null clears it" }
+        name: { type: string }
+        short_name: { type: string, description: "Empty or null clears it" }
         team_size: { type: integer }
         team_of:
           type: array
           items: { type: integer }
-          description: "Team discipline only: individual disciplines of its category whose starts count, at least one. 409 if a stored team member's start would no longer count"
-        aggregate_of:
-          type: array
-          items: { type: string }
-          description: "Individual discipline only: makes it an aggregate (e.g. Remington) that adds up these events' best results. Each event needs an individual discipline of the same category and type; an aggregate takes no lane. Empty or null makes it a plain discipline again"
-        combined_of:
-          type: array
-          items: { type: integer }
-          description: "Individual discipline only: makes it a combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) of these discipline ids, at least two individual disciplines of its category (not aggregates or combined rankings). It takes no starts or lane. Empty or null makes it a plain discipline again. A discipline a combined ranking uses cannot be deleted"
+          description: "Team discipline only. 409 if a stored team member's start would no longer count"
         shooting_distance: { type: string }
         active: { type: boolean }
+    DisciplineSettings:
+      type: object
+      properties:
+        max_disciplines: { type: integer, minimum: 1, example: 4 }
+    DisciplineCatalog:
+      type: object
+      required: [format, disciplines]
+      properties:
+        format: { type: string, enum: [mlaic-disciplines] }
+        version: { type: integer, example: 1 }
+        max_disciplines: { type: integer, example: 4 }
+        disciplines:
+          type: array
+          items: { $ref: "#/components/schemas/Discipline" }
+    RankingDefinition:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        name: { type: string, example: "Remington O/R" }
+        short_name: { type: string, nullable: true }
+        level: { type: string, enum: [individual, team], default: individual }
+        one_start_per_competitor: { type: boolean, description: "A competitor may start in only one of its disciplines (team: be in only one of its teams)" }
+        entries:
+          type: array
+          description: Ranked together, each competitor once on their best result
+          items:
+            type: object
+            properties:
+              label: { type: string, description: "Names a sum, e.g. Remington_O; needed with several disciplines" }
+              discipline_ids:
+                type: array
+                items: { type: integer }
+                description: One discipline, or several whose best results are added up
+          example:
+            - { label: Remington_O, discipline_ids: [52, 53] }
+            - { label: Remington_R, discipline_ids: [57, 58] }
+        version: { type: integer }
+    RankingConfig:
+      type: object
+      properties:
+        max_disciplines_per_ranking: { type: integer, example: 4 }
+        rankings:
+          type: array
+          items: { $ref: "#/components/schemas/RankingDefinition" }
+        version: { type: integer }
+    RankingsFile:
+      type: object
+      required: [format, rankings]
+      properties:
+        format: { type: string, enum: [mlaic-rankings] }
+        version: { type: integer, example: 1 }
+        max_disciplines_per_ranking: { type: integer, example: 4 }
+        rankings:
+          type: array
+          items: { $ref: "#/components/schemas/RankingDefinition" }
 
     Result:
       type: object
@@ -1636,47 +1759,29 @@ components:
         start_id: { type: string }
         version: { type: integer }
 
-    RankingDisciplineInfo:
+    RankingInfo:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
-        category: { type: string }
-        type: { type: string }
-        unit: { type: string, example: points }
-    Ranking:
-      type: object
-      properties:
-        rank: { type: integer }
-        competitor:
-          type: object
-          properties:
-            id: { type: integer }
-            name: { type: string }
-            team: { type: string }
-        result_totals:
+        short_name: { type: string, nullable: true }
+        level: { type: string }
+        pooled: { type: boolean, description: Several entries; each row then carries `discipline_tag` }
+        category: { type: string, example: pistol }
+        entries:
           type: array
-          items: { type: number }
-        total_sum: { type: number }
-        freq_counts:
-          type: object
-          description: Number of shots per ring value, "0" to "10" ("0" = misses)
-          additionalProperties: { type: integer }
-        override_value: { type: number, nullable: true }
-        notes: { type: string }
-    DisciplineRanking:
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              discipline_ids: { type: array, items: { type: integer } }
+              short_names: { type: array, items: { type: string } }
+        composition: { type: array, items: { type: string }, description: Team ranking only }
+        team_size: { type: integer, description: Team ranking only }
+    RankingRow:
       type: object
       properties:
-        kind: { type: string, enum: [individual] }
-        discipline: { $ref: "#/components/schemas/RankingDisciplineInfo" }
-        rankings:
-          type: array
-          items: { $ref: "#/components/schemas/Ranking" }
-
-    BestResultRanking:
-      type: object
-      properties:
-        rank: { type: integer, nullable: true, description: Identical results share the rank; null for a start without result }
+        rank: { type: integer, nullable: true, description: Identical standings share the rank; null for a start without result }
         competitor:
           type: object
           properties:
@@ -1688,21 +1793,36 @@ components:
         result_id: { type: integer, nullable: true }
         score: { type: number, nullable: true }
         has_result: { type: boolean, description: False for competitors who started but have no result yet; they come after the ranked ones, by name }
+        discipline_tag: { type: string, description: "Pooled ranking: the entry of the best result, e.g. WHITO or Remington_O" }
         freq_counts:
           type: object
           nullable: true
-          description: Number of shots per ring value, "0" to "10" ("0" = misses), of the best result only
+          description: Number of shots per ring value, "0" to "10" ("0" = misses), of the best result
           additionalProperties: { type: integer }
         override_value: { type: number, nullable: true, description: Tie-break of the best result, lower wins }
         notes: { type: string }
-    BestResultDisciplineRanking:
+        components:
+          type: array
+          description: The disciplines added up in the best result (a sum), then the competitor's other results (`further`)
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              short_name: { type: string, nullable: true }
+              start_id: { type: string, nullable: true }
+              score: { type: number, nullable: true }
+              freq_counts: { type: object, nullable: true, additionalProperties: { type: integer } }
+              override_value: { type: number, nullable: true }
+              further: { type: boolean }
+    RankingResult:
       type: object
       properties:
-        kind: { type: string, enum: [individual] }
-        discipline: { $ref: "#/components/schemas/RankingDisciplineInfo" }
+        kind: { type: string, enum: [individual, team] }
+        ranking: { $ref: "#/components/schemas/RankingInfo" }
         rankings:
           type: array
-          items: { $ref: "#/components/schemas/BestResultRanking" }
+          description: "Individual: RankingRow; team: TeamRanking's rows, with `discipline_tag` when pooled"
+          items: { type: object }
 
     TeamDisciplineInfo:
       type: object
