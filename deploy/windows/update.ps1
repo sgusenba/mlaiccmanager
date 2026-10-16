@@ -7,10 +7,10 @@
 #     -Force   redeploy even if the downloaded bundle is unchanged
 #
 # Reuses the same mlaiccmanager-dist.tar.gz the Linux container pulls
-# (Windows 10+ ships tar.exe). Only mlaiccmanager.jar, static\ and the
-# shipped defaults (default-disciplines.json, default-rankings.json) are
-# replaced; data.json, disciplines.json, rankings.json, teams, relays,
-# logs\ and backups are never touched. The bundled jre\ is not
+# (Windows 10+ ships tar.exe). Only mlaiccmanager.jar, static\, the
+# shipped defaults (default-disciplines.json, default-rankings.json) and
+# the launcher scripts are replaced; data.json, catalog.json, rankings.json,
+# teams, relays, logs\ and backups are never touched. The bundled jre\ is not
 # updated here — download the full zip again for a newer Java.
 #
 # Never fails the launch: if offline or anything goes wrong, it prints a
@@ -57,18 +57,28 @@ try {
     & $Tar -xzf $Archive -C $Extract
     if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE" }
 
-    if (-not (Test-Path (Join-Path $Extract 'mlaiccmanager.jar'))) {
-        throw 'Downloaded bundle has no mlaiccmanager.jar'
+    # Everything is checked before anything is replaced: a half-deployed bundle
+    # (new static\ next to the old jar) would break the app
+    foreach ($Name in 'mlaiccmanager.jar', 'static', 'default-disciplines.json', 'default-rankings.json') {
+        if (-not (Test-Path (Join-Path $Extract $Name))) {
+            throw "Downloaded bundle has no $Name"
+        }
     }
 
     Log "Deploying to $RunDir"
+    Copy-Item -Path (Join-Path $Extract 'mlaiccmanager.jar') -Destination (Join-Path $RunDir 'mlaiccmanager.jar.new') -Force
     $Static = Join-Path $RunDir 'static'
     if (Test-Path $Static) { Remove-Item -Path $Static -Recurse -Force }
     Copy-Item -Path (Join-Path $Extract 'static') -Destination $Static -Recurse
     Copy-Item -Path (Join-Path $Extract 'default-disciplines.json') -Destination $RunDir -Force
     Copy-Item -Path (Join-Path $Extract 'default-rankings.json') -Destination $RunDir -Force
-    Copy-Item -Path (Join-Path $Extract 'mlaiccmanager.jar') -Destination $RunDir -Force
+    Move-Item -Path (Join-Path $RunDir 'mlaiccmanager.jar.new') -Destination (Join-Path $RunDir 'mlaiccmanager.jar') -Force
     Set-Content -Path $StateFile -Value $NewSha -NoNewline -Encoding Ascii
+    # Keep the launcher scripts up to date: the bundle carries the current ones
+    foreach ($Script in 'update.ps1', 'start.ps1', 'start.bat') {
+        $Bundled = Join-Path $Extract $Script
+        if (Test-Path $Bundled) { Copy-Item -Path $Bundled -Destination $RunDir -Force }
+    }
     Log "Deployed build $NewSha"
 } catch {
     Log "WARNING: update skipped, starting the current version ($($_.Exception.Message))"

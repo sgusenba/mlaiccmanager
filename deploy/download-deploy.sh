@@ -64,21 +64,33 @@ log "Extracting"
 mkdir -p "$TMP_DIR/extract"
 tar -xzf "$TMP_DIR/dist.tar.gz" -C "$TMP_DIR/extract"
 
-if [ ! -f "$TMP_DIR/extract/mlaiccmanager.jar" ]; then
-  log "Downloaded bundle has no mlaiccmanager.jar, aborting deploy (leaving current deployment running)"
-  exit 1
-fi
+# Everything is checked before anything is replaced: a half-deployed bundle
+# (new static/ next to the old jar) would break the running app
+for f in mlaiccmanager.jar static default-disciplines.json default-rankings.json; do
+  if [ ! -e "$TMP_DIR/extract/$f" ]; then
+    log "Downloaded bundle has no $f, aborting deploy (leaving current deployment running)"
+    exit 1
+  fi
+done
 
 log "Deploying to $RUN_DIR"
 mkdir -p "$RUN_DIR/logs"
+cp "$TMP_DIR/extract/mlaiccmanager.jar" "$RUN_DIR/mlaiccmanager.jar.new"
 rm -rf "$RUN_DIR/static"
 cp -r "$TMP_DIR/extract/static" "$RUN_DIR/static"
-# The shipped defaults only; disciplines.json (this installation's catalog,
-# started from default-disciplines.json) and rankings.json are left alone
+# The shipped defaults only; catalog.json (this installation's catalog, started
+# from default-disciplines.json) and rankings.json are left alone
 cp "$TMP_DIR/extract/default-disciplines.json" "$RUN_DIR/default-disciplines.json"
 cp "$TMP_DIR/extract/default-rankings.json" "$RUN_DIR/default-rankings.json"
-cp "$TMP_DIR/extract/mlaiccmanager.jar" "$RUN_DIR/mlaiccmanager.jar"
+mv -f "$RUN_DIR/mlaiccmanager.jar.new" "$RUN_DIR/mlaiccmanager.jar"
 echo "$NEW_SHA" > "$STATE_FILE"
+
+# Keep this script up to date: the bundle carries the current one
+SELF="$(readlink -f "$0")"
+if [ -f "$TMP_DIR/extract/download-deploy.sh" ] && ! cmp -s "$TMP_DIR/extract/download-deploy.sh" "$SELF"; then
+  install -m 0755 "$TMP_DIR/extract/download-deploy.sh" "$SELF.new" && mv -f "$SELF.new" "$SELF"
+  log "Updated $SELF from the bundle"
+fi
 
 chown -R "$SERVICE_USER:$SERVICE_USER" "$RUN_DIR"
 

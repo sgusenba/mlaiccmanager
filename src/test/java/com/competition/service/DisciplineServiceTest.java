@@ -55,10 +55,10 @@ class DisciplineServiceTest {
 
     @Test
     void theCatalogStartsAsShippedAndIsThenThisInstallationsOwn() throws Exception {
-        assertFalse(Files.exists(tempDir.resolve("disciplines.json")));
+        assertFalse(Files.exists(tempDir.resolve("catalog.json")));
         assertEquals(List.of(1, 11, 6, 54, 31),
             disciplineService.getAvailableDisciplines().stream().map(Discipline::getId).toList());
-        assertTrue(Files.exists(tempDir.resolve("disciplines.json")), "written on first use");
+        assertTrue(Files.exists(tempDir.resolve("catalog.json")), "written on first use");
 
         // A later shipped catalog does not replace it
         Files.writeString(tempDir.resolve(DataService.DEFAULT_CATALOG_FILE), TestFiles.catalog("[]"));
@@ -67,9 +67,29 @@ class DisciplineServiceTest {
 
     @Test
     void aCatalogOfTheOldLayoutIsKeptAsideAndReplacedByTheShippedOne() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), "[{\"id\":74,\"event\":\"38_Remington_O\",\"aggregate_of\":[\"Colt\"]}]");
+        Files.writeString(tempDir.resolve("catalog.json"), "[{\"id\":74,\"event\":\"38_Remington_O\",\"aggregate_of\":[\"Colt\"]}]");
         assertEquals(5, disciplineService.getAvailableDisciplines().size());
-        assertTrue(Files.exists(tempDir.resolve("disciplines.legacy.json")));
+        assertTrue(Files.exists(tempDir.resolve("catalog.legacy.json")));
+    }
+
+    @Test
+    void theCatalogOfTheFirstRankingsReleaseIsTakenOver() throws Exception {
+        // That release kept the catalog in disciplines.json
+        Files.writeString(tempDir.resolve("disciplines.json"), TestFiles.catalog(
+            "[{\"id\":7,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Edited\"}]"));
+        assertEquals(List.of("Edited"), disciplineService.getAvailableDisciplines().stream().map(Discipline::getName).toList());
+        assertTrue(Files.exists(tempDir.resolve("catalog.json")));
+    }
+
+    @Test
+    void anOldLayoutDisciplinesJsonIsIgnoredAndTheJarsDefaultsApply() throws Exception {
+        // Deploy scripts from before the rankings release copy the old catalog there; nothing shipped next to the app
+        Files.writeString(tempDir.resolve("disciplines.json"), "[{\"id\":74,\"event\":\"38_Remington_O\"}]");
+        Files.delete(tempDir.resolve(DataService.DEFAULT_CATALOG_FILE));
+        List<Discipline> disciplines = disciplineService.getAvailableDisciplines();
+        assertTrue(disciplines.size() > 50, "the default catalog built into the jar");
+        assertEquals("TNZO", disciplineService.getAvailableDisciplineById(54).getShortName());
+        assertTrue(Files.exists(tempDir.resolve("disciplines.json")), "left alone");
     }
 
     @Test
@@ -120,7 +140,7 @@ class DisciplineServiceTest {
         // Into another installation, whose catalog has other disciplines
         Path other = tempDir.resolve("other");
         Files.createDirectories(other);
-        Files.writeString(other.resolve("disciplines.json"), TestFiles.catalog(
+        Files.writeString(other.resolve("catalog.json"), TestFiles.catalog(
             "[{\"id\":1,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Old name\"},"
                 + "{\"id\":99,\"category\":\"rifle\",\"level\":\"individual\",\"name\":\"Local\"}]"));
         Files.writeString(other.resolve("data.json"), "{\"competitors\":[],\"results\":[]}");

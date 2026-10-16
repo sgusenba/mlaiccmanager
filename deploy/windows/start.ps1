@@ -7,7 +7,7 @@
 # 3. Starts the server with the bundled jre\ in this console window and
 #    opens the browser once it's listening. Closing the window stops it.
 #
-# All data (data.json, disciplines.json, rankings.json, logs\, ...) lives in this folder,
+# All data (data.json, catalog.json, rankings.json, logs\, ...) lives in this folder,
 # since the app resolves every path against its working directory.
 
 $ErrorActionPreference = 'Stop'

@@ -24,6 +24,9 @@ relays.json
 # Team management runtime data (teams of the team disciplines)
 teams.json
 # This installation's discipline catalog (started from default-disciplines.json), kept on deploys
+catalog.json
+catalog.legacy.json
+# Where older versions kept the catalog; older deploy scripts still copy it, the app ignores it
 disciplines.json
 disciplines.legacy.json
 # This meet's rankings

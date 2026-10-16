@@ -27,7 +27,7 @@ tags:
   - name: Meet
     description: Backs the `/meet` page; the meet's name, venue, host and dates live in `meet.json`.
   - name: Backup
-    description: Backs the `/backup` page; the zip holds `data.json`, `rankings.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`disciplines.json`).
+    description: Backs the `/backup` page; the zip holds `data.json`, `rankings.json`, `teams.json`, `relays.json`, `meet.json` and the discipline catalog (`catalog.json`).
   - name: Danger zone
     description: Backs the `/danger` page; clears one kind of data at a time, saving a safety copy first.
   - name: Build info
@@ -176,7 +176,7 @@ paths:
     get:
       tags: [Disciplines]
       summary: Get the discipline catalog
-      description: The installation's catalog (disciplines.json), the same for every meet.
+      description: The installation's catalog (catalog.json), the same for every meet.
       operationId: getAvailableDisciplines
       responses:
         "200":

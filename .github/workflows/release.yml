@@ -36,6 +36,11 @@ jobs:
           echo "{\"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > dist-bundle/static/build-info.json
           cp default-disciplines.json dist-bundle/default-disciplines.json
           cp default-rankings.json dist-bundle/default-rankings.json
+          # Deploy scripts installed before the rankings release copy disciplines.json and abort
+          # without it; the app no longer reads that file (its catalog is catalog.json)
+          cp default-disciplines.json dist-bundle/disciplines.json
+          # The scripts update themselves from the bundle
+          cp deploy/download-deploy.sh deploy/windows/update.ps1 deploy/windows/start.ps1 deploy/windows/start.bat dist-bundle/
           tar -czf mlaiccmanager-dist.tar.gz -C dist-bundle .
 
       # Portable Windows zip: the same bundle plus a Windows JRE and the
