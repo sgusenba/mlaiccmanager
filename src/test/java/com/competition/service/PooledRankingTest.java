@@ -66,7 +66,7 @@ class PooledRankingTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), TestFiles.catalog(CATALOG));
+        Files.writeString(tempDir.resolve("catalog.json"), TestFiles.catalog(CATALOG));
         Files.writeString(tempDir.resolve("rankings.json"), RANKINGS);
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":["
             + competitor(1, "Anna", "1-4-1", "1-14-1") + ","

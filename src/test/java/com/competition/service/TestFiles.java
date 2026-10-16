@@ -27,11 +27,11 @@ final class TestFiles {
     }
 
     /**
-     * Writes the catalog to dir/disciplines.json and a rankings.json with one
+     * Writes the catalog to dir/catalog.json and a rankings.json with one
      * ranking per discipline, so every discipline is in the meet's program.
      */
     static void writeCatalog(Path dir, String disciplines) throws IOException {
-        Files.writeString(dir.resolve("disciplines.json"), catalog(disciplines));
+        Files.writeString(dir.resolve("catalog.json"), catalog(disciplines));
         ObjectNode config = objectMapper.createObjectNode();
         config.put("max_disciplines_per_ranking", 4);
         ArrayNode rankings = config.putArray("rankings");
@@ -47,7 +47,7 @@ final class TestFiles {
     }
 
     static DataService dataService(Path dir) {
-        return new DataService(dir.resolve("data.json").toString(), dir.resolve("disciplines.json").toString(),
+        return new DataService(dir.resolve("data.json").toString(), dir.resolve("catalog.json").toString(),
             dir.resolve("rankings.json").toString());
     }
 }

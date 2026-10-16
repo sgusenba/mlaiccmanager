@@ -37,7 +37,7 @@ class BackupServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), CATALOG);
+        Files.writeString(tempDir.resolve("catalog.json"), CATALOG);
         Files.writeString(tempDir.resolve("data.json"), DATA);
         Files.writeString(tempDir.resolve("rankings.json"), RANKINGS);
         Files.writeString(tempDir.resolve("teams.json"), TEAMS);
@@ -81,10 +81,10 @@ class BackupServiceTest {
     void backupContainsEveryDataFileAndTheCatalog() throws Exception {
         Map<String, String> entries = unzip(backupService.createBackup());
         assertEquals(List.of("backup-info.json", "data.json", "rankings.json", "teams.json", "relays.json",
-                "meet.json", "disciplines.json"),
+                "meet.json", "catalog.json"),
             List.copyOf(entries.keySet()));
         assertEquals(DATA, entries.get("data.json"));
-        assertEquals(CATALOG, entries.get("disciplines.json"));
+        assertEquals(CATALOG, entries.get("catalog.json"));
         assertEquals(RANKINGS, entries.get("rankings.json"));
         assertEquals(TEAMS, entries.get("teams.json"));
         assertTrue(entries.get("backup-info.json").contains("\"format\" : 1"));
@@ -97,7 +97,7 @@ class BackupServiceTest {
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":[],\"results\":[]}");
         Files.writeString(tempDir.resolve("teams.json"), "{\"teams\":[]}");
         Files.writeString(tempDir.resolve("meet.json"), "{\"name\":\"Other meet\"}");
-        Files.writeString(tempDir.resolve("disciplines.json"), OTHER_CATALOG);
+        Files.writeString(tempDir.resolve("catalog.json"), OTHER_CATALOG);
         Files.delete(tempDir.resolve("rankings.json"));
 
         Map<String, Object> result = backupService.restore(new ByteArrayInputStream(backup));
@@ -106,8 +106,8 @@ class BackupServiceTest {
         assertEquals(TEAMS, read("teams.json"));
         assertEquals(RELAYS, read("relays.json"));
         assertEquals(MEET, read("meet.json"));
-        assertEquals(CATALOG, read("disciplines.json"));
-        assertEquals(List.of("data.json", "rankings.json", "teams.json", "relays.json", "meet.json", "disciplines.json"),
+        assertEquals(CATALOG, read("catalog.json"));
+        assertEquals(List.of("data.json", "rankings.json", "teams.json", "relays.json", "meet.json", "catalog.json"),
             result.get("restored_files"));
 
         // The safety copy holds the data as it was right before the restore
@@ -126,7 +126,15 @@ class BackupServiceTest {
         assertFalse(Files.exists(tempDir.resolve("rankings.json")));
         assertFalse(Files.exists(tempDir.resolve("meet.json")));
         // A backup without the catalog keeps the current one
-        assertEquals(CATALOG, read("disciplines.json"));
+        assertEquals(CATALOG, read("catalog.json"));
+    }
+
+    @Test
+    void aBackupOfTheFirstRankingsReleaseRestoresItsCatalog() throws Exception {
+        // That release kept the catalog in disciplines.json
+        backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "disciplines.json", OTHER_CATALOG))));
+        assertEquals(OTHER_CATALOG, read("catalog.json"));
+        assertFalse(Files.exists(tempDir.resolve("disciplines.json")));
     }
 
     @Test
@@ -149,14 +157,14 @@ class BackupServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "teams.json", "[]")))));
         assertThrows(IllegalArgumentException.class,
-            () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "disciplines.json", "{}")))));
+            () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "catalog.json", "{}")))));
         // A catalog of the old layout (a plain list) is not restored
         assertThrows(IllegalArgumentException.class,
-            () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "disciplines.json", "[]")))));
+            () -> backupService.restore(new ByteArrayInputStream(zip(Map.of("data.json", DATA, "catalog.json", "[]")))));
 
         assertEquals(DATA, read("data.json"));
         assertEquals(TEAMS, read("teams.json"));
-        assertEquals(CATALOG, read("disciplines.json"));
+        assertEquals(CATALOG, read("catalog.json"));
         assertFalse(Files.exists(tempDir.resolve("backups")));
     }
 }

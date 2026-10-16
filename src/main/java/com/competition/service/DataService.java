@@ -45,9 +45,9 @@ public class DataService {
     private final ReentrantLock configLock = new ReentrantLock();
 
     private final String dataFilePath;
-    // This installation's discipline catalog, the same for every meet. Git-ignored, kept on deploys.
+    // This installation's discipline catalog (catalog.json), the same for every meet. Git-ignored, kept on deploys.
     private final String disciplinesFilePath;
-    // The shipped catalog (tracked in git, replaced on deploys): where disciplines.json starts from.
+    // The shipped catalog (tracked in git, replaced on deploys): where the catalog starts from.
     private final String defaultCatalogFilePath;
     // This meet's rankings. Git-ignored.
     private final String rankingsFilePath;
@@ -67,6 +67,11 @@ public class DataService {
     }
 
     public static final String DEFAULT_CATALOG_FILE = "default-disciplines.json";
+    /** The installation's catalog file. */
+    public static final String CATALOG_FILE = "catalog.json";
+    // The catalog's file in the first release with rankings. Deploy scripts from before
+    // that release still copy the shipped catalog to this name, so the app no longer uses it.
+    static final String EARLIER_CATALOG_FILE = "disciplines.json";
 
     /** Runs fn against the current data without saving. */
     public <T> T read(DataFunction<T> fn) throws Exception {
@@ -299,7 +304,7 @@ public class DataService {
         return root;
     }
 
-    // --- discipline catalog (disciplines.json) -------------------------------
+    // --- discipline catalog (catalog.json) -----------------------------------
 
     public List<Discipline> loadDisciplines() throws IOException {
         return loadCatalog().getDisciplines();
@@ -333,10 +338,10 @@ public class DataService {
     }
 
     /**
-     * The catalog. Without a disciplines.json, or with one of the old layout
-     * (a plain list, from before the catalog was this installation's own), it
-     * starts as the shipped default-disciplines.json; an old file is kept as
-     * disciplines.legacy.json.
+     * The catalog. Without a catalog file it starts as a disciplines.json of the
+     * current format next to it (where the first release with rankings kept the
+     * catalog), else as the shipped default catalog. A catalog file of another
+     * layout is kept as &lt;name&gt;.legacy.json and replaced the same way.
      */
     private DisciplineCatalog loadCatalogInternal() throws IOException {
         File file = new File(disciplinesFilePath);
@@ -351,10 +356,20 @@ public class DataService {
             Files.move(file.toPath(), legacy, StandardCopyOption.REPLACE_EXISTING);
             logger.warn("{} has the old layout; kept as {}, starting from the default catalog", file, legacy);
         }
+        File earlier = Paths.get(disciplinesFilePath).resolveSibling(EARLIER_CATALOG_FILE).toFile();
+        if (!earlier.getAbsoluteFile().equals(file.getAbsoluteFile()) && earlier.exists()) {
+            JsonNode root = objectMapper.readTree(earlier);
+            if (isCatalog(root)) {
+                DisciplineCatalog catalog = objectMapper.treeToValue(root, DisciplineCatalog.class);
+                saveCatalogInternal(catalog);
+                logger.info("Created {} from {} ({} disciplines)", file, earlier, catalog.getDisciplines().size());
+                return catalog;
+            }
+        }
         DisciplineCatalog catalog = defaultCatalog();
         if (catalog != null) {
             saveCatalogInternal(catalog);
-            logger.info("Created {} from {} ({} disciplines)", file, defaultCatalogFilePath, catalog.getDisciplines().size());
+            logger.info("Created {} from the default catalog ({} disciplines)", file, catalog.getDisciplines().size());
             return catalog;
         }
         return new DisciplineCatalog();
@@ -366,18 +381,32 @@ public class DataService {
             && root.path("disciplines").isArray();
     }
 
-    /** The shipped default catalog, or null if there is none. */
+    /**
+     * The shipped default catalog: default-disciplines.json next to the catalog,
+     * else the copy built into the jar (an older deploy script may not have
+     * installed the file). Null if there is neither.
+     */
     public DisciplineCatalog defaultCatalog() throws IOException {
-        File file = new File(defaultCatalogFilePath);
-        if (!file.exists()) {
+        JsonNode root = readShipped(defaultCatalogFilePath);
+        if (root == null) {
             return null;
         }
-        JsonNode root = objectMapper.readTree(file);
         if (!isCatalog(root)) {
-            logger.warn("{} is not a discipline catalog", file);
+            logger.warn("{} is not a discipline catalog", defaultCatalogFilePath);
             return null;
         }
         return objectMapper.treeToValue(root, DisciplineCatalog.class);
+    }
+
+    /** A shipped file: from disk, else from the jar's resources by its file name; null if neither has it. */
+    public static JsonNode readShipped(String path) throws IOException {
+        File file = new File(path);
+        if (file.exists()) {
+            return objectMapper.readTree(file);
+        }
+        try (var in = DataService.class.getResourceAsStream("/" + file.getName())) {
+            return in != null ? objectMapper.readTree(in) : null;
+        }
     }
 
     private void saveCatalogInternal(DisciplineCatalog catalog) throws IOException {

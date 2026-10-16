@@ -9,7 +9,7 @@ public class ApplicationBinder extends AbstractBinder {
     @Override
     protected void configure() {
         String basePath = System.getProperty("user.dir");
-        DataService dataService = new DataService(basePath + "/data.json", basePath + "/disciplines.json",
+        DataService dataService = new DataService(basePath + "/data.json", basePath + "/" + DataService.CATALOG_FILE,
                                                   basePath + "/rankings.json");
 
         CompetitorService competitorService = new CompetitorService(dataService);

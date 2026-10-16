@@ -29,7 +29,7 @@ import java.util.zip.ZipOutputStream;
 /**
  * Backup and restore of all runtime data as one zip file: data.json,
  * rankings.json, teams.json, relays.json, meet.json and the discipline catalog
- * (disciplines.json). A backup without disciplines.json leaves the current
+ * (catalog.json). A backup without catalog.json leaves the current
  * catalog in place on restore.
  *
  * <p>Both directions hold every file's lock, so a backup is a consistent
@@ -47,10 +47,11 @@ public class BackupService {
 
     /** The runtime data files, in the order they are written to the zip. data.json is required on restore. */
     static final List<String> FILES = List.of(
-        "data.json", "rankings.json", "teams.json", "relays.json", "meet.json", "disciplines.json");
+        "data.json", "rankings.json", "teams.json", "relays.json", "meet.json", DataService.CATALOG_FILE);
     static final String REQUIRED_FILE = "data.json";
     /** The discipline catalog, kept if a backup lacks it. */
-    static final String CATALOG_FILE = "disciplines.json";
+    static final String CATALOG_FILE = DataService.CATALOG_FILE;
+    static final String EARLIER_CATALOG_FILE = DataService.EARLIER_CATALOG_FILE;
     static final String MANIFEST = "backup-info.json";
     static final String SAFETY_COPY_DIR = "backups";
     static final int FORMAT = 1;
@@ -92,7 +93,7 @@ public class BackupService {
     /**
      * Replaces the runtime data with the backup's. Files missing from the backup
      * are removed, so the result is exactly the state the backup was taken in;
-     * only a missing disciplines.json keeps the current catalog.
+     * only a missing catalog.json keeps the current catalog.
      * Nothing is changed if the zip is not a valid backup.
      *
      * @return the restored files and the name of the safety copy of the previous data
@@ -201,6 +202,14 @@ public class BackupService {
                     continue;
                 }
                 String name = entry.getName().substring(entry.getName().replace('\\', '/').lastIndexOf('/') + 1);
+                if (name.equals(EARLIER_CATALOG_FILE)) {
+                    // A backup of the first release with rankings keeps the catalog under its earlier name
+                    byte[] content = readLimited(zip, name);
+                    if (!files.containsKey(CATALOG_FILE) && DataService.isCatalog(readJsonOrNull(content))) {
+                        files.put(CATALOG_FILE, content);
+                    }
+                    continue;
+                }
                 if (!FILES.contains(name)) {
                     continue;
                 }
@@ -234,6 +243,14 @@ public class BackupService {
             throw new IllegalArgumentException("Not a backup: " + REQUIRED_FILE + " is missing");
         }
         return files;
+    }
+
+    private static JsonNode readJsonOrNull(byte[] content) {
+        try {
+            return objectMapper.readTree(content);
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     private static byte[] readLimited(InputStream in, String name) throws IOException {

@@ -206,7 +206,7 @@ class DangerZoneServiceTest {
         assertEquals(1, cleared(result).get("lane assignments"));
         assertEquals(1, cleared(result).get("teams"));
 
-        assertEquals(List.of("1", "31"), values(read("disciplines.json").path("disciplines"), "id"),
+        assertEquals(List.of("1", "31"), values(read("catalog.json").path("disciplines"), "id"),
             "like a fresh install: the shipped catalog");
         // The rankings of the added disciplines are gone
         assertEquals(List.of("Miquelet", "Gustav Adolph"), values(read("rankings.json").path("rankings"), "name"));

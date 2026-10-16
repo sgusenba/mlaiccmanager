@@ -121,6 +121,16 @@
                     <exclude>build-info.properties</exclude>
                 </excludes>
             </resource>
+            <!-- The shipped default catalog and rankings, also inside the jar: an install whose
+                 deploy script did not copy the files next to it still starts from them -->
+            <resource>
+                <directory>${project.basedir}</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>default-disciplines.json</include>
+                    <include>default-rankings.json</include>
+                </includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>

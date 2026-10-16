@@ -183,11 +183,12 @@ public class RankingConfigService {
      * with nothing.
      */
     public RankingConfig loadDefaults() throws Exception {
-        File file = new File(defaultRankingsFilePath);
-        if (!file.exists()) {
-            throw new IllegalArgumentException("There are no default rankings (" + file.getName() + " is missing)");
+        JsonNode file = DataService.readShipped(defaultRankingsFilePath);
+        if (file == null) {
+            throw new IllegalArgumentException("There are no default rankings ("
+                + new File(defaultRankingsFilePath).getName() + " is missing)");
         }
-        return replaceAll(parseFile(objectMapper.readTree(file)), true);
+        return replaceAll(parseFile(file), true);
     }
 
     private RankingConfig replaceAll(RankingConfig incoming, boolean dropUnknown) throws Exception {

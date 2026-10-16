@@ -40,7 +40,7 @@ class RankingConfigServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"), TestFiles.catalog(CATALOG));
+        Files.writeString(tempDir.resolve("catalog.json"), TestFiles.catalog(CATALOG));
         Files.writeString(tempDir.resolve("data.json"), "{\"competitors\":["
             + "{\"id\":1,\"name\":\"Anna\",\"starts\":{}},{\"id\":2,\"name\":\"Ben\",\"starts\":{}}],\"results\":[]}");
         dataService = TestFiles.dataService(tempDir);
@@ -229,7 +229,7 @@ class RankingConfigServiceTest {
     @Test
     void theShippedDefaultRankingsFitTheShippedCatalog() throws Exception {
         Path project = Path.of(System.getProperty("user.dir"));
-        Files.copy(project.resolve("default-disciplines.json"), tempDir.resolve("disciplines.json"),
+        Files.copy(project.resolve("default-disciplines.json"), tempDir.resolve("catalog.json"),
             java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         RankingConfigService shipped = new RankingConfigService(dataService, null,
             project.resolve("default-rankings.json").toString());
