@@ -83,7 +83,7 @@ export function laneRows({ overview, relays, competitors, disciplines, meet, inc
             caliber: caliberByStart.get(entry.start_id) ?? '',
             // the full name where no short name is configured, so labels are never blank
             disciplineShort: discipline.short_name || entry.discipline_name || '',
-            event: discipline.event ?? '',
+            event: discipline.name ?? '',
             type: discipline.type ?? '',
             category: discipline.category ?? '',
             meet: meet?.name ?? '',

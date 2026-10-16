@@ -10,19 +10,20 @@ public class ApplicationBinder extends AbstractBinder {
     protected void configure() {
         String basePath = System.getProperty("user.dir");
         DataService dataService = new DataService(basePath + "/data.json", basePath + "/disciplines.json",
-                                                  basePath + "/competition.json");
+                                                  basePath + "/rankings.json");
 
         CompetitorService competitorService = new CompetitorService(dataService);
-        DisciplineService disciplineService = new DisciplineService(dataService);
+        TeamService teamService = new TeamService(basePath + "/teams.json", dataService);
+        DisciplineService disciplineService = new DisciplineService(dataService, teamService);
+        RankingConfigService rankingConfigService = new RankingConfigService(dataService, teamService,
+                                                                             basePath + "/default-rankings.json");
         StartService startService = new StartService(dataService, disciplineService);
         ResultService resultService = new ResultService(dataService, disciplineService);
-        TeamService teamService = new TeamService(basePath + "/teams.json", dataService);
-        RankingService rankingService = new RankingService(dataService, disciplineService, teamService);
+        RankingService rankingService = new RankingService(dataService, teamService);
         RelayService relayService = new RelayService(basePath + "/relays.json", dataService);
         CascadingDeletes cascadingDeletes = new CascadingDeletes(startService, competitorService, teamService,
                                                                  relayService);
         MeetService meetService = new MeetService(basePath + "/meet.json");
-        ProgramService programService = new ProgramService(dataService, disciplineService, teamService);
         BackupService backupService = new BackupService(Paths.get(basePath), dataService, teamService, relayService,
                                                         meetService);
         SettingsService settingsService = new SettingsService(Paths.get(basePath, "appsettings.json"));
@@ -35,6 +36,7 @@ public class ApplicationBinder extends AbstractBinder {
         bind(dataService).to(DataService.class);
         bind(competitorService).to(CompetitorService.class);
         bind(disciplineService).to(DisciplineService.class);
+        bind(rankingConfigService).to(RankingConfigService.class);
         bind(startService).to(StartService.class);
         bind(resultService).to(ResultService.class);
         bind(rankingService).to(RankingService.class);
@@ -42,7 +44,6 @@ public class ApplicationBinder extends AbstractBinder {
         bind(cascadingDeletes).to(CascadingDeletes.class);
         bind(teamService).to(TeamService.class);
         bind(meetService).to(MeetService.class);
-        bind(programService).to(ProgramService.class);
         bind(backupService).to(BackupService.class);
         bind(dangerZoneService).to(DangerZoneService.class);
         bind(settingsService).to(SettingsService.class);

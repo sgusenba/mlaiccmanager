@@ -24,11 +24,11 @@ class RelayServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"),
-            "[{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 3 Minie\"},"
-                + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 7 Colt\"},"
-                + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"event\":\"No 9 Gustav Adolph\","
-                + "\"based_on\":\"No 1 Miquelet\",\"team_size\":3}]");
+        TestFiles.writeCatalog(tempDir,
+            "[{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"No 3 Minie\"},"
+                + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"No 7 Colt\"},"
+                + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"name\":\"No 9 Gustav Adolph\","
+                + "\"team_of\":[3],\"team_size\":3}]");
         Files.writeString(tempDir.resolve("data.json"),
             "{\"competitors\":["
                 + competitor(1, "Anna", "\"52\":[" + start("1-52-1", 1, 52) + "," + start("1-52-2", 2, 52) + "],"
@@ -37,8 +37,7 @@ class RelayServiceTest {
                 + "," + competitor(2, "Ben", "\"52\":[" + start("2-52-1", 1, 52) + "]")
                 + "],\"results\":[],\"disciplines\":[],\"teams\":[],\"active_disciplines\":[3,52,31]}");
 
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
-            tempDir.resolve("competition.json").toString());
+        dataService = TestFiles.dataService(tempDir);
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
 
         // relays back to back, configuration locked again as by default
@@ -70,14 +69,15 @@ class RelayServiceTest {
     }
 
     private void setShootingDistances(String... pairs) throws Exception {
-        var disciplines = dataService.loadDisciplines();
-        for (int i = 0; i < pairs.length; i += 2) {
-            int id = Integer.parseInt(pairs[i]);
-            String distance = pairs[i + 1];
-            disciplines.stream().filter(d -> d.getId() == id).findFirst()
-                .ifPresent(d -> d.setShootingDistance(distance.isEmpty() ? null : distance));
-        }
-        dataService.saveDisciplines(disciplines);
+        dataService.updateDisciplines(disciplines -> {
+            for (int i = 0; i < pairs.length; i += 2) {
+                int id = Integer.parseInt(pairs[i]);
+                String distance = pairs[i + 1];
+                disciplines.stream().filter(d -> d.getId() == id).findFirst()
+                    .ifPresent(d -> d.setShootingDistance(distance.isEmpty() ? null : distance));
+            }
+            return null;
+        });
     }
 
     @Test

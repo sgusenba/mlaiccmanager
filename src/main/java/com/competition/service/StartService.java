@@ -1,6 +1,7 @@
 package com.competition.service;
 
 import com.competition.model.Discipline;
+import com.competition.model.RankingDefinition;
 import com.competition.model.Start;
 
 import java.util.ArrayList;
@@ -28,14 +29,14 @@ public class StartService {
         String trimmedCaliber = caliber != null && !caliber.isBlank() ? caliber.trim() : null;
 
         return dataService.update(data -> {
-            // Checked under the data.json lock (lock order: data.json, then disciplines),
+            // Checked under the data.json lock (lock order: data.json, then catalog/rankings),
             // so the discipline cannot change between the check and the save
             checkTakesStarts(disciplineId);
             Map<String, Object> competitorData = findCompetitor(data, competitorId);
             if (competitorData == null) {
                 throw new RecordNotFoundException("Competitor not found");
             }
-            checkNotStartingInCombinedPartner(competitorData, disciplineId);
+            checkOneStartRules(competitorData, disciplineId);
 
             // Initialize starts object if it doesn't exist
             @SuppressWarnings("unchecked")
@@ -99,49 +100,40 @@ public class StartService {
     }
 
     /**
-     * A combined ranking holds each competitor once, so while an event is ranked
-     * combined a competitor may start in its original or its reproduction
-     * discipline, not both.
+     * A ranking that allows one start per competitor takes a competitor in only
+     * one of its disciplines.
      */
-    private void checkNotStartingInCombinedPartner(Map<String, Object> competitorData, int disciplineId) throws Exception {
-        DisciplineService.EventPair pair = disciplineService.getCombinedPairsByDiscipline().get(disciplineId);
-        if (pair != null && DisciplineService.startsIn(competitorData, pair.partnerOf(disciplineId))) {
-            throw new ConflictException(competitorData.get("name") + " already starts in " + pair.event()
-                + " (" + pair.typeOf(pair.partnerOf(disciplineId)) + "), which is ranked combined with "
-                + pair.typeOf(disciplineId), null);
-        }
-        // A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) takes a competitor's best result of its
-        // disciplines, so starting in several of them is fine - unless the meet allows one start each
-        if (!dataService.loadProgramOptions().oneStartPerCombinedRanking) {
-            return;
-        }
-        for (Discipline combined : disciplineService.getActiveCombinedRankingsByMember()
-                .getOrDefault(disciplineId, List.of())) {
-            for (int other : combined.getCombinedOf()) {
-                if (other != disciplineId && DisciplineService.startsIn(competitorData, other)) {
+    private void checkOneStartRules(Map<String, Object> competitorData, int disciplineId) throws Exception {
+        for (RankingDefinition ranking : dataService.loadRankingConfig().getRankings()) {
+            if (!ranking.isOneStartPerCompetitor() || !ranking.disciplineIds().contains(disciplineId)) {
+                continue;
+            }
+            for (int other : ranking.disciplineIds()) {
+                if (other != disciplineId && RankingConfigService.startsIn(competitorData, other)) {
                     Discipline otherDiscipline = disciplineService.getAvailableDisciplineById(other);
                     throw new ConflictException(competitorData.get("name") + " already starts in "
-                        + (otherDiscipline != null ? otherDiscipline.getEvent() : String.valueOf(other))
-                        + ", which is ranked together with it in " + combined.getEvent()
-                        + " (one start per competitor)", null);
+                        + (otherDiscipline != null ? otherDiscipline.getName() : String.valueOf(other))
+                        + ", and " + ranking.getName() + " allows one start per competitor", null);
                 }
             }
         }
     }
 
-    /** The discipline must exist and take starts: competitors start in a combined ranking's disciplines, and teams are built from starts. */
+    /**
+     * Competitors start in the individual disciplines of the meet's program (the
+     * disciplines its rankings cover), not in team disciplines.
+     */
     private void checkTakesStarts(int disciplineId) throws Exception {
         Discipline discipline = disciplineService.getAvailableDisciplineById(disciplineId);
         if (discipline == null) {
             throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
         }
-        if (DisciplineService.isCombinedRanking(discipline)) {
-            throw new IllegalArgumentException(discipline.getEvent()
-                + " is a combined ranking: competitors start in its disciplines");
+        if (discipline.isTeam()) {
+            throw new IllegalArgumentException(discipline.getName()
+                + " is a team discipline: competitors start in the disciplines that count for it");
         }
-        if (!DisciplineService.takesStarts(discipline)) {
-            throw new IllegalArgumentException(discipline.getEvent()
-                + " is a team discipline: its teams are built from starts in its individual disciplines");
+        if (!dataService.loadProgramIds().contains(disciplineId)) {
+            throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings");
         }
     }
 

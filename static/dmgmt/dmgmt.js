@@ -4,7 +4,8 @@ const API = '/api';
 
 const state = {
     disciplines: [],
-    ranges: []
+    ranges: [],
+    maxDisciplines: 4
 };
 
 class ApiError extends Error {
@@ -46,88 +47,42 @@ function showMessage(text, type = 'error') {
 }
 
 async function loadData() {
-    const [disciplines, relayData] = await Promise.all([
+    const [disciplines, relayData, settings] = await Promise.all([
         api('/available-disciplines'),
-        api('/rmgmt')
+        api('/rmgmt'),
+        api('/disciplines/settings')
     ]);
     state.disciplines = disciplines;
     state.ranges = relayData.ranges;
+    state.maxDisciplines = settings.max_disciplines;
+    document.getElementById('max-disciplines').value = settings.max_disciplines;
 }
-
-// Individual disciplines a team can count: not team, not aggregate (Remington adds up others),
-// not a combined ranking (KUCR ranks others together)
-const countable = (d) => d.level !== 'team' && !d.aggregate_of?.length && !d.combined_of?.length;
 
 /** A team's composition as short names (or names), e.g. "TANO + TANR". */
 function compositionText(team) {
     const names = (team.team_of || [])
         .map(id => state.disciplines.find(d => d.id === id))
         .filter(Boolean)
-        .map(d => escapeHtml(d.short_name || d.event));
+        .map(d => escapeHtml(d.short_name || d.name));
     return names.join(' + ') || '<span class="text-red-600">none</span>';
 }
 
-/** The checkboxes of the disciplines a team of the form's category can count, ticked from checkedIds. */
+/** The checkboxes of the individual disciplines a team of the form's category can count, ticked from checkedIds. */
 function renderTeamOfOptions(checkedIds) {
     const category = document.getElementById('form-category').value;
     const checked = new Set(checkedIds || []);
+    document.getElementById('team-of-hint').textContent =
+        `The individual disciplines whose starts can be team members (1 to ${state.maxDisciplines}).`;
     document.getElementById('form-team-of').innerHTML = state.disciplines
-        .filter(d => countable(d) && d.category === category)
+        .filter(d => d.level !== 'team' && d.category === category && (d.active !== false || checked.has(d.id)))
         .map(d => `
             <label class="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" class="team-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
-                <span>${escapeHtml(d.event)}${d.short_name ? ` <span class="text-gray-400">${escapeHtml(d.short_name)}</span>` : ''}</span>
+                <span>${escapeHtml(d.name)}${d.short_name ? ` <span class="text-gray-400">${escapeHtml(d.short_name)}</span>` : ''}</span>
             </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
 }
 
-/** The checkboxes of the disciplines an aggregate of the form's category and type can add up, ticked from checkedIds. */
-function renderAggregateOfOptions(checkedIds) {
-    const category = document.getElementById('form-category').value;
-    const type = document.getElementById('form-type').value;
-    const id = Number(document.getElementById('form-id').value);
-    const checked = new Set(checkedIds || []);
-    document.getElementById('form-aggregate-of').innerHTML = [...state.disciplines].sort((a, b) => a.id - b.id)
-        .filter(d => countable(d) && d.id !== id && d.category === category && d.type === type)
-        .map(d => `
-            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" class="aggregate-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
-                <span>${escapeHtml(d.short_name || d.event)} <span class="text-gray-400">${escapeHtml(d.event)}</span></span>
-            </label>`).join('') || `<p class="text-sm text-gray-500">No individual ${escapeHtml(type)} ${escapeHtml(category)} disciplines.</p>`;
-}
-
-const checkedAggregateOf = () => [...document.querySelectorAll('.aggregate-of-option:checked')].map(input => Number(input.value));
-
-/** The checkboxes of the disciplines a combined ranking of the form's category can rank together (any type). */
-function renderCombinedOfOptions(checkedIds) {
-    const category = document.getElementById('form-category').value;
-    const id = Number(document.getElementById('form-id').value);
-    const checked = new Set(checkedIds || []);
-    document.getElementById('form-combined-of').innerHTML = [...state.disciplines].sort((a, b) => a.id - b.id)
-        .filter(d => countable(d) && d.id !== id && d.category === category)
-        .map(d => `
-            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" class="combined-of-option h-4 w-4" value="${d.id}" ${checked.has(d.id) ? 'checked' : ''}>
-                <span>${escapeHtml(d.short_name || d.event)} <span class="text-gray-400">${escapeHtml(d.event)} (${escapeHtml(d.type)})</span></span>
-            </label>`).join('') || '<p class="text-sm text-gray-500">No individual disciplines in this category.</p>';
-}
-
-const checkedCombinedOf = () => [...document.querySelectorAll('.combined-of-option:checked')].map(input => Number(input.value));
-
-/** Disciplines by id as short names (or names), e.g. "KUCRS + KUCRU". */
-const disciplinesText = (ids) => ids
-    .map(id => state.disciplines.find(x => x.id === id))
-    .map(x => escapeHtml(x ? x.short_name || x.event : '?'))
-    .join(' + ');
-
-/** A combined ranking's disciplines, e.g. "KUCRS + KUCRU". */
-const combinedOfText = (d) => disciplinesText(d.combined_of);
-
-/** The disciplines an aggregate adds up, e.g. "COLT + MALO". */
-const aggregateOfText = (d) => disciplinesText(d.aggregate_of);
-
-function levelBadge(level, isAggregate, isCombined) {
-    if (isCombined) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">Combined</span>';
-    if (isAggregate) return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Aggregate</span>';
+function levelBadge(level) {
     if (level === 'team') return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">Team</span>';
     return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Individual</span>';
 }
@@ -144,31 +99,29 @@ function renderTable() {
         return;
     }
 
-    const sorted = [...state.disciplines].sort((a, b) => a.id - b.id);
+    // Individual disciplines first, then teams; each by id
+    const sorted = [...state.disciplines].sort((a, b) =>
+        (a.level === 'team') - (b.level === 'team') || a.id - b.id);
 
     tbody.innerHTML = sorted.map(d => {
         const isTeam = d.level === 'team';
-        const isAggregate = !!d.aggregate_of?.length;
-        const isCombined = !!d.combined_of?.length;
-        const teamInfo = isTeam
-            ? `${compositionText(d)}${d.team_size ? ` (${d.team_size})` : ''}`
-            : isAggregate ? `Sum of ${aggregateOfText(d)}`
-            : isCombined ? `Ranks ${combinedOfText(d)} together` : '';
+        const teamInfo = isTeam ? `${compositionText(d)}${d.team_size ? ` (${d.team_size} shooters)` : ''}` : '';
         const distanceOptions = state.ranges.map(r =>
             `<option value="${escapeHtml(r.id)}" ${r.id === d.shooting_distance ? 'selected' : ''}>${escapeHtml(r.name)}</option>`
         ).join('');
 
         return `
-        <tr data-id="${d.id}">
+        <tr data-id="${d.id}" class="${d.active === false ? 'text-gray-400' : ''}">
             <td class="px-4 py-2 text-sm text-gray-500">${d.id}</td>
-            <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.event)}</td>
+            <td class="px-4 py-2 text-sm font-medium">${escapeHtml(d.name)}${d.active === false
+                ? ' <span class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-normal">archived</span>' : ''}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(d.short_name || '')}</td>
             <td class="px-4 py-2 text-sm">${categoryBadge(d.category)}</td>
-            <td class="px-4 py-2 text-sm">${levelBadge(d.level, isAggregate, isCombined)}</td>
-            <td class="px-4 py-2 text-sm">${escapeHtml(d.type)}</td>
+            <td class="px-4 py-2 text-sm">${levelBadge(d.level)}</td>
+            <td class="px-4 py-2 text-sm">${escapeHtml(d.type || '')}</td>
             <td class="px-4 py-2 text-sm text-gray-600">${teamInfo}</td>
             <td class="px-4 py-2 text-sm">
-                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam || isAggregate || isCombined ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to individual lanes"' : isAggregate ? 'disabled title="Aggregate disciplines take no lane: their results come from other disciplines"' : isCombined ? 'disabled title="Combined rankings take no lane: competitors start in their disciplines"' : ''}>
+                <select class="shooting-distance px-2 py-1 border border-gray-300 rounded-md text-sm ${isTeam ? 'opacity-50' : ''}" data-discipline-id="${d.id}" ${isTeam ? 'disabled title="Team disciplines are not assigned to lanes"' : ''}>
                     <option value="">any distance</option>
                     ${distanceOptions}
                 </select>
@@ -181,21 +134,14 @@ function renderTable() {
     }).join('');
 }
 
-/** Team, aggregate and combined ranking fields for the chosen level; none of them takes a lane. */
+/** Team fields for a team discipline; a team takes no lane. */
 function toggleLevelFields() {
-    const level = document.getElementById('form-level').value;
-    const isTeam = level === 'team';
-    const isAggregate = level === 'aggregate';
-    const isCombined = level === 'combined';
+    const isTeam = document.getElementById('form-level').value === 'team';
     document.getElementById('team-of-group').classList.toggle('hidden', !isTeam);
     document.getElementById('team-size-group').classList.toggle('hidden', !isTeam);
-    document.getElementById('aggregate-of-group').classList.toggle('hidden', !isAggregate);
-    document.getElementById('combined-of-group').classList.toggle('hidden', !isCombined);
-    // A combined ranking of originals and reproductions has the type "combined"
-    document.querySelector('#form-type option[value="combined"]').hidden = !isCombined;
     const sdSelect = document.getElementById('form-shooting-distance');
-    sdSelect.disabled = isTeam || isAggregate || isCombined;
-    if (isTeam || isAggregate || isCombined) sdSelect.value = '';
+    sdSelect.disabled = isTeam;
+    if (isTeam) sdSelect.value = '';
 }
 
 function populateDistanceOptions() {
@@ -215,37 +161,24 @@ function showForm(discipline) {
     if (discipline) {
         title.textContent = 'Edit Discipline';
         document.getElementById('form-id').value = discipline.id;
-        document.getElementById('form-event').value = discipline.event || '';
+        document.getElementById('form-name').value = discipline.name || '';
         document.getElementById('form-short-name').value = discipline.short_name || '';
-        // Disciplines added by this competition (ids from 1000) keep their short name to themselves
-        document.getElementById('short-name-hint').classList.toggle('hidden', discipline.id >= 1000);
         document.getElementById('form-category').value = discipline.category || 'rifle';
-        document.getElementById('form-level').value = discipline.aggregate_of?.length ? 'aggregate'
-            : discipline.combined_of?.length ? 'combined' : discipline.level || 'individual';
-        // A type from older data (e.g. "combined") is kept as an option, so the form can still be saved
-        const typeSelect = document.getElementById('form-type');
-        typeSelect.querySelectorAll('option[data-legacy]').forEach(option => option.remove());
-        if (discipline.type && ![...typeSelect.options].some(option => option.value === discipline.type)) {
-            typeSelect.insertAdjacentHTML('beforeend',
-                `<option value="${escapeHtml(discipline.type)}" data-legacy>${escapeHtml(discipline.type)}</option>`);
-        }
-        typeSelect.value = discipline.type || 'original';
+        document.getElementById('form-level').value = discipline.level || 'individual';
+        document.getElementById('form-type').value = discipline.type || 'original';
         document.getElementById('form-team-size').value = discipline.team_size || 3;
         document.getElementById('form-shooting-distance').value = discipline.shooting_distance || '';
+        document.getElementById('form-active').checked = discipline.active !== false;
         renderTeamOfOptions(discipline.team_of);
-        renderAggregateOfOptions(discipline.aggregate_of);
-        renderCombinedOfOptions(discipline.combined_of);
     } else {
         title.textContent = 'Add Discipline';
         document.getElementById('form-id').value = '';
         document.getElementById('discipline-form').reset();
-        document.getElementById('short-name-hint').classList.add('hidden');
+        document.getElementById('form-active').checked = true;
         renderTeamOfOptions([]);
-        renderAggregateOfOptions([]);
-        renderCombinedOfOptions([]);
     }
     toggleLevelFields();
-    document.getElementById('form-event').focus();
+    document.getElementById('form-name').focus();
 }
 
 function hideForm() {
@@ -256,18 +189,13 @@ function hideForm() {
 
 function formData() {
     const level = document.getElementById('form-level').value;
-    const isAggregate = level === 'aggregate';
-    const isCombined = level === 'combined';
     const data = {
-        event: document.getElementById('form-event').value.trim(),
+        name: document.getElementById('form-name').value.trim(),
         short_name: document.getElementById('form-short-name').value.trim() || null,
         category: document.getElementById('form-category').value,
-        // An aggregate adds up other events, a combined ranking ranks other disciplines together:
-        // both are individual disciplines
-        level: isAggregate || isCombined ? 'individual' : level,
+        level,
         type: document.getElementById('form-type').value,
-        aggregate_of: isAggregate ? checkedAggregateOf() : null,
-        combined_of: isCombined ? checkedCombinedOf() : null
+        active: document.getElementById('form-active').checked
     };
     if (level === 'team') {
         data.team_size = parseInt(document.getElementById('form-team-size').value, 10) || 3;
@@ -276,40 +204,42 @@ function formData() {
         data.team_size = null;
         data.team_of = null;
     }
-    const sd = document.getElementById('form-shooting-distance').value;
-    data.shooting_distance = sd || null;
+    data.shooting_distance = document.getElementById('form-shooting-distance').value || null;
     return data;
+}
+
+/** Offers a JSON value as a file to save. */
+function download(value, fileName) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+async function reload() {
+    await loadData();
+    renderTable();
 }
 
 function setupListeners() {
     document.getElementById('add-btn').addEventListener('click', () => showForm(null));
     document.getElementById('cancel-btn').addEventListener('click', hideForm);
-    document.getElementById('form-level').addEventListener('change', () => {
-        // Only a combined ranking can have the type "combined"
-        const typeSelect = document.getElementById('form-type');
-        if (document.getElementById('form-level').value !== 'combined' && typeSelect.value === 'combined') {
-            typeSelect.value = 'original';
-        }
-        toggleLevelFields();
-    });
-    // The disciplines a team can count depend on its category, the events an aggregate adds up also on its type
+    document.getElementById('form-level').addEventListener('change', toggleLevelFields);
+    // The disciplines a team can count depend on its category
     document.getElementById('form-category').addEventListener('change', () => {
         renderTeamOfOptions([...document.querySelectorAll('.team-of-option:checked')].map(input => Number(input.value)));
-        renderAggregateOfOptions(checkedAggregateOf());
-        renderCombinedOfOptions(checkedCombinedOf());
     });
-    document.getElementById('form-type').addEventListener('change', () => renderAggregateOfOptions(checkedAggregateOf()));
 
     document.getElementById('discipline-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const id = document.getElementById('form-id').value;
         const data = formData();
-        if (data.combined_of && data.combined_of.length < 2) {
-            showMessage('Tick at least two disciplines to rank together');
-            return;
-        }
-        if (data.aggregate_of && !data.aggregate_of.length) {
-            showMessage('Tick at least one discipline that is added up');
+        if (data.team_of && (data.team_of.length < 1 || data.team_of.length > state.maxDisciplines)) {
+            showMessage(`Tick 1 to ${state.maxDisciplines} disciplines whose results count`);
             return;
         }
         try {
@@ -317,8 +247,7 @@ function setupListeners() {
                 ? api(`/available-disciplines/${id}`, 'PUT', data)
                 : api('/available-disciplines', 'POST', data));
             hideForm();
-            await loadData();
-            renderTable();
+            await reload();
         } catch (error) {
             showMessage(error.message);
         }
@@ -335,11 +264,10 @@ function setupListeners() {
         }
 
         if (event.target.closest('.delete-btn')) {
-            if (!confirm('Delete this discipline?')) return;
+            if (!confirm('Delete this discipline? A discipline in use cannot be deleted; archive it instead.')) return;
             try {
                 await withButtonFeedback(event.target.closest('.delete-btn'), () => api(`/available-disciplines/${id}`, 'DELETE'));
-                await loadData();
-                renderTable();
+                await reload();
             } catch (error) {
                 showMessage(error.message);
             }
@@ -354,8 +282,7 @@ function setupListeners() {
         try {
             await withButtonFeedback(document.getElementById('save-distances-btn'),
                 () => api('/available-disciplines/shooting-distances', 'PUT', { shooting_distances: mapping }));
-            await loadData();
-            renderTable();
+            await reload();
         } catch (error) {
             showMessage(error.message);
         }
@@ -366,12 +293,49 @@ function setupListeners() {
             document.getElementById('save-distances-btn').classList.remove('hidden');
         }
     });
+
+    document.getElementById('save-max-btn').addEventListener('click', async () => {
+        try {
+            const max = parseInt(document.getElementById('max-disciplines').value, 10);
+            await withButtonFeedback(document.getElementById('save-max-btn'),
+                () => api('/disciplines/settings', 'PUT', { max_disciplines: max }));
+            await reload();
+        } catch (error) {
+            showMessage(error.message);
+        }
+    });
+
+    document.getElementById('export-btn').addEventListener('click', async () => {
+        try {
+            await withButtonFeedback(document.getElementById('export-btn'),
+                async () => download(await api('/disciplines/export'), `disciplines-${today()}.json`));
+        } catch (error) {
+            showMessage(error.message);
+        }
+    });
+
+    document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+    document.getElementById('import-file').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+        const mode = document.getElementById('import-mode').value;
+        if (mode === 'replace' && !confirm('Replace the catalog? Disciplines the file lacks are removed (refused for any in use).')) return;
+        try {
+            const content = JSON.parse(await file.text());
+            const summary = await api(`/disciplines/import?mode=${mode}`, 'POST', content);
+            showMessage(`Imported: ${summary.added.length} added, ${summary.updated.length} updated, `
+                + `${summary.removed.length} removed`, 'success');
+            await reload();
+        } catch (error) {
+            showMessage(error instanceof SyntaxError ? 'The file is not valid JSON' : error.message);
+        }
+    });
 }
 
 async function init() {
     try {
-        await loadData();
-        renderTable();
+        await reload();
         setupListeners();
     } catch (error) {
         console.error(error);

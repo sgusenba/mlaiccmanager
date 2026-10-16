@@ -70,10 +70,11 @@ const teamSize = () => currentDiscipline()?.team_size ?? 3;
 
 function disciplineOptions(disciplines, selectedId) {
     const option = d => `<option value="${d.id}" ${d.id === selectedId ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.category)}, ${escapeHtml(d.type)})</option>`;
-    const active = disciplines.filter(d => d.active);
-    const inactive = disciplines.filter(d => !d.active);
-    return (active.length ? `<optgroup label="Active">${active.map(option).join('')}</optgroup>` : '')
-        + (inactive.length ? `<optgroup label="Inactive">${inactive.map(option).join('')}</optgroup>` : '');
+    // Teams can be entered for the team disciplines of the meet's rankings; others only still have teams
+    const ranked = disciplines.filter(d => d.in_program);
+    const others = disciplines.filter(d => !d.in_program);
+    return (ranked.length ? `<optgroup label="In this meet's rankings">${ranked.map(option).join('')}</optgroup>` : '')
+        + (others.length ? `<optgroup label="In no ranking">${others.map(option).join('')}</optgroup>` : '');
 }
 
 // --- loading ---------------------------------------------------------------
@@ -92,7 +93,7 @@ async function loadDisciplines() {
     state.disciplines = await api('/disciplines');
     const stored = readStoredDiscipline();
     const preferred = state.disciplines.find(d => d.id === stored)
-        ?? state.disciplines.find(d => d.active)
+        ?? state.disciplines.find(d => d.in_program)
         ?? state.disciplines[0];
     state.disciplineId = preferred?.id ?? null;
     document.getElementById('discipline-select').innerHTML = disciplineOptions(state.disciplines, state.disciplineId);

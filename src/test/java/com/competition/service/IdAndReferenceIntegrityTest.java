@@ -36,12 +36,11 @@ class IdAndReferenceIntegrityTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Files.writeString(tempDir.resolve("disciplines.json"),
-            "[{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 3 Minie\"},"
-                + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"event\":\"No 7 Colt\"},"
-                + "{\"id\":53,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"event\":\"No 8 Kuchenreuter\"},"
-                + "{\"id\":80,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"combined\",\"event\":\"KUC\",\"combined_of\":[52,53]},"
-                + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"event\":\"No 9 Gustav Adolph\","
+        TestFiles.writeCatalog(tempDir,
+            "[{\"id\":3,\"category\":\"rifle\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"No 3 Minie\"},"
+                + "{\"id\":52,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"original\",\"name\":\"No 7 Colt\"},"
+                + "{\"id\":53,\"category\":\"pistol\",\"level\":\"individual\",\"type\":\"reproduction\",\"name\":\"No 8 Kuchenreuter\"},"
+                + "{\"id\":31,\"category\":\"rifle\",\"level\":\"team\",\"type\":\"original\",\"name\":\"No 9 Gustav Adolph\","
                 + "\"team_of\":[3],\"team_size\":3}]");
         Files.writeString(tempDir.resolve("data.json"),
             "{\"competitors\":["
@@ -50,13 +49,12 @@ class IdAndReferenceIntegrityTest {
                 + "," + competitor(2, "Ben", "\"52\":[" + start("2-52-1", 1, 52) + "]")
                 + "],\"results\":[]}");
 
-        dataService = new DataService(tempDir.resolve("data.json").toString(), tempDir.resolve("disciplines.json").toString(),
-            tempDir.resolve("competition.json").toString());
-        disciplineService = new DisciplineService(dataService);
+        dataService = TestFiles.dataService(tempDir);
+        teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
+        disciplineService = new DisciplineService(dataService, teamService);
         competitorService = new CompetitorService(dataService);
         startService = new StartService(dataService, disciplineService);
         resultService = new ResultService(dataService, disciplineService);
-        teamService = new TeamService(tempDir.resolve("teams.json").toString(), dataService);
         relayService = new RelayService(tempDir.resolve("relays.json").toString(), dataService);
         cascadingDeletes = new CascadingDeletes(startService, competitorService, teamService, relayService);
 
@@ -181,10 +179,11 @@ class IdAndReferenceIntegrityTest {
     }
 
     @Test
-    void startsOnlyGoIntoDisciplinesThatTakeThem() {
+    void startsOnlyGoIntoDisciplinesThatTakeThem() throws Exception {
         assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 999, null), "no such discipline");
         assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 31, null), "a team discipline");
-        assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 80, null), "a combined ranking");
+        new RankingConfigService(dataService, teamService, "none").deleteRanking(rankingOf(53), null);
+        assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 53, null), "in no ranking");
         assertThrows(RecordNotFoundException.class, () -> startService.createStart(9, 3, null), "no such competitor");
     }
 
@@ -193,7 +192,7 @@ class IdAndReferenceIntegrityTest {
         assertThrows(ConflictException.class, () -> disciplineService.deleteCatalogDiscipline(3),
             "counted by team discipline 31");
         assertThrows(ConflictException.class, () -> disciplineService.deleteCatalogDiscipline(52),
-            "ranked in KUC and has starts");
+            "in a ranking and has starts");
         assertThrows(RecordNotFoundException.class, () -> disciplineService.deleteCatalogDiscipline(999));
 
         teamService.createTeam(Map.of("discipline_id", 31, "members", List.of("1-3-1")));
@@ -206,12 +205,26 @@ class IdAndReferenceIntegrityTest {
 
     @Test
     void addedDisciplineIdIsNotReused() throws Exception {
-        Discipline first = disciplineService.createCatalogDiscipline(Map.of("category", "rifle", "event", "Custom"));
-        assertEquals(DisciplineService.FIRST_CUSTOM_ID, first.getId());
+        Map<String, Object> custom = Map.of("category", "rifle", "level", "individual", "name", "Custom");
+        Discipline first = disciplineService.createCatalogDiscipline(custom);
+        assertEquals(54, first.getId(), "after the highest id");
         disciplineService.deleteCatalogDiscipline(first.getId());
 
-        Discipline second = disciplineService.createCatalogDiscipline(Map.of("category", "rifle", "event", "Other"));
-        assertEquals(DisciplineService.FIRST_CUSTOM_ID + 1, second.getId());
+        assertEquals(55, disciplineService.createCatalogDiscipline(custom).getId());
+    }
+
+    @Test
+    void deletedRankingIdIsNotReused() throws Exception {
+        RankingConfigService rankings = new RankingConfigService(dataService, teamService, "none");
+        Map<String, Object> request = Map.of("name", "Minie", "entries", List.of(Map.of("discipline_ids", List.of(3))));
+        int first = rankings.createRanking(request).getId();
+        rankings.deleteRanking(first, null);
+        assertNotEquals(first, rankings.createRanking(request).getId());
+    }
+
+    private int rankingOf(int disciplineId) throws Exception {
+        return dataService.loadRankingConfig().getRankings().stream()
+            .filter(r -> r.disciplineIds().contains(disciplineId)).findFirst().orElseThrow().getId();
     }
 
     @Test
@@ -222,15 +235,5 @@ class IdAndReferenceIntegrityTest {
         assertThrows(ConflictException.class,
             () -> teamService.changeComposition(31, edit, () -> disciplineService.updateCatalogDiscipline(31, edit)));
         assertEquals("team", disciplineService.getAvailableDisciplineById(31).getLevel());
-    }
-
-    @Test
-    void combinedRankingStopsWhenOneOfItsDisciplinesIsNoLongerShot() throws Exception {
-        disciplineService.setActiveDisciplines(List.of(3, 52, 53, 80), null);
-        assertTrue(disciplineService.getActiveDisciplines().contains(80));
-
-        List<Integer> active = disciplineService.deactivateDiscipline(53);
-        assertFalse(active.contains(80), "KUC cannot be ranked without KUCR shot");
-        assertEquals(List.of(3, 52), disciplineService.setActiveDisciplines(List.of(3, 52, 80), active));
     }
 }

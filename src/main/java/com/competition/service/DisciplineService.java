@@ -1,131 +1,41 @@
 package com.competition.service;
 
 import com.competition.model.Discipline;
+import com.competition.model.DisciplineCatalog;
+import com.competition.model.RankingConfig;
+import com.competition.model.RankingDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Pattern;
 
+/**
+ * The installation's discipline catalog: the same disciplines at every meet,
+ * edited here, exported and imported on their own. What a meet ranks is its
+ * rankings (RankingConfigService).
+ */
 public class DisciplineService {
-    static final int FIRST_CUSTOM_ID = 1000;
+    static final Set<String> LEVELS = Set.of("individual", "team");
+    static final Set<String> CATEGORIES = Set.of("rifle", "pistol");
 
-    private DataService dataService;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final DataService dataService;
+    private final TeamService teamService;
 
     public DisciplineService(DataService dataService) {
+        this(dataService, null);
+    }
+
+    public DisciplineService(DataService dataService, TeamService teamService) {
         this.dataService = dataService;
-    }
-
-    public List<Integer> getActiveDisciplines() throws Exception {
-        return activeIdsOf(dataService.loadDisciplines());
-    }
-
-    /**
-     * Replaces the active discipline list by flipping each catalog discipline's
-     * "active" flag. If baseIds (the list the client started from) is given and
-     * no longer matches, someone else changed the list meanwhile and the save
-     * is rejected instead of silently undoing it.
-     */
-    public List<Integer> setActiveDisciplines(List<Integer> disciplineIds, List<Integer> baseIds) throws Exception {
-        Set<Integer> desired = new HashSet<>(disciplineIds);
-        // Lock order: data.json, then disciplines; the program rules look at the starts
-        return dataService.read(data -> dataService.updateProgram((disciplines, combined, options) -> {
-            List<Integer> current = activeIdsOf(disciplines);
-            if (baseIds != null && !new HashSet<>(baseIds).equals(new HashSet<>(current))) {
-                throw new ConflictException("Active disciplines were changed by someone else", current);
-            }
-            Set<Integer> rankedBefore = rankedCombinedRankings(disciplines);
-            for (Discipline d : disciplines) {
-                d.setActive(desired.contains(d.getId()));
-            }
-            applyProgramRules(data, disciplines, options, rankedBefore);
-            return activeIdsOf(disciplines);
-        }));
-    }
-
-    /** Deactivates a single discipline, leaving everyone else's changes intact. */
-    public List<Integer> deactivateDiscipline(int disciplineId) throws Exception {
-        return dataService.read(data -> dataService.updateProgram((disciplines, combined, options) -> {
-            Set<Integer> rankedBefore = rankedCombinedRankings(disciplines);
-            for (Discipline d : disciplines) {
-                if (d.getId() == disciplineId) {
-                    d.setActive(false);
-                }
-            }
-            applyProgramRules(data, disciplines, options, rankedBefore);
-            return activeIdsOf(disciplines);
-        }));
-    }
-
-    /**
-     * The rules the Meet page's program keeps (see ProgramService), for every
-     * other way the disciplines change: a combined ranking is ranked only while
-     * all its disciplines are shot, and with "one start per combined ranking"
-     * a combined ranking that is newly ranked (or has new disciplines) may not
-     * have a competitor starting in more than one of them. Caller holds the
-     * data.json lock, so no start can be added meanwhile.
-     */
-    static void applyProgramRules(Map<String, Object> data, List<Discipline> disciplines,
-            DataService.ProgramOptions options, Set<Integer> unchangedRankings) {
-        ProgramService.setCombinedRankings(disciplines, null);
-        if (options.oneStartPerCombinedRanking) {
-            Set<Integer> toCheck = rankedCombinedRankings(disciplines);
-            toCheck.removeAll(unchangedRankings);
-            ProgramService.checkOneStartEach(data, disciplines, toCheck);
-        }
-    }
-
-    /** The ids of the combined rankings that are ranked (active). */
-    static Set<Integer> rankedCombinedRankings(List<Discipline> disciplines) {
-        Set<Integer> ids = new HashSet<>();
-        for (Discipline d : disciplines) {
-            if (d.isActive() && isCombinedRanking(d)) {
-                ids.add(d.getId());
-            }
-        }
-        return ids;
-    }
-
-    /**
-     * The disciplines and combined events as read once, for work that looks
-     * many of them up (rankings): each lookup through this service re-reads
-     * the catalog and competition files.
-     */
-    public record Snapshot(List<Discipline> all, Map<Integer, Discipline> byId, Set<String> combinedEvents) {
-        public Discipline get(int id) {
-            return byId.get(id);
-        }
-
-        public List<Integer> activeIds() {
-            return activeIdsOf(all);
-        }
-
-        public Map<Integer, EventPair> combinedPairs() {
-            return combinedPairsOf(all, combinedEvents);
-        }
-
-        public Map<Integer, List<Discipline>> activeCombinedRankingsByMember() {
-            return DisciplineService.activeCombinedRankingsByMember(all);
-        }
-
-        public List<Discipline> components(Discipline aggregate) {
-            return componentsOf(aggregate, all);
-        }
-    }
-
-    public Snapshot snapshot() throws Exception {
-        List<Discipline> all = dataService.loadDisciplines();
-        Map<Integer, Discipline> byId = new HashMap<>();
-        all.forEach(d -> byId.put(d.getId(), d));
-        return new Snapshot(all, byId, dataService.loadCombinedEvents());
+        this.teamService = teamService;
     }
 
     public List<Discipline> getAvailableDisciplines() throws Exception {
@@ -133,8 +43,7 @@ public class DisciplineService {
     }
 
     public Discipline getAvailableDisciplineById(int id) throws Exception {
-        List<Discipline> availableDisciplines = getAvailableDisciplines();
-        for (Discipline discipline : availableDisciplines) {
+        for (Discipline discipline : getAvailableDisciplines()) {
             if (discipline.getId() == id) {
                 return discipline;
             }
@@ -142,87 +51,86 @@ public class DisciplineService {
         return null;
     }
 
+    /** The meet's program: the ids of the disciplines its rankings cover, in ranking order. */
+    public List<Integer> getProgramIds() throws Exception {
+        return new ArrayList<>(dataService.loadProgramIds());
+    }
+
+    public static boolean isTeamDiscipline(Discipline discipline) {
+        return discipline != null && discipline.isTeam();
+    }
+
+    // --- catalog settings ----------------------------------------------------
+
+    public Map<String, Object> getSettings() throws Exception {
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("max_disciplines", dataService.loadCatalog().getMaxDisciplines());
+        return settings;
+    }
+
+    /** Sets how many individual disciplines a team discipline may count; refused below a team's current count. */
+    public Map<String, Object> setMaxDisciplines(int max) throws Exception {
+        if (max < 1) {
+            throw new IllegalArgumentException("The limit must be at least 1");
+        }
+        dataService.updateCatalog(catalog -> {
+            for (Discipline d : catalog.getDisciplines()) {
+                if (d.isTeam() && d.getTeamOf() != null && d.getTeamOf().size() > max) {
+                    throw new IllegalArgumentException(d.getName() + " counts " + d.getTeamOf().size()
+                        + " disciplines, more than " + max);
+                }
+            }
+            catalog.setMaxDisciplines(max);
+            return null;
+        });
+        return getSettings();
+    }
+
+    // --- create / update / delete --------------------------------------------
+
     public Discipline createCatalogDiscipline(Map<String, Object> data) throws Exception {
-        return dataService.updateDisciplines(disciplines -> {
+        return dataService.updateCatalog(catalog -> {
+            List<Discipline> disciplines = catalog.getDisciplines();
             Discipline d = new Discipline();
-            // Added disciplines start at 1000 so a later catalog release cannot reuse their ids,
-            // and never get the id of one deleted earlier
-            d.setId(dataService.nextCustomDisciplineId(disciplines));
+            d.setId(catalog.takeNextId());
             applyCatalogFields(d, data);
-            checkTeamOf(d, disciplines);
-            checkAggregateOf(d, disciplines);
-            checkCombinedOf(d, disciplines);
+            check(d, catalog);
             disciplines.add(d);
             return d;
         });
     }
 
     public Discipline updateCatalogDiscipline(int id, Map<String, Object> data) throws Exception {
-        // Lock order: data.json, then disciplines; the program rules look at the starts
-        return dataService.read(stored -> dataService.updateProgram((disciplines, combined, options) -> {
-            Discipline target = disciplines.stream()
+        Map<Integer, Integer> teamCounts = teamCounts();
+        // Lock order: data.json, then catalog
+        return dataService.read(stored -> dataService.updateCatalog(catalog -> {
+            Discipline target = catalog.getDisciplines().stream()
                 .filter(d -> d.getId() == id).findFirst()
                 .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
-            // The combined rankings this edit touches are checked again below
-            Set<Integer> unchanged = rankedCombinedRankings(disciplines);
-            unchanged.removeIf(r -> r == id || disciplines.stream()
-                .anyMatch(d -> d.getId() == r && d.getCombinedOf().contains(id)));
+            String levelBefore = target.getLevel();
+            String categoryBefore = target.getCategory();
             applyCatalogFields(target, data);
-            if (data.containsKey("team_of") || data.containsKey("level")) {
-                checkTeamOf(target, disciplines);
+            check(target, catalog);
+            if (!Objects.equals(levelBefore, target.getLevel()) || !Objects.equals(categoryBefore, target.getCategory())) {
+                checkNotReferenced(target, "change its level or category",
+                    usesOf(id, stored, teamCounts, dataService.loadRankingConfig(), catalog.getDisciplines()));
             }
-            if (data.containsKey("aggregate_of") || data.containsKey("level")
-                    || data.containsKey("category") || data.containsKey("type")
-                    || data.containsKey("shooting_distance")) {
-                checkAggregateOf(target, disciplines);
-            }
-            checkCombinedOf(target, disciplines);
-            // The combined rankings and aggregates this discipline is part of must still be valid with its new fields
-            for (Discipline d : disciplines) {
-                if (isCombinedRanking(d) && d.getCombinedOf().contains(id)) {
-                    checkCombinedOf(d, disciplines);
-                }
-                if (isAggregate(d) && d.getId() != id && d.getAggregateOf().contains(id)) {
-                    checkAggregateOf(d, disciplines);
-                }
-            }
-            applyProgramRules(stored, disciplines, options, unchanged);
-            // A catalog discipline's short name goes into the catalog for every competition;
-            // the competition file then no longer differs from it there
-            if (data.containsKey("short_name")) {
-                dataService.setCatalogShortName(id, target.getShortName());
-            }
+            checkRankingsStillValid(catalog);
             return target;
         }));
     }
 
-    /**
-     * Deletes a discipline of this competition. Refused while anything still
-     * refers to it: a combined ranking, aggregate or team discipline that counts
-     * it, or a competitor's start (which would otherwise be left behind and
-     * count for nothing). Teams are checked by the caller, see TeamService.withoutTeams.
-     */
+    /** Refused while starts, teams or rankings refer to the discipline: archive it (active = false) instead. */
     public void deleteCatalogDiscipline(int id) throws Exception {
-        // Lock order: data.json, then disciplines
-        dataService.read(data -> dataService.updateDisciplines(disciplines -> {
-            if (disciplines.stream().noneMatch(d -> d.getId() == id)) {
-                throw new RecordNotFoundException("Discipline not found: " + id);
-            }
-            List<String> usedBy = disciplines.stream()
-                .filter(d -> (isCombinedRanking(d) && d.getCombinedOf().contains(id))
-                    || (isAggregate(d) && d.getAggregateOf().contains(id))
-                    || (TeamService.isTeamDiscipline(d) && d.getTeamOf() != null && d.getTeamOf().contains(id)))
-                .map(Discipline::getEvent).toList();
-            if (!usedBy.isEmpty()) {
-                throw new ConflictException("Discipline " + id + " is ranked in "
-                    + String.join(", ", usedBy) + "; remove it there first", usedBy);
-            }
-            List<String> starting = competitorsStartingIn(data, id);
-            if (!starting.isEmpty()) {
-                throw new ConflictException("Discipline " + id + " still has starts of "
-                    + String.join(", ", starting) + "; delete them first", starting);
-            }
-            disciplines.removeIf(d -> d.getId() == id);
+        Map<Integer, Integer> teamCounts = teamCounts();
+        // Lock order: data.json, then catalog
+        dataService.read(data -> dataService.updateCatalog(catalog -> {
+            Discipline target = catalog.getDisciplines().stream()
+                .filter(d -> d.getId() == id).findFirst()
+                .orElseThrow(() -> new RecordNotFoundException("Discipline not found: " + id));
+            checkNotReferenced(target, "delete it",
+                usesOf(id, data, teamCounts, dataService.loadRankingConfig(), catalog.getDisciplines()));
+            catalog.getDisciplines().remove(target);
             return null;
         }));
     }
@@ -239,407 +147,246 @@ public class DisciplineService {
         });
     }
 
-    /**
-     * An individual event that exists both as an original and a reproduction
-     * discipline (e.g. Miquelet), so the two can be ranked together. Events with
-     * just one type (Colt, Mariette) have no pair.
-     */
-    public record EventPair(String key, String category, String event, int originalId, int reproductionId) {
-        public int partnerOf(int disciplineId) {
-            return disciplineId == originalId ? reproductionId : originalId;
-        }
-
-        public String typeOf(int disciplineId) {
-            return disciplineId == originalId ? "original" : "reproduction";
-        }
-    }
-
-    public static String eventKey(String category, String event) {
-        return category + "|" + event;
-    }
-
-    // "_O", "_R", "_O/R" and the reproduction variants "_RS" (smooth bore) and "_RU" (rifled), e.g. Meixner
-    private static final Pattern TYPE_SUFFIX = Pattern.compile("[_ ](?:O/R|RS|RU|O|R)$");
-    // "1_", "XX_" and the older "No 1 " / "No. 1 "
-    private static final Pattern NUMBER_PREFIX = Pattern.compile("^(?:No\\.?\\s*)?(?:\\d+|XX)[_ ]\\s*");
-
-    /** The event name without its type suffix, e.g. "1_Miquelet" for "1_Miquelet_O", "1_Miquelet_R" or "1_Miquelet_O/R", "6_Kuchenreuter" for "6_Kuchenreuter_RS". */
-    public static String baseEvent(String event) {
-        return event == null ? null : TYPE_SUFFIX.matcher(event.trim()).replaceFirst("").trim();
+    /** Teams per team discipline, read before any other lock is taken (teams.json comes first in the lock order). */
+    private Map<Integer, Integer> teamCounts() throws Exception {
+        return teamService != null ? teamService.teamCounts() : Map.of();
     }
 
     /**
-     * What event names are matched on (original/reproduction pairs, aggregates,
-     * the old team based_on, lane families): also without the MLAIC number,
-     * so "1_Miquelet_O", "1_Miquelet_R", "No 1 Miquelet" and "Miquelet" are
-     * the same event.
+     * What refers to the discipline: the meet's rankings, team disciplines that
+     * count it, starts, and teams. Empty if nothing does.
      */
-    public static String matchKey(String event) {
-        return event == null ? null : NUMBER_PREFIX.matcher(baseEvent(event)).replaceFirst("").trim();
-    }
-
-    /** Whether two event names name the same event, see {@link #matchKey}. */
-    public static boolean sameEvent(String a, String b) {
-        return a != null && b != null && matchKey(a).equalsIgnoreCase(matchKey(b));
-    }
-
-    /** Every event with exactly one original and one reproduction individual discipline, in catalog order. */
-    static List<EventPair> eventPairsOf(List<Discipline> disciplines) {
-        Map<String, List<Discipline>> byEvent = new LinkedHashMap<>();
+    static List<String> usesOf(int id, Map<String, Object> data, Map<Integer, Integer> teamCounts,
+                               RankingConfig config, List<Discipline> disciplines) {
+        List<String> uses = new ArrayList<>();
+        for (RankingDefinition r : config.getRankings()) {
+            if (r.disciplineIds().contains(id)) {
+                uses.add("ranking " + r.getName());
+            }
+        }
         for (Discipline d : disciplines) {
-            if (!TeamService.isTeamDiscipline(d) && !isAggregate(d) && !isCombinedRanking(d) && d.getEvent() != null
-                    && ("original".equals(d.getType()) || "reproduction".equals(d.getType()))) {
-                byEvent.computeIfAbsent(eventKey(d.getCategory(), matchKey(d.getEvent())), k -> new ArrayList<>()).add(d);
+            if (d.isTeam() && d.getTeamOf() != null && d.getTeamOf().contains(id)) {
+                uses.add("team discipline " + d.getName());
             }
         }
-        List<EventPair> pairs = new ArrayList<>();
-        for (Map.Entry<String, List<Discipline>> entry : byEvent.entrySet()) {
-            List<Discipline> originals = new ArrayList<>();
-            List<Discipline> reproductions = new ArrayList<>();
-            for (Discipline d : entry.getValue()) {
-                ("original".equals(d.getType()) ? originals : reproductions).add(d);
-            }
-            if (originals.size() == 1 && reproductions.size() == 1) {
-                Discipline original = originals.get(0);
-                pairs.add(new EventPair(entry.getKey(), original.getCategory(), baseEvent(original.getEvent()),
-                    original.getId(), reproductions.get(0).getId()));
-            }
+        int starts = startCount(data, id);
+        if (starts > 0) {
+            uses.add(starts + " start(s)");
         }
-        return pairs;
-    }
-
-    /** Whether the discipline adds up the results of other disciplines instead of having starts. */
-    public static boolean isAggregate(Discipline discipline) {
-        return discipline != null && discipline.getAggregateOf() != null && !discipline.getAggregateOf().isEmpty();
-    }
-
-    /**
-     * Whether the discipline is a combined ranking (e.g. KUCR = KUCRS + KUCRU): it
-     * ranks the results of other disciplines together and has no starts of its own.
-     */
-    public static boolean isCombinedRanking(Discipline discipline) {
-        return discipline != null && discipline.getCombinedOf() != null && !discipline.getCombinedOf().isEmpty();
-    }
-
-    /** Whether competitors can start in the discipline: not a team or a combined ranking. */
-    public static boolean takesStarts(Discipline discipline) {
-        return !TeamService.isTeamDiscipline(discipline) && !isCombinedRanking(discipline);
-    }
-
-    /**
-     * The active combined rankings, by the id of each discipline they rank. A
-     * discipline listed here is ranked only through them, not on its own.
-     */
-    static Map<Integer, List<Discipline>> activeCombinedRankingsByMember(List<Discipline> disciplines) {
-        Map<Integer, List<Discipline>> byMember = new HashMap<>();
-        for (Discipline d : disciplines) {
-            if (d.isActive() && isCombinedRanking(d)) {
-                d.getCombinedOf().forEach(id -> byMember.computeIfAbsent(id, k -> new ArrayList<>()).add(d));
-            }
+        int teams = teamCounts.getOrDefault(id, 0);
+        if (teams > 0) {
+            uses.add(teams + " team(s)");
         }
-        return byMember;
+        return uses;
     }
 
-    public Map<Integer, List<Discipline>> getActiveCombinedRankingsByMember() throws Exception {
-        return activeCombinedRankingsByMember(dataService.loadDisciplines());
-    }
-
-    /**
-     * The disciplines an aggregate discipline adds up, in the order of its
-     * aggregate_of. An id that is no longer a discipline is left out.
-     */
-    static List<Discipline> componentsOf(Discipline aggregate, List<Discipline> disciplines) {
-        List<Discipline> components = new ArrayList<>();
-        for (int id : aggregate.getAggregateOf()) {
-            disciplines.stream().filter(d -> d.getId() == id).findFirst().ifPresent(components::add);
-        }
-        return components;
-    }
-
-    /**
-     * Aggregates used to name the events they add up (e.g. "aggregate_of":
-     * ["Colt", "Donald Malson"]) instead of listing discipline ids. Such a name
-     * becomes the id of the first individual discipline of that event with the
-     * aggregate's category and type, as it was matched then; a name without one
-     * is dropped. Works on the raw entries, before they are read as disciplines.
-     */
-    public static void resolveAggregateNames(List<ObjectNode> entries) {
-        for (ObjectNode aggregate : entries) {
-            JsonNode names = aggregate.get("aggregate_of");
-            if (names == null || !names.isArray()) {
-                continue;
-            }
-            boolean legacy = false;
-            for (JsonNode name : names) {
-                legacy |= name.isTextual();
-            }
-            if (!legacy) {
-                continue;
-            }
-            ArrayNode ids = aggregate.arrayNode();
-            Set<Integer> seen = new HashSet<>();
-            for (JsonNode name : names) {
-                Integer id = name.isNumber() ? Integer.valueOf(name.asInt()) : name.isTextual()
-                    ? namedComponentId(aggregate, name.asText(), entries) : null;
-                if (id != null && seen.add(id)) {
-                    ids.add(id);
-                }
-            }
-            aggregate.set("aggregate_of", ids);
+    private static void checkNotReferenced(Discipline discipline, String action, List<String> uses) {
+        if (!uses.isEmpty()) {
+            throw new ConflictException("Cannot " + action + ": " + discipline.getName() + " is used by "
+                + String.join(", ", uses) + ". Archive it instead (untick Active)", uses);
         }
     }
 
-    private static Integer namedComponentId(ObjectNode aggregate, String event, List<ObjectNode> entries) {
-        for (ObjectNode d : entries) {
-            if (d != aggregate && !"team".equalsIgnoreCase(d.path("level").asText())
-                    && !isNonEmptyArray(d.get("aggregate_of")) && !isNonEmptyArray(d.get("combined_of"))
-                    && sameEvent(event, d.path("event").asText(null))
-                    && Objects.equals(aggregate.path("category").asText(null), d.path("category").asText(null))
-                    && Objects.equals(aggregate.path("type").asText(null), d.path("type").asText(null))) {
-                return d.path("id").asInt();
-            }
-        }
-        return null;
-    }
-
-    private static boolean isNonEmptyArray(JsonNode node) {
-        return node != null && node.isArray() && !node.isEmpty();
-    }
-
-    public List<Discipline> getComponents(Discipline aggregate) throws Exception {
-        return componentsOf(aggregate, dataService.loadDisciplines());
-    }
-
-    /** All combinable events with whether this competition ranks them combined. */
-    public List<Map<String, Object>> getCombinableEvents() throws Exception {
-        Set<String> combined = dataService.loadCombinedEvents();
-        List<Map<String, Object>> events = new ArrayList<>();
-        for (EventPair pair : eventPairsOf(dataService.loadDisciplines())) {
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("key", pair.key());
-            event.put("category", pair.category());
-            event.put("event", pair.event());
-            event.put("original_id", pair.originalId());
-            event.put("reproduction_id", pair.reproductionId());
-            event.put("combined", combined.contains(pair.key()));
-            events.add(event);
-        }
-        return events;
-    }
-
-    /** The combined pairs, looked up by either of their discipline ids. */
-    public Map<Integer, EventPair> getCombinedPairsByDiscipline() throws Exception {
-        Set<String> combined = dataService.loadCombinedEvents();
-        return combined.isEmpty() ? new HashMap<>() : combinedPairsOf(dataService.loadDisciplines(), combined);
-    }
-
-    private static Map<Integer, EventPair> combinedPairsOf(List<Discipline> disciplines, Set<String> combined) {
-        Map<Integer, EventPair> byDiscipline = new HashMap<>();
-        for (EventPair pair : eventPairsOf(disciplines)) {
-            if (combined.contains(pair.key())) {
-                byDiscipline.put(pair.originalId(), pair);
-                byDiscipline.put(pair.reproductionId(), pair);
-            }
-        }
-        return byDiscipline;
-    }
-
-    /**
-     * Ranks an event's original and reproduction disciplines together or
-     * separately. Combining is refused while a competitor starts in both, since
-     * a combined ranking holds each competitor once.
-     */
-    public List<Map<String, Object>> setCombined(String key, boolean combined) throws Exception {
-        // Lock order: data.json, then disciplines
-        return dataService.read(data -> {
-            dataService.updateCombinedEvents(combinedEvents -> {
-                if (!combined) {
-                    combinedEvents.remove(key);
-                    return null;
-                }
-                EventPair pair = eventPairsOf(dataService.loadDisciplines()).stream()
-                    .filter(p -> p.key().equals(key)).findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Event cannot be combined: " + key));
-                List<String> inBoth = competitorsStartingInBoth(data, pair);
-                if (!inBoth.isEmpty()) {
-                    throw new ConflictException("Cannot combine " + pair.event()
-                        + ": these competitors start in both original and reproduction: "
-                        + String.join(", ", inBoth), inBoth);
-                }
-                combinedEvents.add(key);
-                return null;
-            });
-            return getCombinableEvents();
-        });
-    }
-
-    static List<String> competitorsStartingInBoth(Map<String, Object> data, EventPair pair) {
-        return competitorsStartingInMoreThanOne(data, List.of(pair.originalId(), pair.reproductionId()));
-    }
-
-    /** Names of the competitors who start in more than one of the disciplines (a combined ranking lists each once). */
     @SuppressWarnings("unchecked")
-    static List<String> competitorsStartingInMoreThanOne(Map<String, Object> data, List<Integer> disciplineIds) {
-        List<String> names = new ArrayList<>();
-        List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
-        if (competitors == null) {
-            return names;
-        }
-        for (Map<String, Object> competitor : competitors) {
-            if (disciplineIds.stream().filter(id -> startsIn(competitor, id)).count() > 1) {
-                names.add(String.valueOf(competitor.get("name")));
+    private static int startCount(Map<String, Object> data, int disciplineId) {
+        int count = 0;
+        for (Map<String, Object> competitor : (List<Map<String, Object>>) data.get("competitors")) {
+            if (competitor.get("starts") instanceof Map<?, ?> starts
+                    && starts.get(String.valueOf(disciplineId)) instanceof List<?> list) {
+                count += list.size();
             }
         }
-        return names;
+        return count;
     }
 
-    /** Names of the competitors who start in the discipline. */
-    @SuppressWarnings("unchecked")
-    static List<String> competitorsStartingIn(Map<String, Object> data, int disciplineId) {
-        List<String> names = new ArrayList<>();
-        if (data.get("competitors") instanceof List<?> competitors) {
-            for (Object competitor : competitors) {
-                if (competitor instanceof Map<?, ?> c && startsIn((Map<String, Object>) c, disciplineId)) {
-                    names.add(String.valueOf(c.get("name")));
+    // --- export / import -----------------------------------------------------
+
+    /** The catalog as a file of its own (format mlaic-disciplines). */
+    public DisciplineCatalog exportCatalog() throws Exception {
+        return dataService.loadCatalog();
+    }
+
+    /**
+     * Imports a disciplines file. "merge" adds new ids and updates existing
+     * ones; "replace" also removes the disciplines the file lacks, which is
+     * refused for one still in use. All of it is checked before anything is
+     * saved.
+     *
+     * @return the ids added, updated and removed
+     */
+    public Map<String, Object> importCatalog(JsonNode file, String mode) throws Exception {
+        if (!DataService.isCatalog(file)) {
+            throw new IllegalArgumentException("Not a disciplines file (format " + DisciplineCatalog.FORMAT + ")");
+        }
+        if (file.path("version").asInt() > DisciplineCatalog.FORMAT_VERSION) {
+            throw new IllegalArgumentException("The disciplines file is of a newer version");
+        }
+        boolean replace = "replace".equals(mode);
+        if (!replace && mode != null && !"merge".equals(mode)) {
+            throw new IllegalArgumentException("Unknown import mode: " + mode);
+        }
+        DisciplineCatalog imported = objectMapper.treeToValue(file, DisciplineCatalog.class);
+        Map<Integer, Discipline> importedById = new LinkedHashMap<>();
+        for (Discipline d : imported.getDisciplines()) {
+            if (d.getId() <= 0) {
+                throw new IllegalArgumentException("Every discipline needs an id above 0");
+            }
+            if (importedById.put(d.getId(), d) != null) {
+                throw new IllegalArgumentException("Discipline id " + d.getId() + " is in the file twice");
+            }
+        }
+
+        Map<Integer, Integer> teamCounts = teamCounts();
+        // Lock order: data.json, then catalog
+        return dataService.read(data -> dataService.updateCatalog(catalog -> {
+            RankingConfig config = dataService.loadRankingConfig();
+            List<Integer> added = new ArrayList<>();
+            List<Integer> updated = new ArrayList<>();
+            List<Integer> removed = new ArrayList<>();
+            Map<Integer, Discipline> current = new LinkedHashMap<>();
+            catalog.getDisciplines().forEach(d -> current.put(d.getId(), d));
+
+            List<Discipline> result = new ArrayList<>();
+            for (Discipline d : catalog.getDisciplines()) {
+                Discipline incoming = importedById.get(d.getId());
+                if (incoming != null) {
+                    result.add(incoming);
+                    updated.add(d.getId());
+                } else if (replace) {
+                    removed.add(d.getId());
+                } else {
+                    result.add(d);
                 }
             }
-        }
-        return names;
+            for (Discipline d : importedById.values()) {
+                if (!current.containsKey(d.getId())) {
+                    result.add(d);
+                    added.add(d.getId());
+                }
+            }
+
+            DisciplineCatalog next = new DisciplineCatalog();
+            next.setMaxDisciplines(Math.max(1, imported.getMaxDisciplines()));
+            next.setDisciplines(result);
+            for (Discipline d : result) {
+                normalize(d);
+                check(d, next);
+            }
+            // A discipline in use keeps its level and category, and is not removed
+            List<String> problems = new ArrayList<>();
+            for (int id : removed) {
+                List<String> uses = usesOf(id, data, teamCounts, config, result);
+                if (!uses.isEmpty()) {
+                    problems.add(current.get(id).getName() + " (used by " + String.join(", ", uses) + ")");
+                }
+            }
+            for (int id : updated) {
+                Discipline before = current.get(id);
+                Discipline after = importedById.get(id);
+                if ((!Objects.equals(before.getLevel(), after.getLevel())
+                        || !Objects.equals(before.getCategory(), after.getCategory()))
+                        && !usesOf(id, data, teamCounts, config, catalog.getDisciplines()).isEmpty()) {
+                    problems.add(before.getName() + " (in use, its level or category cannot change)");
+                }
+            }
+            checkRankingsStillValid(next);
+            if (!problems.isEmpty()) {
+                throw new ConflictException("Nothing imported: " + String.join("; ", problems), problems);
+            }
+
+            catalog.setMaxDisciplines(next.getMaxDisciplines());
+            catalog.raiseNextId(); // ids removed by a replace stay taken
+            catalog.setDisciplines(result);
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("added", added);
+            summary.put("updated", updated);
+            summary.put("removed", removed);
+            return summary;
+        }));
     }
 
-    /** Whether the competitor (a data.json record) has a start in the discipline. */
-    static boolean startsIn(Map<String, Object> competitor, int disciplineId) {
-        return competitor.get("starts") instanceof Map<?, ?> starts
-            && starts.get(String.valueOf(disciplineId)) instanceof List<?> list
-            && !list.isEmpty();
+    /** The meet's rankings must still fit the imported catalog (levels, team counts). */
+    private void checkRankingsStillValid(DisciplineCatalog catalog) throws Exception {
+        RankingConfig config = dataService.loadRankingConfig();
+        for (RankingDefinition ranking : config.getRankings()) {
+            RankingConfigService.check(ranking, config.getMaxDisciplinesPerRanking(), catalog.getDisciplines());
+        }
     }
+
+    // --- validation ------------------------------------------------------------
 
     /**
-     * A team discipline needs at least one result that counts (team_of), and
-     * only individual (not aggregate) disciplines of its category.
+     * A discipline has a name, a known category and level. A team discipline
+     * counts 1 to max_disciplines individual disciplines of its category.
      */
-    private static void checkTeamOf(Discipline team, List<Discipline> disciplines) {
-        if (!TeamService.isTeamDiscipline(team)) {
-            team.setTeamOf(null); // only team disciplines have a composition
+    static void check(Discipline d, DisciplineCatalog catalog) {
+        if (d.getName() == null || d.getName().isBlank()) {
+            throw new IllegalArgumentException("Discipline " + d.getId() + " needs a name");
+        }
+        if (d.getCategory() == null || !CATEGORIES.contains(d.getCategory())) {
+            throw new IllegalArgumentException(d.getName() + ": category must be rifle or pistol");
+        }
+        if (d.getLevel() == null || !LEVELS.contains(d.getLevel())) {
+            throw new IllegalArgumentException(d.getName() + ": level must be individual or team");
+        }
+        if (!d.isTeam()) {
+            d.setTeamOf(null);
+            d.setTeamSize(null);
             return;
         }
-        if (team.getTeamOf() == null || team.getTeamOf().isEmpty()) {
-            throw new IllegalArgumentException("Tick at least one result that counts for " + team.getEvent());
+        d.setShootingDistance(null); // a team takes no lane
+        if (d.getTeamOf() == null || d.getTeamOf().isEmpty()) {
+            throw new IllegalArgumentException("Tick at least one discipline whose results count for " + d.getName());
         }
-        for (int id : team.getTeamOf()) {
-            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
-            if (d == null || TeamService.isTeamDiscipline(d) || isAggregate(d) || isCombinedRanking(d)
-                    || !Objects.equals(d.getCategory(), team.getCategory())) {
-                throw new IllegalArgumentException("A " + team.getCategory() + " team can only count individual "
-                    + team.getCategory() + " disciplines, not discipline " + id);
+        if (d.getTeamOf().size() > catalog.getMaxDisciplines()) {
+            throw new IllegalArgumentException(d.getName() + " may count at most " + catalog.getMaxDisciplines()
+                + " disciplines");
+        }
+        Map<Integer, Discipline> byId = new HashMap<>();
+        catalog.getDisciplines().forEach(x -> byId.put(x.getId(), x));
+        for (int id : d.getTeamOf()) {
+            Discipline counted = byId.get(id);
+            if (counted == null || counted.isTeam() || !Objects.equals(counted.getCategory(), d.getCategory())) {
+                throw new IllegalArgumentException("A " + d.getCategory() + " team can only count individual "
+                    + d.getCategory() + " disciplines, not discipline " + id);
             }
+        }
+        if (d.getTeamSize() == null || d.getTeamSize() < 1) {
+            d.setTeamSize(TeamService.DEFAULT_TEAM_SIZE);
         }
     }
 
-    /**
-     * An aggregate discipline (e.g. Remington) is individual, adds up individual
-     * disciplines of its category and type that take starts, and takes no lane.
-     */
-    private static void checkAggregateOf(Discipline aggregate, List<Discipline> disciplines) {
-        if (aggregate.getAggregateOf() != null && aggregate.getAggregateOf().isEmpty()) {
-            aggregate.setAggregateOf(null);
+    private static void normalize(Discipline d) {
+        if (d.getShortName() != null && d.getShortName().isBlank()) {
+            d.setShortName(null);
         }
-        if (!isAggregate(aggregate)) {
-            return;
+        if (d.getShootingDistance() != null && d.getShootingDistance().isBlank()) {
+            d.setShootingDistance(null);
         }
-        if (TeamService.isTeamDiscipline(aggregate)) {
-            aggregate.setAggregateOf(null); // a team counts its members' starts, it adds up no events
-            return;
+        if (d.getTeamOf() != null) {
+            d.setTeamOf(d.getTeamOf().stream().filter(Objects::nonNull).distinct().toList());
         }
-        for (int id : aggregate.getAggregateOf()) {
-            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
-            if (d == null || d.getId() == aggregate.getId() || TeamService.isTeamDiscipline(d) || isAggregate(d)
-                    || isCombinedRanking(d) || !Objects.equals(d.getCategory(), aggregate.getCategory())
-                    || !Objects.equals(d.getType(), aggregate.getType())) {
-                throw new IllegalArgumentException(aggregate.getEvent() + " can only add up individual "
-                    + aggregate.getType() + " " + aggregate.getCategory() + " disciplines, not discipline " + id);
-            }
-        }
-        aggregate.setShootingDistance(null);
-    }
-
-    /**
-     * A combined ranking (e.g. KUC = KUCO + KUCRS + KUCRU) is individual, ranks at
-     * least two individual disciplines of its category that take starts, and takes no lane.
-     */
-    private static void checkCombinedOf(Discipline combined, List<Discipline> disciplines) {
-        if (combined.getCombinedOf() != null && combined.getCombinedOf().isEmpty()) {
-            combined.setCombinedOf(null);
-        }
-        if (!isCombinedRanking(combined)) {
-            return;
-        }
-        if (TeamService.isTeamDiscipline(combined)) {
-            combined.setCombinedOf(null); // a team ranks teams, it combines no disciplines
-            return;
-        }
-        if (isAggregate(combined)) {
-            throw new IllegalArgumentException(combined.getEvent()
-                + " cannot both add up events (aggregate) and rank disciplines together (combined ranking)");
-        }
-        if (combined.getCombinedOf().size() < 2) {
-            throw new IllegalArgumentException("Tick at least two disciplines to rank together in " + combined.getEvent());
-        }
-        for (int id : combined.getCombinedOf()) {
-            Discipline d = disciplines.stream().filter(x -> x.getId() == id).findFirst().orElse(null);
-            if (d == null || d.getId() == combined.getId() || TeamService.isTeamDiscipline(d) || isAggregate(d)
-                    || isCombinedRanking(d) || !Objects.equals(d.getCategory(), combined.getCategory())) {
-                throw new IllegalArgumentException(combined.getEvent() + " can only rank individual "
-                    + combined.getCategory() + " disciplines together, not discipline " + id);
-            }
-        }
-        combined.setShootingDistance(null);
     }
 
     private static void applyCatalogFields(Discipline d, Map<String, Object> data) {
         if (data.containsKey("category")) d.setCategory((String) data.get("category"));
         if (data.containsKey("level")) d.setLevel((String) data.get("level"));
         if (data.containsKey("type")) d.setType((String) data.get("type"));
-        if (data.containsKey("event")) d.setEvent((String) data.get("event"));
-        if (data.containsKey("short_name")) {
-            String sn = (String) data.get("short_name");
-            d.setShortName(sn != null && !sn.isBlank() ? sn.trim() : null);
-        }
+        if (data.containsKey("name")) d.setName(trimmed(data.get("name")));
+        if (data.containsKey("short_name")) d.setShortName(trimmed(data.get("short_name")));
         if (data.containsKey("team_of")) {
             d.setTeamOf(data.get("team_of") instanceof List<?> ids
-                ? ids.stream().map(id -> ((Number) id).intValue()).distinct().toList()
-                : null);
-        }
-        if (data.containsKey("aggregate_of")) {
-            d.setAggregateOf(data.get("aggregate_of") instanceof List<?> ids
-                ? ids.stream().filter(Objects::nonNull).map(id -> ((Number) id).intValue()).distinct().toList()
-                : null);
-        }
-        if (data.containsKey("combined_of")) {
-            d.setCombinedOf(data.get("combined_of") instanceof List<?> ids
                 ? ids.stream().filter(Objects::nonNull).map(id -> ((Number) id).intValue()).distinct().toList()
                 : null);
         }
         if (data.containsKey("team_size")) {
-            Object ts = data.get("team_size");
-            d.setTeamSize(ts instanceof Number ? ((Number) ts).intValue() : null);
+            d.setTeamSize(data.get("team_size") instanceof Number n ? n.intValue() : null);
         }
-        if (data.containsKey("shooting_distance")) {
-            String sd = (String) data.get("shooting_distance");
-            d.setShootingDistance(sd != null && !sd.isBlank() ? sd : null);
-        }
-        if (data.containsKey("active")) {
-            d.setActive(Boolean.TRUE.equals(data.get("active")));
-        }
+        if (data.containsKey("shooting_distance")) d.setShootingDistance(trimmed(data.get("shooting_distance")));
+        if (data.containsKey("active")) d.setActive(!Boolean.FALSE.equals(data.get("active")));
     }
 
-    private static List<Integer> activeIdsOf(List<Discipline> disciplines) {
-        List<Integer> activeIds = new ArrayList<>();
-        for (Discipline d : disciplines) {
-            if (d.isActive()) {
-                activeIds.add(d.getId());
-            }
-        }
-        return activeIds;
+    private static String trimmed(Object value) {
+        return value instanceof String s && !s.isBlank() ? s.trim() : null;
     }
 }

@@ -1,16 +1,15 @@
-// Ranking page: one result per competitor and discipline (the best one),
-// from /api/ranking/best, laid out for printing and exported as Word or
-// Excel files. Team disciplines show the team ranking, which already has one
-// total per team.
+// Ranking page: the meet's rankings (/api/rankings/results), each competitor
+// once on their best result, laid out for printing and exported as Word or
+// Excel files. Team rankings rank teams, which have one total each.
 
-import { escapeHtml, disciplineDisplayName, teamRankingCard } from '../js/teamRanking.js';
+import { escapeHtml, teamRankingCard } from '../js/teamRanking.js';
 import { loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
 import { rankingDocx, rankingXlsx, timestampLine } from './rankingExport.js';
 import { individualCard } from './rankingCard.js';
 
-const DISCIPLINE_KEY = 'ranking.discipline';
+const RANKING_KEY = 'ranking.ranking';
 const PAGE_BREAK_KEY = 'ranking.pagePerDiscipline';
 const COVER_KEY = 'ranking.printCover';
 const STATS_KEY = 'ranking.printStatistics';
@@ -83,41 +82,23 @@ function render(rankings, emptyText) {
 
 // --- loading ---------------------------------------------------------------
 
-async function loadDisciplines() {
-    const [active, available, combinedEvents] = await Promise.all([
-        api('/active-disciplines'), api('/available-disciplines'), api('/combined-events')]);
-    // An event ranked combined has one ranking, listed under its original's id
-    const combinedPairs = new Map();
-    for (const e of combinedEvents.filter(e => e.combined)) {
-        combinedPairs.set(e.original_id, e);
-        combinedPairs.set(e.reproduction_id, e);
-    }
-    // The disciplines of an active combined ranking (KUC) are ranked only through it
-    const activeDisciplines = (active || []).map(id => available.find(a => a.id === id)).filter(Boolean);
-    const rankedThrough = new Set(activeDisciplines.flatMap(d => d.combined_of || []));
-    const shown = new Set();
-    const options = [];
-    for (const d of activeDisciplines.filter(d => !rankedThrough.has(d.id))) {
-        const pair = combinedPairs.get(d.id);
-        const id = pair ? pair.original_id : d.id;
-        if (shown.has(id)) continue;
-        shown.add(id);
-        options.push(`<option value="${id}">${escapeHtml(disciplineDisplayName(pair ? pair.event : d.event, pair ? 'combined' : d.type))}</option>`);
-    }
+async function loadRankings() {
+    const config = await api('/rankings');
+    const options = (config.rankings || []).map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`);
     const select = document.getElementById('discipline-select');
-    select.innerHTML = '<option value="">All disciplines</option>' + options.join('');
+    select.innerHTML = '<option value="">All rankings</option>' + options.join('');
 
-    const stored = readStored(DISCIPLINE_KEY);
+    const stored = readStored(RANKING_KEY);
     select.value = [...select.options].some(o => o.value === stored) ? stored : '';
 }
 
 async function loadRanking() {
-    const disciplineId = document.getElementById('discipline-select').value;
+    const rankingId = document.getElementById('discipline-select').value;
     try {
-        if (disciplineId) {
-            render([await api(`/ranking/best/${disciplineId}`)], 'There are no starts or results for this discipline yet.');
+        if (rankingId) {
+            render([await api(`/rankings/${rankingId}/result`)], 'There are no starts, results or teams for this ranking yet.');
         } else {
-            render(Object.values(await api('/ranking/best')), 'There are no active disciplines with starts or results to display.');
+            render(await api('/rankings/results'), 'There are no rankings with starts, results or teams to display.');
         }
     } catch (error) {
         shownRankings = [];
@@ -144,7 +125,7 @@ async function loadPrintData() {
 
 function printScope() {
     const select = document.getElementById('discipline-select');
-    return select.value ? select.options[select.selectedIndex].text : 'All disciplines';
+    return select.value ? select.options[select.selectedIndex].text : 'All rankings';
 }
 
 // "Intermediate Result", "Final Result" or '' as chosen in the export dialog
@@ -250,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageBreak.checked = readStored(PAGE_BREAK_KEY) === 'true';
 
     select.addEventListener('change', () => {
-        store(DISCIPLINE_KEY, select.value);
+        store(RANKING_KEY, select.value);
         loadRanking();
     });
     pageBreak.addEventListener('change', () => {
@@ -278,9 +259,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPrintData();
 
     try {
-        await loadDisciplines();
+        await loadRankings();
     } catch (error) {
-        showMessage(`Error loading disciplines: ${error.message}`);
+        showMessage(`Error loading the rankings: ${error.message}`);
     }
     loadRanking();
 });

@@ -78,12 +78,12 @@
             <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
                 <div class="flex flex-wrap items-end gap-3">
                     <div class="min-w-0 max-w-full">
-                        <label for="discipline-select" class="block text-sm font-medium text-gray-700 mb-1">Discipline</label>
+                        <label for="discipline-select" class="block text-sm font-medium text-gray-700 mb-1">Ranking</label>
                         <select id="discipline-select" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-full"></select>
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-700 py-2">
                         <input type="checkbox" id="page-per-discipline" class="h-4 w-4">
-                        New page per discipline (print and Word)
+                        New page per ranking (print and Word)
                     </label>
                     <div class="ml-auto flex gap-2">
                         <button id="refresh-btn" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Refresh</button>
@@ -96,8 +96,8 @@
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mt-3">
-                    One result per competitor and discipline: a competitor who started more than once is ranked on the best result only
-                    (score, then 10s, 9s, … 1s of that result, then its tie-break, lower wins).
+                    One row per competitor and ranking: ranked on the best result, then the next one (another start, or another
+                    discipline of the ranking), then 10s, 9s, … 1s of the best result, then its tie-break (lower wins).
                 </p>
             </div>
 
@@ -133,7 +133,7 @@
             <label class="flex items-start gap-2 text-sm text-gray-700 mb-4">
                 <input type="radio" name="export-format" value="excel" class="h-4 w-4 mt-0.5">
                 <span><span class="font-medium">Excel (.xlsx)</span><br>
-                    <span class="text-gray-500">One sheet per discipline</span></span>
+                    <span class="text-gray-500">One sheet per ranking</span></span>
             </label>
             <p class="text-sm text-gray-600 mb-3 pt-3 border-t border-gray-200">Add these pages in front of the ranking:</p>
             <label id="print-cover-option" class="flex items-start gap-2 text-sm text-gray-700 mb-3">

@@ -97,7 +97,7 @@ export function renderResults() {
                         <svg class="h-5 w-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                        <div class="text-sm text-gray-900">${result.event_name || discipline?.event || 'Unknown'}</div>
+                        <div class="text-sm text-gray-900">${result.event_name || discipline?.name || 'Unknown'}</div>
                     </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -239,7 +239,7 @@ function displaySelectedStart(start) {
             <div class="mt-4">
                 <h4 class="font-semibold text-gray-900 mb-2">Discipline Information</h4>
                 <div class="space-y-1">
-                    <p><span class="text-sm text-gray-600">Event:</span> ${discipline ? discipline.event : 'Unknown'}</p>
+                    <p><span class="text-sm text-gray-600">Event:</span> ${discipline ? discipline.name : 'Unknown'}</p>
                     <p><span class="text-sm text-gray-600">Category:</span> ${discipline ? discipline.category : '-'}</p>
                     <p><span class="text-sm text-gray-600">Type:</span> ${discipline ? discipline.type : '-'}</p>
                 </div>

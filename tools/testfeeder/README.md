@@ -68,14 +68,15 @@ The competitor's federal state (`BGL`, `OOE`, …) goes into `country`.
 ## How the PDF maps to the catalog
 
 - `X/O` and `X/R` lists map to the `original` and `reproduction` disciplines.
-- In `X(O/R)` lists an `O` next to the start number marks an original; rows without it are reproductions. The extractor writes that as the result's `type`, and the feeder puts each result into the event's original or reproduction discipline and switches on the event's combined ranking (`/combined-events`), which `--verify` compares with the list.
-- The `Kuchenreuter/R` list ranks smooth-bore (`S`) and rifled (`U`) reproductions together. The catalog has a discipline for each (`6_Kuchenreuter_RS`, `6_Kuchenreuter_RU`), so the list has `variants`: each row goes into the discipline of its marker. The catalog's combined ranking of the two (KUCR) is then ranked, and `--verify` checks it against the whole list; without such a combined ranking it checks each discipline against the PDF's order of its rows. Forsyth counts both.
+- In `X(O/R)` lists an `O` next to the start number marks an original; rows without it are reproductions. The extractor writes that as the result's `type`, and the feeder puts each result into the event's original or reproduction discipline. The list's ranking ranks both together, and `--verify` compares it with the list.
+- The `Kuchenreuter/R` list ranks smooth-bore (`S`) and rifled (`U`) reproductions together. The catalog has a discipline for each (`6_Kuchenreuter_RS`, `6_Kuchenreuter_RU`), so the list has `variants`: each row goes into the discipline of its marker. The list's ranking ranks both together, and `--verify` checks it against the whole list. Forsyth counts both.
 - The Meixner lists match the catalog's `91_Meixner_RS` and `91_Meixner_RU`, and Springfield matches `92_Springfield`, an `open` team.
-- The catalog has no junior lists, so they become custom disciplines (ids from 1000) and stay `combined`.
-- The catalog numbers its events (`6_Kuchenreuter_O`, `23_Donald Malson R`, `18_Boutet`). The feeder matches events without the number and the type suffix, like the server does, so the JSON keeps plain names. If the catalog lists an event twice (Rigby, Pforzheim), the first entry is used.
+- The catalog has no junior lists, so they become new disciplines (the next free ids), of the type `open`.
+- The catalog numbers its events (`6_Kuchenreuter_O`, `23_Donald Malson R`, `18_Boutet`). The feeder matches events without the number and the type suffix, so the JSON keeps plain names. Short names are not used to match: they need not be unique. If the catalog lists an event twice (Rigby, Pforzheim), the first entry is used.
 - Wogdon, Nagashino, Enfield, Pforzheim, Rigby, Kunitomo, Kossuth and El Alamo are `open` teams in the catalog and count both types already.
 - A team discipline's results that count (`team_of`) must include the disciplines its members start in. Halikko, Lucca and Magenta are reproduction teams in the catalog, but the PDF scores them from O/R results, so the feeder adds the original discipline to their composition.
-- The aggregate lists (Remington, Schulhof) and the entry and medal summaries are skipped.
+- Every list becomes one ranking of the meet, named after it (found again by that name on the next run).
+- The aggregate lists (Remington, Schulhof) and the entry and medal summaries are skipped; Remington and Schulhof are rankings of sums, which the default rankings (Ranking Setup, Load Defaults) contain.
 
 The extractor checks every row: the ring counts must add up to the printed total,
 and every team member must match that member's individual result. It exits with 1 on any mismatch.

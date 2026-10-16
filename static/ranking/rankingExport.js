@@ -1,8 +1,8 @@
 // The ranking as a Word document (laid out like the printout: A4 portrait,
 // optional cover and statistics pages) or as an Excel workbook (one sheet
-// per discipline, optionally a statistics sheet).
+// per ranking, optionally a statistics sheet).
 
-import { disciplineDisplayName, formatScore, isCombined, typeHeader, typeTag } from '../js/teamRanking.js';
+import { entriesLine, formatScore, hasSums, isCombined, typeHeader, typeTag } from '../js/teamRanking.js';
 import { docx, logoParagraph, paragraph, table, xlsx } from '../js/officeFiles.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
@@ -17,10 +17,10 @@ export const nowText = () => new Date().toLocaleString(undefined, {
     year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
 });
 
-/** "All disciplines · as of …" */
+/** "All rankings · as of …" */
 export const timestampLine = (scope) => `${scope} · as of ${nowText()}`;
 
-const disciplineTitle = (discipline) => disciplineDisplayName(discipline.name, discipline.type);
+const rankingTitle = (ranking) => ranking.name;
 const memberText = (member) => member.missing
     ? `${member.start_id} · start deleted`
     : `${member.start_id} ${member.name}: ${member.has_result ? formatScore(member.score) : 'no result'}`;
@@ -86,7 +86,7 @@ function statisticsPage(meet, stats, pageBreakBefore) {
                 ...columns.map(c => ({
                     vAlign: 'bottom',
                     paragraphs: [
-                        paragraph(c.event, { size: 6.5, bold: true, align: 'center' }),
+                        paragraph(c.name, { size: 6.5, bold: true, align: 'center' }),
                         ...(c.type ? [paragraph(`(${c.type})`, { size: 5.5, align: 'center' })] : [])
                     ]
                 }))
@@ -114,15 +114,15 @@ function statisticsPage(meet, stats, pageBreakBefore) {
 function individualTable(data) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
-    const combined = isCombined(data.discipline);
+    const combined = isCombined(data.ranking);
     const ringWidths = RINGS.map(() => 6);
-    // A combined ranking has an O/R column (or the discipline shot, e.g. KUCRS), taken from the name column
-    const tagWidth = data.discipline?.combined_of?.length ? 11 : 7;
+    // A ranking of several entries has a column with the entry shot (e.g. WHITO), taken from the name column
+    const tagWidth = 11;
     const nameWidth = (hasNotes ? 34 : 40) - (combined ? tagWidth : 0);
     const widths = [9, nameWidth, ...(combined ? [tagWidth] : []),
         ...(hasNotes ? [24, 15, 12, ...ringWidths, 12, 18] : [31, 20, 12, ...ringWidths, 12])];
     const center = (text) => ({ text, align: 'center' });
-    // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
+    // Below each competitor: a sum's disciplines (e.g. Remington), then their other results
     const componentRows = (row) => (row.components || []).map(c => ({
         size: 7,
         color: GREY,
@@ -149,7 +149,7 @@ function individualTable(data) {
     });
     return table([
         {
-            cells: ['Rank', 'Name', ...(combined ? [center(typeHeader(data.discipline))] : []), 'Club', 'Country',
+            cells: ['Rank', 'Name', ...(combined ? [center(typeHeader(data.ranking))] : []), 'Club', 'Country',
                 center('Result'), ...RINGS.map(ring => center(`${ring}s`)),
                 center('Tie-break'), ...(hasNotes ? ['Notes'] : [])]
         },
@@ -184,11 +184,13 @@ function individualTable(data) {
 
 function teamTable(data) {
     if (!data.rankings?.length) {
-        return paragraph('No teams entered for this discipline yet.', { italic: true, color: GREY });
+        return paragraph('No teams entered for this ranking yet.', { italic: true, color: GREY });
     }
     const center = (text) => ({ text, align: 'center' });
+    const pooled = isCombined(data.ranking);
     return table([
-        { cells: ['Rank', 'Team', 'Members', center('Total'), ...RINGS.map(ring => center(`${ring}s`)), center('Tie-break')] },
+        { cells: ['Rank', 'Team', ...(pooled ? [center('Disc.')] : []), 'Members', center('Total'),
+            ...RINGS.map(ring => center(`${ring}s`)), center('Tie-break')] },
         ...data.rankings.map(team => ({
             bold: team.rank <= 3,
             cells: [
@@ -200,6 +202,7 @@ function teamTable(data) {
                         ...(team.notes ? [paragraph(team.notes, { size: 7, color: GREY })] : [])
                     ]
                 },
+                ...(pooled ? [{ text: team.discipline_tag || '', align: 'center', bold: false }] : []),
                 {
                     paragraphs: team.members.length
                         ? team.members.map(member => paragraph(memberText(member), { size: 8, color: member.missing ? 'B91C1C' : undefined }))
@@ -210,30 +213,31 @@ function teamTable(data) {
                 { text: team.tie_break ?? '-', align: 'center', bold: false }
             ]
         }))
-    ], { widths: [9, 34, 54, 13, ...RINGS.map(() => 6), 14], header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
+    ], { widths: [9, 34, ...(pooled ? [11] : []), pooled ? 43 : 54, 13, ...RINGS.map(() => 6), 14],
+        header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
 }
 
-function disciplineSection(data, pageBreakBefore) {
-    const discipline = data.discipline;
+function rankingSection(data, pageBreakBefore) {
+    const ranking = data.ranking;
     const team = data.kind === 'team';
+    const entries = isCombined(ranking) || hasSums(ranking) ? entriesLine(ranking) : '';
+    const subline = [entries, team
+        ? `From ${(ranking.composition || []).join(' + ') || '-'} · ${ranking.team_size} shooters per team` : '']
+        .filter(Boolean).join(' · ');
     return [
         paragraph([
-            { text: disciplineTitle(discipline) },
-            { text: `   ${discipline.category || ''}${team ? ' team' : ''}`, bold: false, size: 9, color: GREY }
-        ], { size: 12, bold: true, keepNext: true, spaceAfter: team ? 1 : 4, pageBreakBefore }),
-        ...(team
-            ? [paragraph(`From ${(discipline.composition || []).join(' + ') || '-'} · ${discipline.team_size} shooters per team`,
-                { size: 9, color: GREY, keepNext: true, spaceAfter: 4 })]
-            : []),
+            { text: rankingTitle(ranking) },
+            { text: `   ${ranking.category || ''}${team ? ' team' : ''}`, bold: false, size: 9, color: GREY }
+        ], { size: 12, bold: true, keepNext: true, spaceAfter: subline ? 1 : 4, pageBreakBefore }),
+        ...(subline ? [paragraph(subline, { size: 9, color: GREY, keepNext: true, spaceAfter: 4 })] : []),
         team ? teamTable(data) : individualTable(data),
         paragraph('', { spaceAfter: 14 })
     ];
 }
 
 /**
- * rankings: the disciplines with data, as shown on the page (individual:
- * /api/ranking/best, team: /api/teams/ranking). scope: "All disciplines" or
- * the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
+ * rankings: the rankings with data, as shown on the page (/api/rankings/results
+ * or /api/rankings/{id}/result). scope: "All rankings" or the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
  * (none), a watermark across the ranking pages (not the cover and statistics).
  */
 export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
@@ -249,7 +253,7 @@ export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, w
         ? [table([[{ paragraphs: [logoParagraph(16)] }, { paragraphs: title }]],
             { widths: [20, 170], borders: 'none', padding: 0, vAlign: 'center' }), paragraph('', { spaceAfter: 12 })]
         : [title[0], paragraph(timestampLine(scope), { size: 9, color: GREY, spaceAfter: 12 })];
-    rankings.forEach((data, i) => body.push(...disciplineSection(data, pagePerDiscipline && i > 0)));
+    rankings.forEach((data, i) => body.push(...rankingSection(data, pagePerDiscipline && i > 0)));
     return docx(body, { margin: 10, watermark: resultLabel, frontMatter, logo });
 }
 
@@ -260,19 +264,19 @@ const number = (value) => (value === null || value === undefined || value === ''
 function individualSheet(data) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
-    const combined = isCombined(data.discipline);
+    const combined = isCombined(data.ranking);
     const type = (row) => (combined ? [typeTag(row)] : []);
-    // An aggregate (Remington): below each competitor its disciplines' results with their own ring counts
+    // Below each competitor: a sum's disciplines (e.g. Remington), then their other results
     const componentRows = (row) => (row.components || []).map(c => [
         '', c.start_id || '', `  ${c.label}`, ...(combined ? [c.short_name || ''] : []), combined ? '' : c.short_name || '', '',
         c.score === null ? '' : number(c.score), ...RINGS.map(ring => (c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
         number(c.override_value), ...(hasNotes ? [''] : [])
     ]);
     return {
-        name: disciplineTitle(data.discipline),
+        name: rankingTitle(data.ranking),
         columns: [
             { header: 'Rank', width: 6 }, { header: 'Start', width: 12 }, { header: 'Name', width: 28 },
-            ...(combined ? [{ header: typeHeader(data.discipline), width: data.discipline.combined_of?.length ? 8 : 5 }] : []),
+            ...(combined ? [{ header: typeHeader(data.ranking), width: 12 }] : []),
             { header: 'Club', width: 24 }, { header: 'Country', width: 16 }, { header: 'Result', width: 9 },
             ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             ...(hasNotes ? [{ header: 'Notes', width: 30 }] : [])
@@ -293,16 +297,19 @@ function individualSheet(data) {
 }
 
 function teamSheet(data) {
+    const pooled = isCombined(data.ranking);
     return {
-        name: `${disciplineTitle(data.discipline)} Team`,
+        name: rankingTitle(data.ranking),
         columns: [
-            { header: 'Rank', width: 6 }, { header: 'Team', width: 26 }, { header: 'Complete', width: 10 },
+            { header: 'Rank', width: 6 }, { header: 'Team', width: 26 },
+            ...(pooled ? [{ header: 'Disc.', width: 10 }] : []), { header: 'Complete', width: 10 },
             { header: 'Members', width: 45 }, { header: 'Total', width: 9 },
             ...RINGS.map(ring => ({ header: `${ring}s`, width: 6 })), { header: 'Tie-break', width: 9 },
             { header: 'Notes', width: 30 }
         ],
         rows: (data.rankings || []).map(team => [
-            team.rank, team.name, team.complete ? 'yes' : 'no', team.members.map(memberText).join('\n'),
+            team.rank, team.name, ...(pooled ? [team.discipline_tag || ''] : []), team.complete ? 'yes' : 'no',
+            team.members.map(memberText).join('\n'),
             number(team.total), ...RINGS.map(ring => team.freq_counts?.[ring] ?? 0), number(team.tie_break),
             team.notes || ''
         ])
@@ -315,7 +322,7 @@ function statisticsSheet(stats) {
         name: 'Statistics',
         columns: [
             { header: 'Country', width: 20 }, { header: 'Persons', width: 9 }, { header: 'Starts', width: 9 },
-            ...stats.columns.map(c => ({ header: c.type ? `${c.event} (${c.type})` : c.event, width: 14 }))
+            ...stats.columns.map(c => ({ header: c.type ? `${c.name} (${c.type})` : c.name, width: 14 }))
         ],
         rows: stats.total.persons === 0 ? [] : rows.map(row => ({
             bold: row.total,
@@ -324,7 +331,7 @@ function statisticsSheet(stats) {
     };
 }
 
-/** One sheet per discipline, plus the statistics sheet when asked for. */
+/** One sheet per ranking, plus the statistics sheet when asked for. */
 export function rankingXlsx({ rankings, stats, withStats }) {
     const sheets = rankings.map(data => (data.kind === 'team' ? teamSheet(data) : individualSheet(data)));
     if (withStats && stats) sheets.push(statisticsSheet(stats));

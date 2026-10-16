@@ -1,6 +1,7 @@
 package com.competition.service;
 
 import com.competition.model.Discipline;
+import com.competition.model.RankingDefinition;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -14,6 +15,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +61,8 @@ public class TeamService {
     private record Registry(Map<Integer, Map<String, Object>> competitors,
                             Map<String, Map<String, Object>> starts,
                             Map<String, Map<String, Object>> resultsByStart,
-                            Map<Integer, Discipline> disciplines) {}
+                            Map<Integer, Discipline> disciplines,
+                            List<RankingDefinition> rankings) {}
 
     public TeamService(String teamsFilePath, DataService dataService) {
         this.teamsFilePath = teamsFilePath;
@@ -68,12 +71,18 @@ public class TeamService {
 
     // --- disciplines -------------------------------------------------------
 
-    /** Every team discipline with its team size and the individual disciplines its members may come from. */
+    /**
+     * The team disciplines of the meet's program (and any other that has teams),
+     * with their team size and the individual disciplines their members may come from.
+     */
     public List<Map<String, Object>> getTeamDisciplines() throws Exception {
         List<Discipline> catalog = dataService.loadDisciplines();
+        Set<Integer> program = dataService.loadProgramIds();
+        Map<Integer, Integer> counts = teamCounts();
         List<Map<String, Object>> result = new ArrayList<>();
         for (Discipline discipline : catalog) {
-            if (!isTeamDiscipline(discipline)) {
+            if (!isTeamDiscipline(discipline)
+                    || (!program.contains(discipline.getId()) && !counts.containsKey(discipline.getId()))) {
                 continue;
             }
             Map<String, Object> info = disciplineInfo(discipline, catalog);
@@ -85,13 +94,14 @@ public class TeamService {
                 eligible.add(e);
             }
             info.put("eligible_disciplines", eligible);
+            info.put("in_program", program.contains(discipline.getId()));
             result.add(info);
         }
         return result;
     }
 
     public static boolean isTeamDiscipline(Discipline discipline) {
-        return discipline != null && "team".equalsIgnoreCase(discipline.getLevel());
+        return discipline != null && discipline.isTeam();
     }
 
     public static int teamSize(Discipline discipline) {
@@ -194,6 +204,10 @@ public class TeamService {
         return update(teams -> {
             Registry registry = registry();
             Discipline discipline = requireTeamDiscipline(registry, disciplineId);
+            if (registry.rankings().stream().noneMatch(r -> r.disciplineIds().contains(disciplineId))) {
+                throw new IllegalArgumentException(discipline.getName() + " is in none of this meet's rankings; "
+                    + "add it to a ranking first");
+            }
             List<Map<String, Object>> list = listOf(teams);
 
             Map<String, Object> team = new LinkedHashMap<>();
@@ -236,7 +250,7 @@ public class TeamService {
         List<String> members = requireMembers(request);
         int size = teamSize(discipline);
         if (members.size() > size) {
-            throw new IllegalArgumentException("A team of " + discipline.getEvent() + " has at most " + size + " members");
+            throw new IllegalArgumentException("A team of " + discipline.getName() + " has at most " + size + " members");
         }
 
         Set<Integer> eligible = eligibleIds(discipline, registry);
@@ -248,7 +262,7 @@ public class TeamService {
             }
             if (!eligible.contains(RelayRules.intOf(start.get("discipline_id")))) {
                 throw new IllegalArgumentException("Start " + startId + " is not a start of "
-                    + compositionText(discipline, registry) + " and cannot count for " + discipline.getEvent());
+                    + compositionText(discipline, registry) + " and cannot count for " + discipline.getName());
             }
             int competitorId = RelayRules.intOf(start.get("competitor_id"));
             if (!competitorsInTeam.add(competitorId)) {
@@ -256,17 +270,26 @@ public class TeamService {
             }
         }
 
+        // A competitor is in one team per discipline; per ranking, if it allows one team per competitor
+        Set<Integer> exclusive = new HashSet<>(Set.of(discipline.getId()));
+        for (RankingDefinition ranking : registry.rankings()) {
+            if (ranking.isOneStartPerCompetitor() && ranking.disciplineIds().contains(discipline.getId())) {
+                exclusive.addAll(ranking.disciplineIds());
+            }
+        }
         int teamId = RelayRules.intOf(team.get("id"));
         for (Map<String, Object> other : listOf(teams)) {
             if (RelayRules.intOf(other.get("id")) == teamId
-                    || RelayRules.intOf(other.get("discipline_id")) != discipline.getId()) {
+                    || !exclusive.contains(RelayRules.intOf(other.get("discipline_id")))) {
                 continue;
             }
             for (String startId : membersOf(other)) {
                 Map<String, Object> start = registry.starts().get(startId);
                 if (start != null && competitorsInTeam.contains(RelayRules.intOf(start.get("competitor_id")))) {
+                    Discipline otherDiscipline = registry.disciplines().get(RelayRules.intOf(other.get("discipline_id")));
                     throw new ConflictException(competitorName(registry, RelayRules.intOf(start.get("competitor_id")))
-                        + " is already in team " + other.get("name") + " of " + discipline.getEvent(), null);
+                        + " is already in team " + other.get("name") + " of "
+                        + (otherDiscipline != null ? otherDiscipline.getName() : discipline.getName()), null);
                 }
             }
         }
@@ -323,9 +346,17 @@ public class TeamService {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("kind", "team");
             response.put("discipline", disciplineInfo(discipline, new ArrayList<>(registry.disciplines().values())));
-            response.put("rankings", rank(teams, discipline, registry));
+            response.put("rankings", rank(teams, List.of(disciplineId), registry));
             return response;
         });
+    }
+
+    /**
+     * The teams of several team disciplines ranked together (a team ranking),
+     * each tagged with its discipline's short name when there are several.
+     */
+    public List<Map<String, Object>> rankTogether(List<Integer> disciplineIds) throws Exception {
+        return read(teams -> rank(teams, disciplineIds, registry()));
     }
 
     /** Whether any team was entered for the discipline. */
@@ -334,15 +365,43 @@ public class TeamService {
             .anyMatch(t -> RelayRules.intOf(t.get("discipline_id")) == disciplineId));
     }
 
-    private List<Map<String, Object>> rank(Map<String, Object> teams, Discipline discipline, Registry registry) {
-        int size = teamSize(discipline);
+    /** Names of the competitors who are members of more than one team of the disciplines. */
+    public List<String> competitorsInSeveralTeams(Collection<Integer> disciplineIds) throws Exception {
+        return read(teams -> {
+            Registry registry = registry();
+            Map<Integer, Integer> teamsOfCompetitor = new LinkedHashMap<>();
+            for (Map<String, Object> team : listOf(teams)) {
+                if (!disciplineIds.contains(RelayRules.intOf(team.get("discipline_id")))) {
+                    continue;
+                }
+                for (String startId : membersOf(team)) {
+                    Map<String, Object> start = registry.starts().get(startId);
+                    if (start != null) {
+                        teamsOfCompetitor.merge(RelayRules.intOf(start.get("competitor_id")), 1, Integer::sum);
+                    }
+                }
+            }
+            List<String> names = new ArrayList<>();
+            teamsOfCompetitor.forEach((competitorId, n) -> {
+                if (n > 1) {
+                    names.add(competitorName(registry, competitorId));
+                }
+            });
+            return names;
+        });
+    }
+
+    private List<Map<String, Object>> rank(Map<String, Object> teams, List<Integer> disciplineIds, Registry registry) {
         List<Map<String, Object>> entries = new ArrayList<>();
         List<double[]> keys = new ArrayList<>();
 
         for (Map<String, Object> team : listOf(teams)) {
-            if (RelayRules.intOf(team.get("discipline_id")) != discipline.getId()) {
+            int disciplineId = RelayRules.intOf(team.get("discipline_id"));
+            Discipline discipline = registry.disciplines().get(disciplineId);
+            if (!disciplineIds.contains(disciplineId) || discipline == null) {
                 continue;
             }
+            int size = teamSize(discipline);
             double total = 0.0;
             int[] rings = Scoring.newRingCounts();
             boolean complete = membersOf(team).size() == size;
@@ -361,6 +420,9 @@ public class TeamService {
             entry.put("total", total);
             entry.put("freq_counts", freqCounts(rings));
             entry.put("complete", complete);
+            if (disciplineIds.size() > 1) {
+                entry.put("discipline_tag", discipline.label());
+            }
             entries.add(entry);
             keys.add(rankingKey(total, rings, tieBreak));
         }
@@ -425,7 +487,7 @@ public class TeamService {
     private Map<String, Object> enrich(Map<String, Object> team, Registry registry) {
         Map<String, Object> view = new LinkedHashMap<>(team);
         Discipline discipline = registry.disciplines().get(RelayRules.intOf(team.get("discipline_id")));
-        view.put("discipline_name", discipline != null ? discipline.getEvent() : null);
+        view.put("discipline_name", discipline != null ? discipline.getName() : null);
         view.put("team_size", discipline != null ? teamSize(discipline) : DEFAULT_TEAM_SIZE);
         view.put("default_name", defaultName(team, registry));
 
@@ -473,14 +535,14 @@ public class TeamService {
     private static Map<String, Object> disciplineInfo(Discipline discipline, List<Discipline> catalog) {
         Map<String, Object> info = new LinkedHashMap<>();
         info.put("id", discipline.getId());
-        info.put("name", discipline.getEvent());
+        info.put("name", discipline.getName());
         info.put("category", discipline.getCategory());
         info.put("type", discipline.getType());
         info.put("level", discipline.getLevel());
         // The results that count, by short name where there is one, e.g. ["TANO", "TANR"]
         List<String> composition = new ArrayList<>();
         for (Discipline d : eligibleDisciplines(discipline, catalog)) {
-            composition.add(d.getShortName() != null ? d.getShortName() : d.getEvent());
+            composition.add(d.getShortName() != null ? d.getShortName() : d.getName());
         }
         info.put("composition", composition);
         info.put("team_size", teamSize(discipline));
@@ -490,7 +552,7 @@ public class TeamService {
     }
 
     private static String disciplineName(Discipline discipline) {
-        return discipline.getType() != null ? discipline.getEvent() + " (" + discipline.getType() + ")" : discipline.getEvent();
+        return discipline.getType() != null ? discipline.getName() + " (" + discipline.getType() + ")" : discipline.getName();
     }
 
     private static String competitorName(Registry registry, int competitorId) {
@@ -506,7 +568,7 @@ public class TeamService {
             throw new IllegalArgumentException("Discipline " + disciplineId + " does not exist");
         }
         if (!isTeamDiscipline(discipline)) {
-            throw new IllegalArgumentException(discipline.getEvent() + " is not a team discipline");
+            throw new IllegalArgumentException(discipline.getName() + " is not a team discipline");
         }
         return discipline;
     }
@@ -689,6 +751,7 @@ public class TeamService {
         for (Discipline discipline : dataService.loadDisciplines()) {
             disciplines.put(discipline.getId(), discipline);
         }
+        List<RankingDefinition> rankings = dataService.loadRankingConfig().getRankings();
 
         return dataService.read(data -> {
             Map<Integer, Map<String, Object>> competitors = new LinkedHashMap<>();
@@ -740,7 +803,7 @@ public class TeamService {
                 }
             }
 
-            return new Registry(competitors, starts, resultsByStart, disciplines);
+            return new Registry(competitors, starts, resultsByStart, disciplines, rankings);
         });
     }
 

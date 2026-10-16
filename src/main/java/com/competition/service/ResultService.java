@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ResultService {
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -57,7 +56,7 @@ public class ResultService {
                 enrichedResult.put("competitor_id", resultData.get("competitor_id"));
                 enrichedResult.put("competitor_name", competitorData.get("name"));
                 enrichedResult.put("discipline_id", resultData.get("discipline_id"));
-                enrichedResult.put("event_name", discipline.getEvent());
+                enrichedResult.put("event_name", discipline.getName());
                 enrichedResult.put("value", resultData.get("value"));
                 enrichedResult.put("entries", resultData.get("entries"));
                 enrichedResult.put("override_value", resultData.get("override_value"));
@@ -87,19 +86,6 @@ public class ResultService {
             }
             result.setCompetitorId(owner[0]);
             result.setDisciplineId(owner[1]);
-
-            // Checked under the data.json lock (lock order: data.json, then disciplines)
-            Discipline discipline = disciplineService.getAvailableDisciplineById(owner[1]);
-            // An aggregate's start (e.g. Remington) is ranked on its components' results, it gets none itself
-            if (DisciplineService.isAggregate(discipline)) {
-                throw new IllegalArgumentException(discipline.getEvent() + " takes no result of its own: enter the "
-                    + disciplineService.getComponents(discipline).stream().map(Discipline::getEvent)
-                        .collect(Collectors.joining(" and ")) + " results instead");
-            }
-            if (DisciplineService.isCombinedRanking(discipline)) {
-                throw new IllegalArgumentException(discipline.getEvent()
-                    + " is a combined ranking: enter the result in the discipline that was shot");
-            }
 
             List<Map<String, Object>> resultsData = resultsOf(data);
             // Only one result per start: if another user entered it first, hand theirs back

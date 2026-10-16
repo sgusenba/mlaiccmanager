@@ -1,7 +1,7 @@
-// Card with the ranking table of one individual discipline (response of
-// /api/ranking/best/{id}), used by the Ranking page and the Todos page.
+// Card with the table of one individual ranking (response of
+// /api/rankings/{id}/result), used by the Ranking page and the Todos page.
 
-import { componentsOf, escapeHtml, disciplineDisplayName, formatScore, isCombined, missingTieBreakCell, rankBadge, typeHeader, typeTag } from '../js/teamRanking.js';
+import { entriesLine, escapeHtml, formatScore, hasSums, isCombined, missingTieBreakCell, rankBadge, typeHeader, typeTag } from '../js/teamRanking.js';
 
 const RINGS = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
 
@@ -20,12 +20,12 @@ const nameCell = (row) => `
  */
 export function individualCard(data, { extraClass = '', showRank = true, rowClass = () => '', markMissingTieBreak = false } = {}) {
     const rows = data.rankings || [];
-    const discipline = data.discipline;
+    const ranking = data.ranking;
     const hasNotes = rows.some(row => row.notes);
-    const combined = isCombined(discipline);
-    const aggregate = componentsOf(discipline).length > 0;
-    // Below each competitor: an aggregate's (Remington) disciplines' results, or the competitor's other
-    // results that did not count (another start, another discipline of a combined ranking)
+    const combined = isCombined(ranking);
+    const aggregate = hasSums(ranking);
+    // Below each competitor: the disciplines added up in their result (a sum, e.g. Remington), then
+    // their other results that did not count (another start, another entry of the ranking)
     const componentRows = (row, i) => (row.components || []).map(c => `
                                 <tr class="text-xs font-normal text-gray-500 ${rowClass(row, i)}" style="border-top-width: 0">
                                     ${showRank ? '<td></td>' : ''}
@@ -40,7 +40,7 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${hasNotes ? '<td></td>' : ''}
                                 </tr>`).join('');
     const typeCell = (row) => combined
-        ? `<td class="px-2 py-3 text-center text-sm" title="${row.discipline_type || ''}">${typeTag(row)}</td>` : '';
+        ? `<td class="px-2 py-3 text-center text-sm">${escapeHtml(typeTag(row))}</td>` : '';
     const th = (label, align = 'left', title = '', padding = 'px-4') =>
         `<th class="${padding} py-3 text-${align} text-xs font-medium text-gray-500 uppercase tracking-wider"${title ? ` title="${title}"` : ''}>${label}</th>`;
     const tieBreak = (row) => row.override_value ?? (markMissingTieBreak ? missingTieBreakCell : '-');
@@ -49,9 +49,10 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
         <div class="bg-white rounded-lg shadow-md ${extraClass}">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-semibold text-gray-900">
-                    ${escapeHtml(disciplineDisplayName(discipline.name, discipline.type))}
-                    <span class="text-sm text-gray-500 ml-2">${escapeHtml(discipline.category)}</span>
+                    ${escapeHtml(ranking.name)}
+                    <span class="text-sm text-gray-500 ml-2">${escapeHtml(ranking.category)}</span>
                 </h3>
+                ${combined || aggregate ? `<p class="text-sm text-gray-500">${escapeHtml(entriesLine(ranking))}</p>` : ''}
             </div>
             <div class="p-6">
                 <div class="overflow-x-auto">
@@ -60,13 +61,13 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                             <tr>
                                 ${showRank ? th('Rank') : ''}
                                 ${th('Name')}
-                                ${combined ? th(typeHeader(discipline), 'center', discipline.combined_of?.length ? 'Discipline shot' : 'Original or reproduction', 'px-2') : ''}
+                                ${combined ? th(typeHeader(ranking), 'center', 'What the result is from', 'px-2') : ''}
                                 ${th('Club')}
                                 ${th('Country')}
                                 ${th('Result', 'center')}
                                 ${RINGS.map(ring => th(`${ring}s`, 'center', '', 'px-2')).join('')}
                                 ${th('Tie-break', 'center', aggregate
-                                    ? 'Furthest shot of the results added up; the lower value wins'
+                                    ? 'Distance of the furthest shot (of a sum: of the results added up); the lower value wins'
                                     : 'Distance of the furthest shot; the lower value wins')}
                                 ${hasNotes ? th('Notes') : ''}
                             </tr>

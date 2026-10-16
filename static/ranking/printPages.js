@@ -62,7 +62,7 @@ export function entryStatistics(competitors, disciplines) {
         })
         .map(id => {
             const d = byId.get(id);
-            return d ? { id, event: d.event, type: d.type } : { id, event: `Discipline #${id}` };
+            return d ? { id, name: d.short_name || d.name, type: d.type } : { id, name: `Discipline #${id}` };
         });
     const rows = [...groups.entries()]
         .sort(([a], [b]) => (a === NO_COUNTRY) - (b === NO_COUNTRY) || a.localeCompare(b))
@@ -92,7 +92,7 @@ export function statisticsPage(meet, stats) {
                 <tr>
                     <th class="text-left">Country</th>
                     ${first ? '<th>Persons</th><th>Starts</th>' : '<th class="stats-gap"></th><th class="stats-gap"></th>'}
-                    ${columns.map(c => `<th>${escapeHtml(c.event)}${c.type ? `<span class="stats-type">(${escapeHtml(c.type)})</span>` : ''}</th>`).join('')}
+                    ${columns.map(c => `<th>${escapeHtml(c.name)}${c.type ? `<span class="stats-type">(${escapeHtml(c.type)})</span>` : ''}</th>`).join('')}
                 </tr>
             </thead>
             <tbody>
