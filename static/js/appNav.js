@@ -40,6 +40,7 @@ const GROUPS = [
             { label: 'nav.disciplines', path: '/dmgmt/' },
             { label: 'nav.rangesRelays', path: '/rmgmt/', hash: 'settings' },
             { label: 'nav.meetDays', path: '/rmgmt/', hash: 'schedule', default: true },
+            { label: 'nav.registration', path: '/register/' },
             { label: 'nav.backup', path: '/backup/' },
             { label: 'nav.danger', path: '/danger/' }
         ]
