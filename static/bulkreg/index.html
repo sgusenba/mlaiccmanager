@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Registration (Demo) · MLAICC Manager</title>
+    <link rel="icon" type="image/png" href="/img/logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="bulkreg.css">
+</head>
+<!-- Demo of a bulk registration: many starters and their starts at once, in
+     a table or a matrix, or pasted from a spreadsheet. Only reads data and
+     never saves anything -->
+<body class="bg-gray-50 has-sidebar">
+    <main class="mx-auto py-6 sm:px-6 lg:px-8">
+        <h2 class="px-4 pt-6 mb-6 text-2xl font-bold text-gray-900" data-i18n="bulk.title">Bulk Registration (Demo)</h2>
+        <div id="message" class="mx-4 mb-4 px-4 py-3 rounded-md hidden"></div>
+
+        <div class="px-4 space-y-6 pb-24">
+            <p class="px-4 py-3 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-sm max-w-5xl" data-i18n-html="bulk.demoNote">
+                <strong>Demo.</strong> Registers many starters and their starts in one go, e.g. a whole club.
+                It reads this meet's individual rankings and the registered competitors, but nothing is saved.
+            </p>
+
+            <!-- Defaults and input tools -->
+            <section class="bg-white rounded-lg shadow-md p-6 space-y-4">
+                <div class="flex flex-wrap items-end gap-4">
+                    <div>
+                        <label for="default-club" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="bulk.defaultClub">Club for new rows</label>
+                        <input id="default-club" type="text" class="w-56 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="default-country" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="bulk.defaultCountry">Country for new rows</label>
+                        <select id="default-country" class="w-56 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                    <button type="button" id="apply-defaults" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.applyDefaults">Apply to empty fields</button>
+                </div>
+                <p class="text-sm text-gray-500" data-i18n="bulk.defaultsHint">New rows take the club and country from here, so a club only types names and rankings.</p>
+            </section>
+
+            <!-- Paste from a spreadsheet -->
+            <details id="paste-panel" class="bg-white rounded-lg shadow-md">
+                <summary class="cursor-pointer px-6 py-4 font-semibold" data-i18n="bulk.paste.title">Paste from Excel</summary>
+                <div class="px-6 pb-6 space-y-3">
+                    <p class="text-sm text-gray-600" data-i18n-html="bulk.paste.intro">
+                        One starter per line, columns separated by tabs (as copied from Excel) or semicolons:
+                        <code>Name; Gender; Year of birth; Club; Country; Rankings</code>. Rankings are short names separated by spaces, e.g. <code>WHITO COLT</code>.
+                    </p>
+                    <textarea id="paste-text" rows="6" class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" id="paste-apply" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" data-i18n="bulk.paste.apply">Add rows</button>
+                        <button type="button" id="paste-sample" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.paste.sample">Insert example</button>
+                        <span id="paste-result" class="text-sm text-gray-600 self-center"></span>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Starters -->
+            <section class="bg-white rounded-lg shadow-md p-6 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold" data-i18n="bulk.starters">Starters</h3>
+                    <div class="bulk-switch" role="group" aria-label="View" data-i18n-aria-label="bulk.view">
+                        <button type="button" data-view="table" aria-pressed="true" data-i18n="bulk.view.table">Table</button>
+                        <button type="button" data-view="matrix" aria-pressed="false" data-i18n="bulk.view.matrix">Matrix</button>
+                    </div>
+                </div>
+                <p id="view-hint" class="text-sm text-gray-500"></p>
+                <div id="grid"></div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" id="add-row" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.addRow">Add row</button>
+                    <button type="button" id="add-rows" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.addRows">Add 5 rows</button>
+                </div>
+                <details class="text-sm">
+                    <summary class="cursor-pointer text-gray-700 font-medium" data-i18n="bulk.codes">Short names of the rankings</summary>
+                    <div id="code-list" class="mt-3 grid gap-x-6 gap-y-1 bulk-codes"></div>
+                </details>
+            </section>
+
+            <div id="result"></div>
+        </div>
+
+        <!-- Totals and the (demo) save, always in view -->
+        <div class="bulk-footer">
+            <div id="totals" class="text-sm text-gray-700 flex flex-wrap gap-x-5 gap-y-1"></div>
+            <button type="button" id="save-all" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" data-i18n="bulk.saveAll">Register all</button>
+        </div>
+    </main>
+
+    <script type="module" src="../js/appNav.js"></script>
+    <script type="module" src="bulkreg.js"></script>
+</body>
+</html>
