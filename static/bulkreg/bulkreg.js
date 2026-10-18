@@ -152,7 +152,7 @@ function rowHtml(row, index) {
         <tr data-row="${row.key}" class="${rowClass(row)}">
             <td class="num">${index + 1}</td>
             <td><input type="text" data-row="${row.key}" data-field="name" value="${escapeHtml(row.name)}" placeholder="${escapeHtml(t('bulk.namePlaceholder'))}" aria-label="${escapeHtml(t('competitors.name'))}" class="min-w-[9rem]"></td>
-            <td><select data-row="${row.key}" data-field="gender" aria-label="${escapeHtml(t('competitors.gender'))}" class="min-w-[5.5rem]"><option value="">–</option>${genderOptions}</select></td>
+            <td><select data-row="${row.key}" data-field="gender" aria-label="${escapeHtml(t('competitors.gender'))}" class="min-w-[7rem]"><option value="">–</option>${genderOptions}</select></td>
             <td><input type="number" min="1900" step="1" data-row="${row.key}" data-field="year" value="${escapeHtml(row.year)}" aria-label="${escapeHtml(t('competitors.yearOfBirth'))}" class="w-20"></td>
             <td><input type="text" data-row="${row.key}" data-field="club" value="${escapeHtml(row.club)}" aria-label="${escapeHtml(t('competitors.club'))}" class="min-w-[9rem]"></td>
             <td><select data-row="${row.key}" data-field="country" aria-label="${escapeHtml(t('competitors.country'))}" class="min-w-[8rem]"><option value="">–</option>${countryOptions}</select></td>
