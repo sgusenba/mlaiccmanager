@@ -1,0 +1,50 @@
+/* Bulk registration demo: dense table, matrix and the sticky totals bar */
+
+.bulk-switch { display: inline-flex; border: 1px solid #d1d5db; border-radius: .375rem; overflow: hidden; background: #fff; }
+.bulk-switch button { padding: .35rem .9rem; font-weight: 500; color: #4b5563; }
+.bulk-switch button + button { border-left: 1px solid #d1d5db; }
+.bulk-switch button[aria-pressed="true"] { background: #2563eb; color: #fff; }
+
+.bulk-scroll { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: .375rem; }
+.bulk-table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+.bulk-table th { background: #f9fafb; text-align: left; font-weight: 600; color: #374151; padding: .4rem .5rem; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+.bulk-table td { padding: .2rem .3rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+.bulk-table input[type="text"], .bulk-table input[type="number"], .bulk-table select {
+    width: 100%; padding: .3rem .4rem; border: 1px solid transparent; border-radius: .25rem; background: transparent; }
+.bulk-table input:hover, .bulk-table select:hover { border-color: #e5e7eb; }
+.bulk-table input:focus, .bulk-table select:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px #bfdbfe; }
+.bulk-table tr.has-error td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
+.bulk-table tr.has-warning td:first-child { box-shadow: inset 3px 0 0 #d97706; }
+.bulk-table .num { color: #9ca3af; text-align: right; font-variant-numeric: tabular-nums; width: 2.5rem; }
+
+/* Rankings as chips plus a text field for the next short name */
+.bulk-tokens { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; min-width: 13rem; padding: .15rem; border: 1px solid transparent; border-radius: .25rem; }
+.bulk-tokens:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; background: #fff; }
+.bulk-tokens input { flex: 1; min-width: 5rem; border: 0 !important; box-shadow: none !important; padding: .2rem; background: transparent; }
+.bulk-chip { display: inline-flex; align-items: center; gap: .15rem; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: .25rem; padding: 0 .1rem 0 .35rem; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.bulk-chip.is-combo { background: #fefce8; color: #854d0e; border-color: #fde68a; }
+.bulk-chip.is-unknown { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.bulk-chip button { color: inherit; opacity: .6; padding: 0 .2rem; }
+.bulk-chip button:hover { opacity: 1; }
+
+.bulk-note { font-size: .75rem; line-height: 1.2; }
+
+/* Matrix: starters down, rankings across */
+.bulk-matrix th.rot { height: 7.5rem; vertical-align: bottom; padding: .3rem .1rem; }
+.bulk-matrix th.rot span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 600; }
+.bulk-matrix th.cat { text-align: center; border-left: 2px solid #e5e7eb; }
+.bulk-matrix td.cell, .bulk-matrix th.rot { text-align: center; width: 1.9rem; min-width: 1.9rem; }
+.bulk-matrix td.cell { padding: 0; }
+.bulk-matrix td.cell label { display: grid; place-items: center; height: 2rem; cursor: pointer; }
+.bulk-matrix td.cell:hover, .bulk-matrix tr:hover td { background: #f9fafb; }
+.bulk-matrix td.cell.is-on { background: #dbeafe; }
+.bulk-matrix td.cell.is-via { background: #fef9c3; }
+.bulk-matrix .first-of-cat { border-left: 2px solid #e5e7eb; }
+.bulk-matrix .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; min-width: 12rem; box-shadow: 1px 0 0 #e5e7eb; }
+.bulk-matrix thead .sticky-col { background: #f9fafb; }
+.bulk-matrix tfoot td { font-variant-numeric: tabular-nums; color: #6b7280; text-align: center; font-size: .75rem; background: #f9fafb; }
+
+.bulk-codes { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+
+.bulk-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
+    margin: 0 1rem; padding: .75rem 1rem; background: #fff; border: 1px solid #e5e7eb; border-radius: .5rem; box-shadow: 0 -4px 12px rgba(0,0,0,.06); }
