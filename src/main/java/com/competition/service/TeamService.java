@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -270,26 +269,19 @@ public class TeamService {
             }
         }
 
-        // A competitor is in one team per discipline; per ranking, if it allows one team per competitor
-        Set<Integer> exclusive = new HashSet<>(Set.of(discipline.getId()));
-        for (RankingDefinition ranking : registry.rankings()) {
-            if (ranking.isOneStartPerCompetitor() && ranking.disciplineIds().contains(discipline.getId())) {
-                exclusive.addAll(ranking.disciplineIds());
-            }
-        }
+        // A competitor is in one team per discipline
         int teamId = RelayRules.intOf(team.get("id"));
         for (Map<String, Object> other : listOf(teams)) {
             if (RelayRules.intOf(other.get("id")) == teamId
-                    || !exclusive.contains(RelayRules.intOf(other.get("discipline_id")))) {
+                    || RelayRules.intOf(other.get("discipline_id")) != discipline.getId()) {
                 continue;
             }
             for (String startId : membersOf(other)) {
                 Map<String, Object> start = registry.starts().get(startId);
                 if (start != null && competitorsInTeam.contains(RelayRules.intOf(start.get("competitor_id")))) {
-                    Discipline otherDiscipline = registry.disciplines().get(RelayRules.intOf(other.get("discipline_id")));
                     throw new ConflictException(Messages.get("team.alreadyInTeam",
                         competitorName(registry, RelayRules.intOf(start.get("competitor_id"))), other.get("name"),
-                        otherDiscipline != null ? otherDiscipline.getName() : discipline.getName()), null);
+                        discipline.getName()), null);
                 }
             }
         }
@@ -363,32 +355,6 @@ public class TeamService {
     public boolean hasTeams(int disciplineId) throws Exception {
         return read(teams -> listOf(teams).stream()
             .anyMatch(t -> RelayRules.intOf(t.get("discipline_id")) == disciplineId));
-    }
-
-    /** Names of the competitors who are members of more than one team of the disciplines. */
-    public List<String> competitorsInSeveralTeams(Collection<Integer> disciplineIds) throws Exception {
-        return read(teams -> {
-            Registry registry = registry();
-            Map<Integer, Integer> teamsOfCompetitor = new LinkedHashMap<>();
-            for (Map<String, Object> team : listOf(teams)) {
-                if (!disciplineIds.contains(RelayRules.intOf(team.get("discipline_id")))) {
-                    continue;
-                }
-                for (String startId : membersOf(team)) {
-                    Map<String, Object> start = registry.starts().get(startId);
-                    if (start != null) {
-                        teamsOfCompetitor.merge(RelayRules.intOf(start.get("competitor_id")), 1, Integer::sum);
-                    }
-                }
-            }
-            List<String> names = new ArrayList<>();
-            teamsOfCompetitor.forEach((competitorId, n) -> {
-                if (n > 1) {
-                    names.add(competitorName(registry, competitorId));
-                }
-            });
-            return names;
-        });
     }
 
     private List<Map<String, Object>> rank(Map<String, Object> teams, List<Integer> disciplineIds, Registry registry) {

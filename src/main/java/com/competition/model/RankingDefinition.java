@@ -32,10 +32,6 @@ public class RankingDefinition {
     @JsonProperty("level")
     private String level = "individual";
 
-    // A competitor may start in only one of its disciplines (team: be in only one of its teams)
-    @JsonProperty("one_start_per_competitor")
-    private boolean oneStartPerCompetitor;
-
     @JsonProperty("entries")
     private List<Entry> entries = new ArrayList<>();
 
@@ -54,8 +50,6 @@ public class RankingDefinition {
     public String getLevel() { return level; }
     public void setLevel(String level) { this.level = level; }
 
-    public boolean isOneStartPerCompetitor() { return oneStartPerCompetitor; }
-    public void setOneStartPerCompetitor(boolean oneStartPerCompetitor) { this.oneStartPerCompetitor = oneStartPerCompetitor; }
 
     public List<Entry> getEntries() { return entries; }
     public void setEntries(List<Entry> entries) { this.entries = entries != null ? entries : new ArrayList<>(); }

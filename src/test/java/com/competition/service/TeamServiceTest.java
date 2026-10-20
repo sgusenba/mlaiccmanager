@@ -254,19 +254,18 @@ class TeamServiceTest {
     }
 
     @Test
-    void oneTeamPerCompetitorAcrossARankingThatAllowsOne() throws Exception {
+    void inTeamsOfSeveralDisciplinesOfOneRanking() throws Exception {
         RankingConfigService config = new RankingConfigService(dataService, teamService, "none");
         Map<String, Object> request = new HashMap<>();
         request.put("name", "Miquelet teams");
         request.put("level", "team");
-        request.put("one_start_per_competitor", true);
         request.put("entries", List.of(Map.of("discipline_ids", List.of(31)), Map.of("discipline_ids", List.of(39))));
         config.createRanking(request);
 
         create(31, "Adolph", "1-1-1");
-        ConflictException conflict = assertThrows(ConflictException.class, () -> create(39, "Halikko", "1-1-2"));
-        assertTrue(conflict.getMessage().contains("Adolph"));
-        assertNotNull(create(42, "Lucca", "5-11-1"), "Lucca is not ranked together with them");
+        assertNotNull(create(39, "Halikko", "1-1-2"));
+        ConflictException conflict = assertThrows(ConflictException.class, () -> create(31, "Adolph 2", "1-1-1"));
+        assertTrue(conflict.getMessage().contains("Adolph"), "still one team per discipline");
     }
 
     @Test

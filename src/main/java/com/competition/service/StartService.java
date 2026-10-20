@@ -2,7 +2,6 @@ package com.competition.service;
 
 import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
-import com.competition.model.RankingDefinition;
 import com.competition.model.Start;
 
 import java.util.ArrayList;
@@ -37,7 +36,6 @@ public class StartService {
             if (competitorData == null) {
                 throw new RecordNotFoundException(Messages.get("competitor.notFound"));
             }
-            checkOneStartRules(competitorData, disciplineId);
 
             // Initialize starts object if it doesn't exist
             @SuppressWarnings("unchecked")
@@ -98,26 +96,6 @@ public class StartService {
         }
         counters.put(key, next + 1);
         return next;
-    }
-
-    /**
-     * A ranking that allows one start per competitor takes a competitor in only
-     * one of its disciplines.
-     */
-    private void checkOneStartRules(Map<String, Object> competitorData, int disciplineId) throws Exception {
-        for (RankingDefinition ranking : dataService.loadRankingConfig().getRankings()) {
-            if (!ranking.isOneStartPerCompetitor() || !ranking.disciplineIds().contains(disciplineId)) {
-                continue;
-            }
-            for (int other : ranking.disciplineIds()) {
-                if (other != disciplineId && RankingConfigService.startsIn(competitorData, other)) {
-                    Discipline otherDiscipline = disciplineService.getAvailableDisciplineById(other);
-                    throw new ConflictException(Messages.get("start.oneStartPerRanking", competitorData.get("name"),
-                        otherDiscipline != null ? otherDiscipline.getName() : String.valueOf(other),
-                        ranking.getName()), null);
-                }
-            }
-        }
     }
 
     /**

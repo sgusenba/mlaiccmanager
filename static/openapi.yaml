@@ -484,9 +484,8 @@ paths:
       tags: [Rankings]
       summary: Change a ranking
       description: |
-        Send `version`. `409` if someone else changed it meanwhile, if a discipline with
-        starts or teams would be in no ranking any more, or if `one_start_per_competitor`
-        is on while a competitor starts in (team: is in teams of) two of its disciplines.
+        Send `version`. `409` if someone else changed it meanwhile, or if a discipline with
+        starts or teams would be in no ranking any more.
       operationId: updateRanking
       requestBody:
         required: true
@@ -1690,7 +1689,6 @@ components:
         name: { type: string, example: "Remington O/R" }
         short_name: { type: string, nullable: true }
         level: { type: string, enum: [individual, team], default: individual }
-        one_start_per_competitor: { type: boolean, description: "A competitor may start in only one of its disciplines (team: be in only one of its teams)" }
         entries:
           type: array
           description: Ranked together, each competitor once on their best result
