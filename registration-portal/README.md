@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phase 1 (skeleton): server, storage and health check. Log-in, meets, the entry sheet and the export follow in the next phases.
+**Status:** phases 1 and 2: server, storage, health check, and the organiser's meets with the upload of the rankings and catalog from the Manager. Log-in, clubs, the entry sheet and the export follow in the next phases. Until the log-in exists (phase 3), the organiser's API answers only requests from the machine itself, never through the reverse proxy.
 
 ## Build and run
 
@@ -41,6 +41,20 @@ JSON files, written like the Manager's: one lock per file, a `.tmp` file moved o
 - **`meets/<id>.audit.jsonl`**: the meet's audit log, deleted with the meet.
 
 Ids are never handed out twice, also after deletions.
+
+## API so far
+
+All JSON, snake_case; errors are `{"error": "..."}` in the language of the request (`lang` cookie or `Accept-Language`).
+
+| Method | Path | |
+|---|---|---|
+| GET | `/api/health` | `{"ok":true}`, 503 if the data cannot be read |
+| GET, POST | `/api/admin/meets` | List the meets / create one: `{key, name, date, deadline, time_zone, delete_after, collect_email, contact:{name,email,club}}`. The deadline is a local date-time in the meet's time zone (default Europe/Vienna) or one with an offset; `delete_after` defaults to the meet date plus 90 days |
+| GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data |
+| PUT | `/api/admin/meets/{id}/snapshot` | `{rankings: <Manager's rankings export>, catalog: <its discipline catalog export>}`; answers the meet, the `offer` and `warnings`. 400 if the files are not the Manager's or do not fit together, 409 listing the starters concerned if the new rankings would drop or change an entry they ticked |
+| GET | `/api/admin/meets/{id}/offer` | What clubs can register for: the individual rankings with their entries (a ranking with O and R has two) and the disciplines behind each |
+
+Rules: only one meet can be open at a time; opening needs uploaded rankings and a deadline; a closed meet takes no new upload. Team rankings are kept in the upload but not offered.
 
 ## Release
 

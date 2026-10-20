@@ -1,5 +1,6 @@
 package com.competition.portal;
 
+import com.competition.portal.config.AdminGuardFilter;
 import com.competition.portal.config.PortalJerseyConfig;
 import com.competition.portal.config.RequestSizeFilter;
 import com.competition.portal.config.SecurityHeadersFilter;
@@ -62,6 +63,7 @@ public class PortalMain {
         context.addFilter(new FilterHolder(new RequestSizeFilter()), "/*", requests);
         context.addFilter(new FilterHolder(new SecurityHeadersFilter()), "/*", requests);
         context.addFilter(new FilterHolder(new LocaleFilter()), "/*", requests);
+        context.addFilter(new FilterHolder(new AdminGuardFilter()), "/api/*", requests);
 
         ServletHolder jersey = new ServletHolder(new ServletContainer(new PortalJerseyConfig(config)));
         jersey.setInitOrder(0);

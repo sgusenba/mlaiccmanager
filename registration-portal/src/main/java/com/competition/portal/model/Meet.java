@@ -1,7 +1,6 @@
 package com.competition.portal.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,8 +33,10 @@ public class Meet {
     /** YYYY-MM-DD; the registrations are deleted after this day. */
     public String deleteAfter;
     public Contact contact = new Contact();
-    /** The uploaded mlaic-rankings and mlaic-disciplines content, kept as uploaded; null until uploaded. */
-    public JsonNode snapshot;
+    /** Whether clubs may enter the starters' email addresses (off: none are collected). */
+    public boolean collectEmail;
+    /** The rankings and disciplines uploaded from the Manager; null until uploaded. */
+    public Snapshot snapshot;
     public List<Club> clubs = new ArrayList<>();
     public List<Starter> starters = new ArrayList<>();
     /** The next id per kind ("club", "starter"); only ever goes up. */

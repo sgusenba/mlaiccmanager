@@ -1,0 +1,715 @@
+{
+  "format": "mlaic-rankings",
+  "version": 1,
+  "max_disciplines_per_ranking": 6,
+  "rankings": [
+    {
+      "id": 69,
+      "name": "Colt",
+      "short_name": "COLT",
+      "level": "individual",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            52
+          ],
+          "discipline_short_names": [
+            "COLT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "name": "Mariette",
+      "short_name": "MAR",
+      "level": "individual",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            57
+          ],
+          "discipline_short_names": [
+            "MAR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "Kuchenreuter O",
+      "short_name": "KUCO",
+      "level": "individual",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            51
+          ],
+          "discipline_short_names": [
+            "KUCO"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "Kuchenreuter RS/RU",
+      "short_name": "KUC RS/RU",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            62
+          ],
+          "discipline_short_names": [
+            "KUCRS"
+          ]
+        },
+        {
+          "discipline_ids": [
+            56
+          ],
+          "discipline_short_names": [
+            "KUCRU"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "Cominazzo O/R",
+      "short_name": "COM O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            50
+          ],
+          "discipline_short_names": [
+            "COMO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            55
+          ],
+          "discipline_short_names": [
+            "COMR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "Tanzutsu O/R",
+      "short_name": "TNZ O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            54
+          ],
+          "discipline_short_names": [
+            "TNZO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            59
+          ],
+          "discipline_short_names": [
+            "TNZR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "Donald Malson O/R",
+      "short_name": "MAL O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            53
+          ],
+          "discipline_short_names": [
+            "MALO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            58
+          ],
+          "discipline_short_names": [
+            "MALR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 87,
+      "name": "Meixner O/RS+RU",
+      "short_name": "MEIX O/RS+RU",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            63
+          ],
+          "discipline_short_names": [
+            "MEIXO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            60
+          ],
+          "discipline_short_names": [
+            "MEIXRS"
+          ]
+        },
+        {
+          "discipline_ids": [
+            61
+          ],
+          "discipline_short_names": [
+            "MEIXRU"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "Vetterli O",
+      "short_name": "VET O",
+      "level": "individual",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            7
+          ],
+          "discipline_short_names": [
+            "VETO"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "name": "Vetterli R",
+      "short_name": "VET R",
+      "level": "individual",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            17
+          ],
+          "discipline_short_names": [
+            "VETR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "name": "Pennsylvania O/R",
+      "short_name": "PEN O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            9
+          ],
+          "discipline_short_names": [
+            "PENO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            19
+          ],
+          "discipline_short_names": [
+            "PENR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 79,
+      "name": "Lamarmora O/R",
+      "short_name": "LAM O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            10
+          ],
+          "discipline_short_names": [
+            "LAMO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            20
+          ],
+          "discipline_short_names": [
+            "LAMR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 80,
+      "name": "Tanegashima O/R",
+      "short_name": "TAN O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            6
+          ],
+          "discipline_short_names": [
+            "TANO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            16
+          ],
+          "discipline_short_names": [
+            "TANR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 81,
+      "name": "Hizadai O/R",
+      "short_name": "HIZ O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            8
+          ],
+          "discipline_short_names": [
+            "HIZO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            18
+          ],
+          "discipline_short_names": [
+            "HIZR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 82,
+      "name": "Miquelet O/R",
+      "short_name": "MIQ O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            1
+          ],
+          "discipline_short_names": [
+            "MIQO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            11
+          ],
+          "discipline_short_names": [
+            "MIQR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 83,
+      "name": "Maximilian O/R",
+      "short_name": "MAX O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            2
+          ],
+          "discipline_short_names": [
+            "MAXO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            12
+          ],
+          "discipline_short_names": [
+            "MAXR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "name": "Whitworth O/R",
+      "short_name": "WHIT O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            4
+          ],
+          "discipline_short_names": [
+            "WHITO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            14
+          ],
+          "discipline_short_names": [
+            "WHITR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 85,
+      "name": "Minie O/R",
+      "short_name": "MIN O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            3
+          ],
+          "discipline_short_names": [
+            "MINO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            13
+          ],
+          "discipline_short_names": [
+            "MINR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 86,
+      "name": "Walkyrie O/R",
+      "short_name": "WAL O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "discipline_ids": [
+            5
+          ],
+          "discipline_short_names": [
+            "WALO"
+          ]
+        },
+        {
+          "discipline_ids": [
+            15
+          ],
+          "discipline_short_names": [
+            "WALR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 88,
+      "name": "Remington O/R",
+      "short_name": "REM O/R",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "label": "REMO",
+          "discipline_ids": [
+            52,
+            53
+          ],
+          "discipline_short_names": [
+            "COLT",
+            "MALO"
+          ]
+        },
+        {
+          "label": "REMR",
+          "discipline_ids": [
+            57,
+            58
+          ],
+          "discipline_short_names": [
+            "MAR",
+            "MALR"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 89,
+      "name": "Schulhof O/RS+RU",
+      "short_name": "SCHUL O/RS+RU",
+      "level": "individual",
+      "one_start_per_competitor": true,
+      "entries": [
+        {
+          "label": "SCHULO",
+          "discipline_ids": [
+            51,
+            63
+          ],
+          "discipline_short_names": [
+            "KUCO",
+            "MEIXO"
+          ]
+        },
+        {
+          "label": "SCHULRS",
+          "discipline_ids": [
+            60,
+            62
+          ],
+          "discipline_short_names": [
+            "MEIXRS",
+            "KUCRS"
+          ]
+        },
+        {
+          "label": "SCHULRU",
+          "discipline_ids": [
+            56,
+            61
+          ],
+          "discipline_short_names": [
+            "KUCRU",
+            "MEIXRU"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 90,
+      "name": "Adams",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            68
+          ],
+          "discipline_short_names": [
+            "30_Adams"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 91,
+      "name": "Peterlongo",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            70
+          ],
+          "discipline_short_names": [
+            "13_Peterlongo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 92,
+      "name": "Forsyth",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            71
+          ],
+          "discipline_short_names": [
+            "33_Forsyth"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 94,
+      "name": "Wogdon",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            67
+          ],
+          "discipline_short_names": [
+            "25_Wogdon"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 95,
+      "name": "El Alamo",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            73
+          ],
+          "discipline_short_names": [
+            "45_El Alamo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 96,
+      "name": "Pforzheim",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            36
+          ],
+          "discipline_short_names": [
+            "24_Pforzheim"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 97,
+      "name": "Enfield",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            44
+          ],
+          "discipline_short_names": [
+            "40_Enfield"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 93,
+      "name": "Kossuth",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            49
+          ],
+          "discipline_short_names": [
+            "42_Kossuth"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 98,
+      "name": "Wedgnock",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            37
+          ],
+          "discipline_short_names": [
+            "26_Wedgnock"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "name": "Rigby",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            35
+          ],
+          "discipline_short_names": [
+            "20_Rigby"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "name": "Lucca",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            42
+          ],
+          "discipline_short_names": [
+            "29_Lucca"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "name": "Springfield",
+      "level": "team",
+      "one_start_per_competitor": false,
+      "entries": [
+        {
+          "discipline_ids": [
+            76
+          ],
+          "discipline_short_names": [
+            "SPRING"
+          ]
+        }
+      ]
+    }
+  ]
+}
