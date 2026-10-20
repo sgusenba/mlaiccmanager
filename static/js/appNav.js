@@ -14,6 +14,7 @@ const GROUPS = [
         items: [
             { label: 'nav.competitors', path: '/', hash: 'competitors', default: true },
             { label: 'nav.starts', path: '/', hash: 'starts' },
+            { label: 'nav.import', path: '/import/' },
             { label: 'nav.teams', path: '/tmgmt/' },
             { label: 'nav.laneAssignment', path: '/rmgmt/', hash: 'assignment' },
             { label: 'nav.starterOverview', path: '/rmgmt/', hash: 'overview' }

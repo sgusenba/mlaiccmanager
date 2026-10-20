@@ -63,6 +63,7 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 |---|---|---|
 | **Starters** | Competitors | `/#competitors` |
 | | Starts | `/#starts` |
+| | Import Registrations | `/import/` |
 | | Teams | `/tmgmt/` |
 | | Lane Assignment | `/rmgmt/#assignment` |
 | | Starter Overview | `/rmgmt/#overview` |
@@ -89,6 +90,7 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
 - **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) the lane assignments CSV (`static/meet/laneExport.js`) and the target labels (`static/meet/labelExport.js`, QR codes by `static/js/qrCode.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
+- **`/import`** (`static/import/`) — imports a registration file (format `mlaic-registrations`, as written by an online bulk registration form): shows each starter with their starts, then creates the competitors and starts through the regular API. A competitor already registered under the same name only gets the starts they lack (several with that name: skipped, to be added by hand), starts outside the meet's program are skipped, and the API's own checks (e.g. one start per ranking) are reported per start, so importing a file twice changes nothing
 - **`/register`** (`static/register/`) — a demo of an online registration form for starters: offers the meet's individual rankings (combined rankings such as Remington register for all their disciplines) in three layouts to compare (list, cards per firearm, step by step). It only reads the meet, its rankings and the discipline catalog and saves nothing
 - **`/bulkreg`** (`static/bulkreg/`) — a demo of a bulk registration: many starters and their starts at once, e.g. a whole club. Starters are rows of a table whose rankings are typed as short names (`WHITO COLT`), ticked in a matrix (starters × rankings) or pasted from Excel; club and country for new rows are set once, rows are checked inline (missing name or country, unknown short name, duplicate, already registered). It only reads the rankings, the discipline catalog and the competitors and saves nothing
 - **`/backup`** (`static/backup/`) — backup download and restore
