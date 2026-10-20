@@ -21,6 +21,10 @@ A Java backend for managing historical firearms shooting competitions (MLAIC eve
 - **Danger Zone** — separate page at `/danger` to clear results, lane assignments, starts, competitors, teams, meet days and relays, the meet details or the rankings, or to reset the discipline catalog; locked until its master switch is on, and each button needs its own switch as well
 - **JSON file storage** — simple file-based storage, no database required
 
+## Registration Portal (in development)
+
+`registration-portal/` holds a separate program for online registration: clubs log in with an access code and enter their starters for a meet, and the organiser downloads them as one file for the **Import Registrations** page. It runs on its own server (planned: Oracle Cloud), so this app never has to go on the internet. See [`registration-portal/README.md`](registration-portal/README.md) and the plan in [`docs/registration-portal-plan.md`](docs/registration-portal-plan.md).
+
 ## Technology Stack
 
 - **Java 17** (compiled with `--release 17`; requires JDK 26 to build)
