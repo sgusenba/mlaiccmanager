@@ -123,29 +123,9 @@ class RankingConfigServiceTest {
         config.createRanking(ranking("Whitworth O/R", "individual", List.of(single(4), single(14))));
         config.createRanking(ranking("Rigby", "team", List.of(single(35))));
         assertNotNull(startService.createStart(1, 4));
-        assertNotNull(startService.createStart(1, 14), "several starts in one ranking are fine by default");
-        assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 35), "a team discipline");
-    }
-
-    @Test
-    void oneStartPerCompetitor() throws Exception {
-        Map<String, Object> request = ranking("Whitworth O/R", "individual", List.of(single(4), single(14)));
-        request.put("one_start_per_competitor", true);
-        RankingDefinition whitworth = config.createRanking(request);
-
-        startService.createStart(1, 4);
+        assertNotNull(startService.createStart(1, 14), "several disciplines of one ranking");
         assertNotNull(startService.createStart(1, 4), "another start in the same discipline");
-        ConflictException conflict = assertThrows(ConflictException.class, () -> startService.createStart(1, 14));
-        assertTrue(conflict.getMessage().contains("Whitworth O/R"));
-
-        // Turning the rule on is refused while someone starts in two of the disciplines
-        request.put("one_start_per_competitor", false);
-        request.put("version", whitworth.getVersion());
-        RankingDefinition relaxed = config.updateRanking(whitworth.getId(), request);
-        startService.createStart(1, 14);
-        request.put("one_start_per_competitor", true);
-        request.put("version", relaxed.getVersion());
-        assertThrows(ConflictException.class, () -> config.updateRanking(whitworth.getId(), request));
+        assertThrows(IllegalArgumentException.class, () -> startService.createStart(1, 35), "a team discipline");
     }
 
     @Test

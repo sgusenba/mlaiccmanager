@@ -12,7 +12,7 @@ A Java backend for managing historical firearms shooting competitions (MLAIC eve
 - **Rankings** — automatically sorted rankings with tie-breaking support
 - **Team management** — separate page at `/tmgmt` for building the teams of the team disciplines (e.g. *Gustav Adolph*) from registered starts, whose team ranking shows up on the Ranking page
 - **Discipline management** — separate page at `/dmgmt` for CRUD on the discipline catalog, including shooting distance, an optional short name (a label for lists and the lane assignments CSV; it need not be unique, everything refers to the id), archiving (a discipline in use cannot be deleted) and, for team disciplines, which individual disciplines' starts count for a team ("Results that count", 1 to the catalog's limit, default 4, e.g. Nagashino = Tanegashima O + R, Nobunaga = Tanegashima O only); exports and imports the catalog (merge or replace)
-- **Ranking setup** — separate page at `/rankings` for the meet's rankings: name, short name, individual or team, what is ranked (entries: one discipline each, or a named sum of several), at most a per-meet number of disciplines per ranking (default 4), and optionally one start per competitor (team: one team); loads the shipped default rankings (one per discipline, plus Remington and Schulhof), exports and imports them. The disciplines the rankings cover are the meet's program: only they take starts and teams
+- **Ranking setup** — separate page at `/rankings` for the meet's rankings: name, short name, individual or team, what is ranked (entries: one discipline each, or a named sum of several), at most a per-meet number of disciplines per ranking (default 4); loads the shipped default rankings (one per discipline, plus Remington and Schulhof), exports and imports them. The disciplines the rankings cover are the meet's program: only they take starts and teams
 - **Ranking page** — separate page at `/ranking` that shows the meet's rankings, each competitor once on their best result (then the next, see below), lists everyone who started without a result yet below the ranked competitors, shows the ring counts 10 to 0 (misses) and prints cleanly or exports it as a Word or Excel file, optionally one ranking per page
 - **Todos page** — separate page at `/todos` that lists the ranking entries still needing a tie-break value: same result and same number of 10s, 9s, … 1s as another entry of the ranking, with the tie-break missing or the same; laid out like the Ranking page without the rank, empty when there is nothing to do
 - **Relay management** — separate page at `/rmgmt` for planning meet days, relays (Durchgänge) and which registered start shoots on which lane of the 25m/50m/100m ranges; above each range a discipline filter narrows the starts offered for its lanes; an optional auto mode (off until switched on) fills all unlocked days at the click of a button, keeping a discipline in consecutive relays and the disciplines in the meet's ranking order
@@ -194,7 +194,7 @@ The full OpenAPI 3 description is in [`static/openapi.yaml`](static/openapi.yaml
 - `POST /api/competitors/{competitorId}/starts` — create a start for a competitor. The start ID is `competitorId-disciplineId-startNumber` (e.g. `1-52-1`); starts created before this format keep their old unseparated IDs. Returns `409` if the ID is already used by any start or result.
 - `DELETE /api/competitors/{competitorId}/starts/{generatedId}` — delete a start
 
-A start is only taken for an individual discipline of the meet's program (one of its rankings covers it). A ranking with "one start per competitor" takes a competitor in only one of its disciplines.
+A start is only taken for an individual discipline of the meet's program (one of its rankings covers it).
 
 ### Disciplines (the installation's catalog)
 - `GET /api/available-disciplines` — every discipline of the catalog
@@ -208,8 +208,8 @@ A start is only taken for an individual discipline of the meet's program (one of
 - `GET /api/active-disciplines` — the meet's program: the ids of the disciplines its rankings cover
 
 ### Rankings (`/api/rankings`, the meet's)
-- `GET /api/rankings` — `{"max_disciplines_per_ranking": 4, "rankings": [...]}`, each ranking `{id, name, short_name, level, one_start_per_competitor, entries: [{label, discipline_ids}], version}`
-- `POST /api/rankings`, `PUT /api/rankings/{id}` (send `version`), `DELETE /api/rankings/{id}?version=N` — change one; refused if it leaves a discipline with starts or teams out of every ranking, or breaks its one-start rule
+- `GET /api/rankings` — `{"max_disciplines_per_ranking": 4, "rankings": [...]}`, each ranking `{id, name, short_name, level, entries: [{label, discipline_ids}], version}`
+- `POST /api/rankings`, `PUT /api/rankings/{id}` (send `version`), `DELETE /api/rankings/{id}?version=N` — change one; refused if it leaves a discipline with starts or teams out of every ranking
 - `PUT /api/rankings/order` — `{"ids": [...]}`: the order they are listed, printed and lanes are filled in
 - `PUT /api/rankings/settings` — `{"max_disciplines_per_ranking": 4}`
 - `GET /api/rankings/by-discipline` — the rankings each discipline counts in (for the start cards)
@@ -235,7 +235,7 @@ A start is only taken for an individual discipline of the meet's program (one of
 Backs the standalone page at `/tmgmt` and stores everything in `teams.json`.
 
 - A team belongs to a team discipline (`level: "team"`) and has up to `team_size` members (3 unless the catalog says otherwise). A member is one registered start in one of the individual disciplines ticked as the team discipline's "results that count" (`team_of`, set on the Disciplines page), e.g. Nagashino takes Tanegashima original and reproduction starts, Nobunaga only original ones. Teams are entered only for the team disciplines of the meet's team rankings. A team ranking ranks the teams of one or more team disciplines together (team disciplines are not added up: teams exist per discipline).
-- A competitor is in at most one team per team discipline (per team ranking, if it allows one team per competitor), and at most once per team. The same start may count for different team disciplines that count the same discipline (e.g. *Gustav Adolph* and *Halikko*).
+- A competitor is in at most one team per team discipline, and at most once per team. The same start may count for different team disciplines that count the same discipline (e.g. *Gustav Adolph* and *Halikko*).
 - A blank name becomes the club all members share, else the country they share, else `Team <id>`.
 - Team ranking: the sum of the members' individual scores (max 300 for 3 × 100), then the number of 10s over all members' shots, then 9s, … 1s, then the team's `tie_break` (lower wins). Teams with identical values share the rank. A member without a result counts 0 and the team is flagged `complete: false`.
 

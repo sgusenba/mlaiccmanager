@@ -71,7 +71,7 @@ public class RankingConfigService {
 
     public RankingDefinition createRanking(Map<String, Object> request) throws Exception {
         RankingDefinition ranking = parse(request);
-        return change(ranking, (config, disciplines) -> {
+        return change((config, disciplines) -> {
             ranking.setId(config.takeNextId());
             ranking.setVersion(0);
             check(ranking, config.getMaxDisciplinesPerRanking(), disciplines);
@@ -83,7 +83,7 @@ public class RankingConfigService {
     public RankingDefinition updateRanking(int id, Map<String, Object> request) throws Exception {
         RankingDefinition ranking = parse(request);
         Integer version = request != null && request.get("version") instanceof Number n ? n.intValue() : null;
-        return change(ranking, (config, disciplines) -> {
+        return change((config, disciplines) -> {
             RankingDefinition stored = findRanking(config, id);
             if (version != null && stored.getVersion() != version) {
                 throw new ConflictException(Messages.get("ranking.changed"), stored);
@@ -97,7 +97,7 @@ public class RankingConfigService {
     }
 
     public void deleteRanking(int id, Integer version) throws Exception {
-        change(null, (config, disciplines) -> {
+        change((config, disciplines) -> {
             RankingDefinition stored = findRanking(config, id);
             if (version != null && stored.getVersion() != version) {
                 throw new ConflictException(Messages.get("ranking.changed"), stored);
@@ -230,7 +230,6 @@ public class RankingConfigService {
                 throw new IllegalArgumentException(Messages.get("import.nothing", String.join("; ", problems)));
             }
             checkProgramKeepsEntries(config, incoming.getRankings(), data, teamCounts, catalog.getDisciplines());
-            checkOneStartRules(incoming.getRankings(), data);
 
             config.setMaxDisciplinesPerRanking(incoming.getMaxDisciplinesPerRanking());
             config.raiseNextId(); // the replaced rankings' ids stay taken
@@ -269,14 +268,11 @@ public class RankingConfigService {
     }
 
     /**
-     * Runs a change of one ranking (changed: the ranking as it will be, null when
-     * deleting), then refuses it if it leaves starts or teams outside the
-     * program, or breaks the ranking's one-start rule.
+     * Runs a change of one ranking, then refuses it if it leaves starts or teams
+     * outside the program.
      */
-    private <T> T change(RankingDefinition changed, Change<T> fn) throws Exception {
+    private <T> T change(Change<T> fn) throws Exception {
         Map<Integer, Integer> teamCounts = teamService != null ? teamService.teamCounts() : Map.of();
-        List<String> inSeveralTeams = changed != null && changed.isTeam() && changed.isOneStartPerCompetitor()
-            && teamService != null ? teamService.competitorsInSeveralTeams(changed.disciplineIds()) : List.of();
         // Lock order: data.json, then rankings
         return dataService.read(data -> dataService.updateRankingConfig((config, catalog) -> {
             List<RankingDefinition> before = new ArrayList<>(config.getRankings());
@@ -284,12 +280,6 @@ public class RankingConfigService {
             RankingConfig previous = new RankingConfig();
             previous.setRankings(before);
             checkProgramKeepsEntries(previous, config.getRankings(), data, teamCounts, catalog.getDisciplines());
-            if (changed != null) {
-                checkOneStartRules(List.of(changed), data);
-                if (!inSeveralTeams.isEmpty()) {
-                    throw new ConflictException(Messages.get("ranking.oneTeamViolated", changed.getName(), String.join(", ", inSeveralTeams)), inSeveralTeams);
-                }
-            }
             config.setVersion(config.getVersion() + 1);
             return result;
         }));
@@ -323,19 +313,6 @@ public class RankingConfigService {
         }
         if (!problems.isEmpty()) {
             throw new ConflictException(Messages.get("ranking.programKeepsEntries", String.join(", ", problems)), problems);
-        }
-    }
-
-    /** An individual ranking with one start per competitor must not have anyone starting in two of its disciplines. */
-    private static void checkOneStartRules(List<RankingDefinition> rankings, Map<String, Object> data) {
-        for (RankingDefinition r : rankings) {
-            if (!r.isOneStartPerCompetitor() || r.isTeam()) {
-                continue;
-            }
-            List<String> names = competitorsStartingInMoreThanOne(data, r.disciplineIds());
-            if (!names.isEmpty()) {
-                throw new ConflictException(Messages.get("ranking.oneStartViolated", r.getName(), String.join(", ", names)), names);
-            }
         }
     }
 
@@ -449,24 +426,5 @@ public class RankingConfigService {
             }
         }
         return counts;
-    }
-
-    /** Names of the competitors who start in more than one of the disciplines. */
-    @SuppressWarnings("unchecked")
-    static List<String> competitorsStartingInMoreThanOne(Map<String, Object> data, Collection<Integer> disciplineIds) {
-        List<String> names = new ArrayList<>();
-        for (Map<String, Object> competitor : (List<Map<String, Object>>) data.get("competitors")) {
-            if (disciplineIds.stream().filter(id -> startsIn(competitor, id)).count() > 1) {
-                names.add(String.valueOf(competitor.get("name")));
-            }
-        }
-        return names;
-    }
-
-    /** Whether the competitor (a data.json record) has a start in the discipline. */
-    static boolean startsIn(Map<String, Object> competitor, int disciplineId) {
-        return competitor.get("starts") instanceof Map<?, ?> starts
-            && starts.get(String.valueOf(disciplineId)) instanceof List<?> list
-            && !list.isEmpty();
     }
 }

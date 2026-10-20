@@ -96,7 +96,6 @@ function renderTable() {
                 ? `<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">${t('level.team')}</span>`
                 : `<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">${t('level.individual')}</span>`}</td>
             <td class="px-4 py-2 text-sm text-gray-700">${entriesText(r)}</td>
-            <td class="px-4 py-2 text-sm">${r.one_start_per_competitor ? t('common.yes') : ''}</td>
             <td class="px-4 py-2 text-sm whitespace-nowrap">
                 <button class="edit-btn text-blue-600 hover:text-blue-800 mr-3">${t('common.edit')}</button>
                 <button class="delete-btn text-red-600 hover:text-red-800">${t('common.delete')}</button>
@@ -161,11 +160,7 @@ function updateEntryHints() {
 }
 
 function updateLevelHints() {
-    const team = formLevel() === 'team';
-    document.getElementById('one-start-hint').textContent = team
-        ? t('rankings.oneStartHintTeam')
-        : t('rankings.oneStartHintIndividual');
-    document.getElementById('entries-hint').textContent = team
+    document.getElementById('entries-hint').textContent = formLevel() === 'team'
         ? t('rankings.entriesHintTeam')
         : t('rankings.entriesHintIndividual');
 }
@@ -182,7 +177,6 @@ function showForm(ranking) {
     document.getElementById('form-name').value = ranking?.name || '';
     document.getElementById('form-short-name').value = ranking?.short_name || '';
     document.getElementById('form-level').value = ranking?.level || 'individual';
-    document.getElementById('form-one-start').checked = !!ranking?.one_start_per_competitor;
     updateLevelHints();
     renderEntries(ranking ? ranking.entries : []);
     document.getElementById('form-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -241,7 +235,6 @@ function setupListeners() {
             name: document.getElementById('form-name').value.trim(),
             short_name: document.getElementById('form-short-name').value.trim() || null,
             level: formLevel(),
-            one_start_per_competitor: document.getElementById('form-one-start').checked,
             entries
         };
         try {
