@@ -152,7 +152,8 @@ class BackupReceiverTest {
         byte[] backup = validBackup();
         assertEquals(400, put("evil.zip", backup, TOKEN, null).statusCode());
         assertEquals(400, put("mlaiccmanager-backup-20261301-120000.zip", backup, TOKEN, null).statusCode());
-        assertEquals(404, get("/..%2Fsecret.zip", TOKEN).statusCode());
+        // An encoded "../" never reaches the servlet: Jetty refuses ambiguous paths with 400
+        assertEquals(400, get("/..%2Fsecret.zip", TOKEN).statusCode());
     }
 
     @Test

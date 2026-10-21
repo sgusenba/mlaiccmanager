@@ -12,11 +12,12 @@ import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.DefaultServlet;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,9 +111,9 @@ public class PortalMain {
         // The pages, from the jar (or a folder while working on them); "no-cache" makes browsers
         // revalidate, so an update never runs old JS against a newer API
         if (config.staticDir() != null) {
-            context.setResourceBase(config.staticDir().toString());
+            context.setBaseResourceAsString(config.staticDir().toString());
         } else {
-            Resource pages = Resource.newClassPathResource("/static");
+            Resource pages = ResourceFactory.of(context).newClassLoaderResource("static");
             if (pages == null) {
                 throw new IllegalStateException("The jar has no pages (static/)");
             }
