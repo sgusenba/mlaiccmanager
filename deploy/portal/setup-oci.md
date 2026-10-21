@@ -272,7 +272,7 @@ Still to settle (plan, *Still open*): whether the clubs pass their members' data
 
 A breach is any loss of confidentiality, integrity or availability of personal data: e.g. someone gets a club's code or an organiser's password, the VM is compromised, a backup key is lost, data are deleted by mistake.
 
-1. **Contain** at once: close the registration (*Meets*), replace or block affected club codes (*Clubs*), change organiser passwords and reset the authenticator app (`portal-cli.sh`); if the VM is suspect, stop it in the OCI console (data stay on the boot volume).
+1. **Contain** at once: close the registration (*Meets*), replace or block affected club codes (*Clubs*), change organiser passwords and reset the authenticator app (`portal-cli.sh`), then `sudo systemctl restart mlaic-portal`, which ends every open session (they are kept in memory; a password changed on the server does not reach them otherwise); if the VM is suspect, stop it in the OCI console (data stay on the boot volume).
 2. **Assess**: what data, how many people, since when (`journalctl -u mlaic-portal`, the meet's change log, Caddy's access log).
 3. **Report** to the Austrian data protection authority (Datenschutzbehörde, <https://www.dsb.gv.at>) **within 72 hours** of becoming aware, unless the breach is unlikely to result in a risk to the people concerned.
 4. **Inform the people** (via their clubs) without delay if the risk to them is high.

@@ -53,7 +53,7 @@ There is no sign-up. Create the first account on the server, as the portal's use
 
 ```bash
 java -jar mlaic-portal.jar --add-organiser stefan        # asks for the password twice
-java -jar mlaic-portal.jar --set-password stefan         # forgotten password
+java -jar mlaic-portal.jar --set-password stefan         # forgotten password (open sessions end at the next restart)
 java -jar mlaic-portal.jar --reset-totp stefan           # phone with the authenticator app lost
 ```
 
@@ -66,7 +66,12 @@ Without a terminal (in a script) the password is read as one line from standard 
 - **Sessions** are kept in memory (a restart logs everyone out): organisers 30 minutes idle / 12 hours at most, clubs 4 hours / 7 days. The cookie is `__Host-mlaicportal` with Secure, HttpOnly and SameSite=Strict when the public address is HTTPS (`mlaicportal` without Secure for local HTTP tests).
 - **Cross-site requests:** every write must be JSON and carry the portal's own `Origin` (or `Referer`); GET requests never change anything.
 - **Guessing** is slowed down: 10 wrong club codes per address in 15 minutes; after 5 wrong organiser log-ins per user name or address a wait of 1 minute, doubling up to 1 hour; with more than 50 failed log-ins a minute, every log-in takes a second longer. Failures are logged with the address, never with what was typed.
+- **Input:** bodies of at most 1 MB, at most 500 starters per club and 5000 per meet, limited text lengths; a body that is not the expected JSON gets `{"error": ...}` without the parser's details. Deleting a meet or all its registrations needs the meet's key as `?confirm=`.
 - The client address comes from the reverse proxy's `X-Forwarded-For`. That is only safe because the portal listens on 127.0.0.1: never bind it to a public address.
+
+## Data protection
+
+What the portal stores and for how long is on its privacy page (`/privacy/`, German and English) and in the plan's checklist ([`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md) §10): starters' name, gender, year of birth, club, country and rankings, email only if the meet collects it; the clubs' contact persons; the IP address in the logs (14 days). Clubs confirm on their first save that they may pass on their members' data. Each meet's registrations are deleted automatically at its deletion date (default: meet date + 90 days), backups 30 days later. Only the session and language cookies are set. The records of processing and the breach procedure are in [`../deploy/portal/setup-oci.md`](../deploy/portal/setup-oci.md).
 
 ## Configuration
 
@@ -90,7 +95,9 @@ JSON files, written like the Manager's: one lock per file, a `.tmp` file moved o
 
 Ids are never handed out twice, also after deletions.
 
-## API so far
+## API
+
+[`openapi.yaml`](openapi.yaml) describes every endpoint (documentation only, not served; `OpenApiTest` keeps it in step with the code). In short:
 
 All JSON, snake_case; errors are `{"error": "..."}` in the language of the request (`lang` cookie or `Accept-Language`). `/api/admin/...` needs an organiser log-in, `/api/club/...` a club log-in; health, log-in and session are open.
 
@@ -119,7 +126,7 @@ All JSON, snake_case; errors are `{"error": "..."}` in the language of the reque
 | GET | `/api/club/export` | The club's own starters in the same format, as a confirmation copy |
 | GET | `/api/countries` | `[{code, name}]`: the countries a starter can have, English names as the Manager stores them |
 | GET, POST | `/api/admin/meets` | List the meets / create one: `{key, name, date, deadline, time_zone, delete_after, collect_email, contact:{name,email,club}}`. The deadline is a local date-time in the meet's time zone (default Europe/Vienna) or one with an offset; `delete_after` defaults to the meet date plus 90 days |
-| GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data |
+| GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data: `?confirm=<meet key>` |
 | PUT | `/api/admin/meets/{id}/snapshot` | `{rankings: <Manager's rankings export>, catalog: <its discipline catalog export>}`; answers the meet, the `offer` and `warnings`. 400 if the files are not the Manager's or do not fit together, 409 listing the starters concerned if the new rankings would drop or change an entry they ticked |
 | GET | `/api/admin/meets/{id}/offer` | What clubs can register for: the individual rankings with their entries (a ranking with O and R has two) and the disciplines behind each |
 

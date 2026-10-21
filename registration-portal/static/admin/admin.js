@@ -471,7 +471,7 @@ async function renderData() {
             message('msg-delete', t('admin.keyMismatch', { key: m.key }), 'bad');
             return;
         }
-        await api(`/admin/meets/${m.id}`, 'DELETE');
+        await api(`/admin/meets/${m.id}?confirm=${encodeURIComponent(m.key)}`, 'DELETE');
         state.meetId = null;
         await loadMeets();
         location.hash = 'meets';

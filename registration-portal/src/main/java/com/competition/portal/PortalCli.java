@@ -60,6 +60,8 @@ public final class PortalCli {
                     }
                     services.organiserService.setPassword(id, password);
                     out.println("Password of " + username + " changed.");
+                    // This process cannot reach the running portal's sessions, which are kept in memory
+                    out.println("Sessions already open stay valid until the portal restarts (sudo systemctl restart mlaic-portal).");
                 }
                 case "--reset-totp" -> {
                     services.organiserService.resetTotp(services.organiserService.idOf(username));

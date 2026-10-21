@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -122,6 +123,16 @@ class PortalServerTest {
             .header("Accept-Language", "de-AT").build(), HttpResponse.BodyHandlers.ofString());
         assertEquals(404, response.statusCode());
         assertEquals("{\"error\":\"Unter dieser Adresse gibt es nichts.\"}", response.body());
+    }
+
+    @Test
+    void aBodyThatIsNotTheExpectedJsonGetsAJsonErrorWithoutDetails() throws Exception {
+        for (String body : List.of("{\"username\": broken", "[1,2]", "\"text\"")) {
+            HttpResponse<String> response = send("POST", "/api/auth/organiser", body, null);
+            assertEquals(400, response.statusCode(), body);
+            assertEquals("application/json", response.headers().firstValue("Content-Type").orElse(null), body);
+            assertEquals("{\"error\":\"The request could not be processed.\"}", response.body(), body);
+        }
     }
 
     @Test
@@ -244,6 +255,12 @@ class PortalServerTest {
         assertEquals(400, purge.statusCode(), "needs the key as confirmation");
         assertEquals("{\"deleted\":1}", send("DELETE", "/api/admin/meets/1/starters?confirm=ooe-lm", null, cookie,
             "Content-Type", "application/json", "Origin", ORIGIN).body());
+
+        assertEquals(400, send("DELETE", "/api/admin/meets/1?confirm=other", null, cookie,
+            "Content-Type", "application/json", "Origin", ORIGIN).statusCode(), "deleting the meet needs its key too");
+        assertEquals(204, send("DELETE", "/api/admin/meets/1?confirm=ooe-lm", null, cookie,
+            "Content-Type", "application/json", "Origin", ORIGIN).statusCode());
+        assertEquals(404, get("/api/admin/meets/1", cookie).statusCode());
     }
 
     @Test

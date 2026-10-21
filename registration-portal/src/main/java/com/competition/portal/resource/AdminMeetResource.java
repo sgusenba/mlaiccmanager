@@ -1,6 +1,7 @@
 package com.competition.portal.resource;
 
 import com.competition.portal.auth.SessionStore;
+import com.competition.portal.i18n.Messages;
 import com.competition.portal.model.Meet;
 import com.competition.portal.service.AuditLog;
 import com.competition.portal.service.ExportService;
@@ -69,9 +70,14 @@ public class AdminMeetResource {
         return MeetService.view(meetService.update(id, request));
     }
 
+    /** Deletes the meet with its clubs and starters; ?confirm= must be the meet's key, so it cannot happen by accident. */
     @DELETE
     @Path("/{id: \\d+}")
-    public Response delete(@PathParam("id") int id) throws Exception {
+    public Response delete(@PathParam("id") int id, @QueryParam("confirm") String confirm) throws Exception {
+        Meet meet = meetService.get(id);
+        if (confirm == null || !confirm.equals(meet.key)) {
+            throw new IllegalArgumentException(Messages.get("meet.deleteConfirm", meet.key));
+        }
         meetService.delete(id);
         sessions.endWhere(s -> s.isClub() && s.meetId == id);
         return Response.noContent().build();

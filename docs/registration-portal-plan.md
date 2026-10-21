@@ -16,7 +16,7 @@
 | 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
-Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page) and 7 (export, Manager import compatibility) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup-oci.md`), tested locally (Caddy over HTTPS, backup and restore drill, update with rollback), still to be done on the real VM. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
+Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page), 7 (export, Manager import compatibility) and 9 (hardening, checklist in §10, `registration-portal/openapi.yaml`) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup-oci.md`), tested locally (Caddy over HTTPS, backup and restore drill, update with rollback), still to be done on the real VM. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
 
 ## 1. Overview and boundaries
 
@@ -260,27 +260,29 @@ The merged file stays `mlaic-registrations` version 1. Fields are only added, an
 
 ## 10. Security and GDPR checklist
 
+Walked through in phase 9; each item says where it is enforced or tested. Unticked items can only be done on the real VM (runbook: `deploy/portal/setup-oci.md`, *Before go-live*).
+
 **Security**
-- [ ] The Manager is never internet-facing.
-- [ ] Only Caddy is exposed. Jetty binds 127.0.0.1 and SSH is restricted.
-- [ ] TLS, HSTS, CSP, no third-party scripts.
-- [ ] Argon2id, optional TOTP, generic login errors, rate limits, audit of logins.
-- [ ] Secure session cookie and an Origin check on writes.
-- [ ] Club scoping tested against attempts to reach another club's rows.
-- [ ] Access codes: 80 bits, hashed, shown once, rotatable and revocable, never in logs.
-- [ ] Limits on body size and row counts; all output escaped.
-- [ ] Atomic file writes, encrypted backups, a tested restore.
-- [ ] Dependencies pinned and checked monthly.
+- [x] The Manager is never internet-facing: it is not part of the portal's bundle or runbook; the two exchange files only.
+- [x] Only Caddy is exposed: Jetty binds `PORTAL_BIND=127.0.0.1` (checked: listens on 127.0.0.1 only), the systemd unit allows the service only loopback traffic (`IPAddressDeny=any`), the OCI security list and iptables open 22 (own IP), 80, 443. **On the VM:** port 8080 closed from outside.
+- [x] TLS, HSTS, CSP, no third-party scripts: `Caddyfile.example`; the pages have no inline scripts, styles or foreign sources, and the policy has no `unsafe-*` (`StaticPagesTest`); all pages run through Caddy without a CSP violation. **On the VM:** SSL Labs grade A.
+- [x] Argon2id, optional TOTP, generic login errors, rate limits, audit of logins: one message for a wrong user name or password, an unknown user costs the same hashing time; log-ins and failures go to the journal with the client address (`AuthServiceTest`, `RateLimiterTest`).
+- [x] Secure session cookie and an Origin check on writes: `__Host-` cookie with Secure, HttpOnly, SameSite=Strict over HTTPS (checked behind Caddy); `OriginCsrfFilter` (`PortalServerTest`). The client address comes from Caddy's `X-Forwarded-For`; a spoofed header is ignored (checked).
+- [x] Club scoping tested against attempts to reach another club's rows (`StarterServiceTest`, `PortalServerTest`).
+- [x] Access codes: 80 bits, hashed, shown once, rotatable and revocable, never in logs (the invite link carries the code after `#`, which never reaches a server log).
+- [x] Limits on body size (1 MB) and row counts (500 per club, 5000 per meet, text lengths); all output escaped. Malformed JSON gets a JSON error without parser details. Destructive organiser actions (delete registrations, delete a meet) need the meet's key, checked by the server.
+- [x] Atomic file writes, encrypted backups, a tested restore: backup consistent while the portal runs (20 backups during 237 saves all readable), restore drill with identical export and change log; a cut-off audit line costs only that line. **On the VM:** restore drill with a backup from the bucket.
+- [x] Dependencies pinned and checked monthly: versions fixed in `pom.xml`; `.github/dependabot.yml` checks the portal monthly. Note: Jetty 11 is out of community support; moving the portal (and the Manager) to Jetty 12 is a separate task.
 
 **GDPR**
-- [ ] The controller, **SV Bad Zell**, is named on `/privacy/` with address and contact.
-- [ ] Privacy notice in English and German covering purpose, legal basis, data, recipients (Oracle as processor, EU region), retention, rights and complaint authority.
-- [ ] Data minimisation: year of birth only, starter email off by default, no phone.
-- [ ] Clubs confirm on first save that they may pass on their members' data.
-- [ ] Only essential cookies, so no cookie banner is needed.
-- [ ] Retention: an automatic deletion job at meet date plus 90 days, backups expire after 30 days, logs after 14.
-- [ ] Data subject requests: the organiser can find, export and delete a starter.
-- [ ] Records of processing and a breach procedure (72 h) are documented.
+- [x] The controller, **SV Bad Zell**, is named on `/privacy/` with address and contact, entered by the organiser (*Account*). **On the VM:** enter it.
+- [x] Privacy notice in English and German covering purpose, legal basis, data, recipients (Oracle as processor, EU region), retention, rights and complaint authority.
+- [x] Data minimisation: year of birth only, starter email off by default (`collect_email`), no phone.
+- [x] Clubs confirm on first save that they may pass on their members' data (`consent`, refused without it).
+- [x] Only essential cookies (session, language), so no cookie banner is needed.
+- [x] Retention: the deletion job at the meet's deletion date (default meet date + 90 days; also a minute after each start, so an older restored backup is cleaned up), backups expire after 30 days (bucket lifecycle, local copies 7), logs after 14 (journald, Caddy).
+- [x] Data subject requests: the organiser finds a starter in *Starters*, exports the meet's or the club's file, changes or deletes the row in the club's sheet (organiser mode).
+- [x] Records of processing and a breach procedure (72 h) are documented (`setup-oci.md` §14, §15).
 
 ## 11. Phases
 

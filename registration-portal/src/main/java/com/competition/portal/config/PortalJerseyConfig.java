@@ -38,8 +38,10 @@ public class PortalJerseyConfig extends ResourceConfig {
         register(ErrorMappers.Validation.class);
         register(ErrorMappers.Closed.class);
         register(ErrorMappers.Unexpected.class);
+        register(ErrorMappers.UnreadableJson.class);
 
-        register(JacksonFeature.class);
+        // Jackson without its exception mappers, which echo parser details in plain text
+        register(JacksonFeature.withoutExceptionMappers());
         register(ObjectMapperResolver.class);
 
         register(new PortalBinder(services));
