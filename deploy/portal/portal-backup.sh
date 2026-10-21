@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # One backup of the registration portal's data: packs portal.json and meets/,
 # encrypts the archive with age (to the public keys in BACKUP_AGE_RECIPIENTS;
-# the private key stays offline, so a stolen VM or bucket gives nothing away),
-# keeps it in BACKUP_DIR and uploads it to OCI Object Storage with the VM's
-# instance principal (no API key on the VM). Local copies older than
-# BACKUP_KEEP_LOCAL_DAYS are deleted; the bucket deletes its own after 30
-# days (lifecycle rule, see setup-oci.md).
+# the private key stays offline, so a stolen server or backup disk gives
+# nothing away), keeps it in BACKUP_DIR and, if BACKUP_COPY_COMMAND is set,
+# copies it somewhere else with that command (rclone, scp, ...). Copies in
+# BACKUP_DIR older than BACKUP_KEEP_LOCAL_DAYS are deleted; the other place
+# should delete its own after 30 days (see setup.md).
 #
 # Runs as the portal's user, normally via mlaic-portal-backup.service:
 #   portal-backup.sh [LABEL]     LABEL goes into the file name (default: daily)
@@ -28,9 +28,8 @@ fi
 DATA_DIR="${PORTAL_DATA_DIR:-/var/lib/mlaic-portal}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/mlaic-portal}"
 RECIPIENTS="${BACKUP_AGE_RECIPIENTS:-/etc/mlaic-portal/backup-recipients.txt}"
-KEEP_DAYS="${BACKUP_KEEP_LOCAL_DAYS:-7}"
-BUCKET="${BACKUP_OCI_BUCKET:-}"
-OCI="${BACKUP_OCI_CLI:-oci}"
+KEEP_DAYS="${BACKUP_KEEP_LOCAL_DAYS:-30}"
+COPY_COMMAND="${BACKUP_COPY_COMMAND:-}"
 LABEL="${1:-daily}"
 
 log() { echo "[$(date '+%F %T')] $*"; }
@@ -73,11 +72,15 @@ log "Backup $BACKUP_DIR/$NAME ($(du -h "$BACKUP_DIR/$NAME" | cut -f1))"
 find "$BACKUP_DIR" -maxdepth 1 -name 'mlaic-portal-*.tar.gz.age' -mtime +"$KEEP_DAYS" -print -delete \
   | sed 's/^/Deleted old local backup /'
 
-if [ -n "$BUCKET" ]; then
-  "$OCI" os object put --auth instance_principal --bucket-name "$BUCKET" \
-    --name "$NAME" --file "$BACKUP_DIR/$NAME" --force >/dev/null \
-    || die "upload to bucket $BUCKET failed (the local copy is kept)"
-  log "Uploaded to bucket $BUCKET"
+if [ -n "$COPY_COMMAND" ]; then
+  # {} in the command stands for the file; without it the file is appended
+  if [[ "$COPY_COMMAND" == *"{}"* ]]; then
+    command="${COPY_COMMAND//\{\}/$(printf %q "$BACKUP_DIR/$NAME")}"
+  else
+    command="$COPY_COMMAND $(printf %q "$BACKUP_DIR/$NAME")"
+  fi
+  bash -c "$command" || die "copying the backup elsewhere failed (the local copy is kept)"
+  log "Copied elsewhere"
 else
-  log "BACKUP_OCI_BUCKET is empty: local copy only"
+  log "BACKUP_COPY_COMMAND is empty: local copy only"
 fi

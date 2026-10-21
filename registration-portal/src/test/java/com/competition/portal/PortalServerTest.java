@@ -118,6 +118,31 @@ class PortalServerTest {
     }
 
     @Test
+    void withoutAPagesFolderThePagesComeFromTheJar() throws Exception {
+        PortalServices fromJar = new PortalServices(new PortalConfig("127.0.0.1", 0, dir.resolve("data2"), null, ORIGIN), Clock.systemUTC());
+        Server second = PortalMain.createServer(fromJar);
+        second.start();
+        try {
+            String url = "http://127.0.0.1:" + ((ServerConnector) second.getConnectors()[0]).getLocalPort();
+            HttpResponse<String> login = client.send(HttpRequest.newBuilder(URI.create(url + "/login/")).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, login.statusCode());
+            assertTrue(login.body().contains("<title>Anmeldeportal</title>"), login.body());
+            HttpResponse<String> script = client.send(HttpRequest.newBuilder(URI.create(url + "/js/qrCode.js")).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, script.statusCode());
+            assertTrue(script.headers().firstValue("Content-Type").orElse("").contains("javascript"), script.headers().map().toString());
+            HttpResponse<String> listing = client.send(HttpRequest.newBuilder(URI.create(url + "/js/")).build(), HttpResponse.BodyHandlers.ofString());
+            assertNotEquals(200, listing.statusCode(), "no directory listing");
+        } finally {
+            second.stop();
+        }
+    }
+
+    @Test
+    void theVersionComesFromTheBuild() {
+        assertTrue(PortalMain.version().matches("mlaic-portal \\d+\\.\\d+\\.\\d+ \\(commit \\S+, built \\S+\\)"), PortalMain.version());
+    }
+
+    @Test
     void unknownApiPathsAnswerWithAJsonError() throws Exception {
         HttpResponse<String> response = client.send(HttpRequest.newBuilder(URI.create(base + "/api/nothing"))
             .header("Accept-Language", "de-AT").build(), HttpResponse.BodyHandlers.ofString());
@@ -265,12 +290,14 @@ class PortalServerTest {
 
     @Test
     void thePrivacyPageShowsTheControllerTheOrganiserSet() throws Exception {
-        assertEquals("{\"controller\":{\"name\":null,\"address\":null,\"email\":null}}", get("/api/privacy", null).body());
+        assertEquals("{\"controller\":{\"name\":null,\"address\":null,\"email\":null},\"hosting\":null}", get("/api/privacy", null).body());
         String cookie = organiserCookie();
         assertEquals(401, send("PUT", "/api/admin/settings", "{\"controller\":{\"name\":\"x\"}}", null).statusCode());
         assertEquals(200, send("PUT", "/api/admin/settings",
-            "{\"controller\":{\"name\":\"SV Bad Zell\",\"address\":\"4283 Bad Zell\",\"email\":\"info@example.org\"}}", cookie).statusCode());
-        assertTrue(get("/api/privacy", null).body().contains("\"name\":\"SV Bad Zell\""));
+            "{\"controller\":{\"name\":\"SV Bad Zell\",\"address\":\"4283 Bad Zell\",\"email\":\"info@example.org\"},"
+                + "\"hosting\":\"Hetzner Online GmbH, Germany\"}", cookie).statusCode());
+        String privacy = get("/api/privacy", null).body();
+        assertTrue(privacy.contains("\"name\":\"SV Bad Zell\"") && privacy.contains("\"hosting\":\"Hetzner Online GmbH, Germany\""), privacy);
     }
 
     @Test

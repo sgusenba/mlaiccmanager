@@ -1,5 +1,5 @@
 # Monthly dependency check of the registration portal, the only part of this
-# repository that runs on the internet (deploy/portal/setup-oci.md, step 11).
+# repository that runs on the internet (deploy/portal/setup.md, step 5).
 # Minor and patch updates come as one pull request; a new major version as
 # its own. GitHub's security alerts are separate and come at once.
 version: 2

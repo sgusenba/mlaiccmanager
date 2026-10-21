@@ -8,7 +8,7 @@
 | 2 | After the deadline | Clubs are **read-only**; only the organiser can still change entries |
 | 3 | Starter email | **Optional** (off by default, can be turned on per meet) |
 | 4 | Data controller | **SV Bad Zell** |
-| 5 | Oracle account | Held by the organiser who runs the portal. Domain not decided yet (own domain or DuckDNS) |
+| 5 | Hosting | **A Linux machine** run by the organiser (first planned: Oracle Cloud), installed with `portal-install.sh` and updated before every start; see §9. Domain not decided yet (own domain or DuckDNS) |
 | 6 | Retention | Delete registrations at meet date + 90 days; backups kept 30 days |
 | 7 | One-start rule | **Removed from the Manager** (PR #81): a competitor may start in every discipline of a ranking, e.g. both O and R. The portal has no such rule either |
 | 8 | Entry fees | None, out of scope |
@@ -16,13 +16,13 @@
 | 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
-Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page), 7 (export, Manager import compatibility) and 9 (hardening, checklist in §10, `registration-portal/openapi.yaml`) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup-oci.md`), tested locally (Caddy over HTTPS, backup and restore drill, update with rollback), still to be done on the real VM. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
+Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page), 7 (export, Manager import compatibility) and 9 (hardening, checklist in §10, `registration-portal/openapi.yaml`) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup.md`; one jar, installed on a Linux machine with `portal-install.sh`, updated before every start), tested locally (Caddy over HTTPS, backup and restore drill, install and update with stand-ins for systemd), still to be done on the real server. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
 
 ## 1. Overview and boundaries
 
 **Summary.** `registration-portal/` is a new program that runs on its own and is the only part on the internet. Clubs log in with an access code from the organiser and enter their starters in a sheet. They can only pick from the meet's individual rankings. The organiser downloads one merged `mlaic-registrations` v1 file and imports it on the Manager's existing `/import/` page. The Manager stays offline and is not touched, apart from two optional small changes (see §8). No network link is added between the two.
 
-| Concern | Manager (offline, at the range) | Portal (internet, OCI VM) |
+| Concern | Manager (offline, at the range) | Portal (internet, Linux server) |
 |---|---|---|
 | Discipline catalog, rankings | Owns them. Exports via `GET /api/disciplines/export` and `GET /api/rankings/export` | Keeps a read-only snapshot per meet, uploaded by the organiser |
 | Competitors, starts, results | Owns them | Never sees them. It holds registrations only |
@@ -53,7 +53,7 @@ registration-portal/
   static/                     login/ sheet/ admin/ privacy/ js/{api,i18n,rules,countries,tailwind}.js i18n/{en,de}.js
   src/test/...                JUnit 5; smoke/ (Playwright for Java, profile -Psmoke); rules-cases.json
 deploy/portal/                Caddyfile.example, mlaic-portal.service, backup service + timer, portal-deploy.sh,
-                              portal-backup.sh, portal-restore.sh, portal-cli.sh, portal.env.example, setup-oci.md
+                              portal-install.sh, portal-update.sh, portal-backup.sh, portal-restore.sh, portal-cli.sh, portal.env.example, setup.md
 .github/workflows/portal-release.yml
 ```
 
@@ -140,7 +140,7 @@ Status codes:
 - Starters: all clubs, with cross-club duplicate warnings. The organiser may also edit after the deadline.
 - `GET /api/admin/meets/{id}/export`: the merged download.
 - Audit view, purge of a meet's registrations, organiser accounts, password, TOTP.
-- The first organiser is created on the VM with `java -jar mlaic-portal.jar --add-organiser <name>`. There is no self-sign-up.
+- The first organiser is created on the server with `java -jar mlaic-portal.jar --add-organiser <name>`. There is no self-sign-up.
 
 ## 5. Authentication and sessions
 
@@ -234,55 +234,43 @@ The merged file stays `mlaic-registrations` version 1. Fields are only added, an
 
 **One-start rule.** Removed from the Manager in PR #81, so every start in the file is accepted on import. Nothing to do here.
 
-## 9. Deployment runbook outline (Oracle Cloud)
+## 9. Deployment (Linux machine)
 
-1. **Account.** Home region Frankfurt or Zurich. Upgrade to Pay-As-You-Go, which prevents idle reclaim. Add a budget alert at €1.
-2. **VM.** `VM.Standard.A1.Flex` with 1 OCPU and 6 GB, Ubuntu 24.04 aarch64, 50 GB boot volume, reserved public IP.
-3. **Network.**
-   - Security list: SSH only from your IP (or OCI Bastion), 80 and 443 open.
-   - On the host, insert an ACCEPT for 80/443 before Oracle's final iptables REJECT rule, then run `netfilter-persistent save`.
-4. **OS hardening.** SSH keys only, no root login, unattended-upgrades with a nightly reboot window, optionally fail2ban.
-5. **Java.** `openjdk-21-jre-headless` (aarch64).
-6. **App layout.**
-   - System user `mlaic-portal`.
-   - `/opt/mlaic-portal` read-only.
-   - Data in `/var/lib/mlaic-portal` (0700).
-   - Config in `/etc/mlaic-portal/portal.env`.
-7. **systemd unit.** Restart on failure, sandboxed (ProtectSystem=strict, NoNewPrivileges, PrivateTmp), write access only to the data directory, 1 GB memory cap.
-8. **Caddy.** Reverse proxy to 127.0.0.1:8080 with automatic Let's Encrypt. Headers: HSTS, CSP, nosniff, no-referrer. Access logs kept 14 days. Use your own domain, with DuckDNS as a fallback.
-9. **Backups.**
-   - A daily timer packs the data folder (`portal-backup.sh`; see the status note above for why that is consistent).
-   - The backup is encrypted with `age` to an offline key, so the private key is never on the VM.
-   - It is uploaded to a private Object Storage bucket using instance-principal authentication, so no API keys are stored on the VM. Backups are deleted after 30 days.
-   - Do a restore drill once before go-live.
-10. **Updates.** A manual `portal-deploy.sh`, following the pattern of the existing `deploy/download-deploy.sh`: download, check the checksum, take a backup first, swap the jar last.
-11. **Monitoring.** An external uptime check on `/api/health`, disk and memory alarms, and logs of failed logins.
+First planned on an Oracle Cloud VM; the portal runs on an ordinary Linux machine instead (Debian/Ubuntu, rented or the club's own). Runbook: `deploy/portal/setup.md`.
+
+1. **One jar.** `mlaic-portal.jar` holds the code, the libraries and the pages. The release workflow publishes it on `portal-latest` next to the scripts and unit files of `deploy/portal/` and their `SHA256SUMS`.
+2. **Install.** `curl -fsSLO …/portal-latest/portal-install.sh && sudo bash portal-install.sh --domain <host> --email <address> --backup-key age1…`: Java, user `mlaic-portal`, `/opt/mlaic-portal` (read-only for the service), data in `/var/lib/mlaic-portal` (0700), settings in `/etc/mlaic-portal/portal.env`, the systemd units, 14-day journal retention, Caddy with the host name. Running it again updates scripts and units and keeps data and settings.
+3. **Update before every start**, like the Manager's Windows launcher: `mlaic-portal.service` pulls in `mlaic-portal-update.service` (`portal-update.sh`), which installs a newer jar after checking its checksum, test-running it and taking a backup; it never keeps the portal from starting. Freeze with `/etc/mlaic-portal/no-auto-update`, `--rollback` to the previous jar.
+4. **systemd unit.** Sandboxed (ProtectSystem=strict, NoNewPrivileges, loopback-only network), write access only to the data directory, 1 GB memory cap.
+5. **Caddy.** HTTPS with Let's Encrypt, HSTS, CSP, access logs kept 14 days.
+6. **Backups.** Daily, `tar | age` to an offline key, kept 30 days; `BACKUP_COPY_COMMAND` copies each one elsewhere (rclone, scp). Restore drill once before go-live.
+7. **Monitoring.** An external uptime check on `/api/health`, `systemctl --failed`, failed log-ins in the journal.
 
 ## 10. Security and GDPR checklist
 
-Walked through in phase 9; each item says where it is enforced or tested. Unticked items can only be done on the real VM (runbook: `deploy/portal/setup-oci.md`, *Before go-live*).
+Walked through in phase 9; each item says where it is enforced or tested. Unticked items can only be done on the real server (runbook: `deploy/portal/setup.md`, *Before go-live*).
 
 **Security**
 - [x] The Manager is never internet-facing: it is not part of the portal's bundle or runbook; the two exchange files only.
-- [x] Only Caddy is exposed: Jetty binds `PORTAL_BIND=127.0.0.1` (checked: listens on 127.0.0.1 only), the systemd unit allows the service only loopback traffic (`IPAddressDeny=any`), the OCI security list and iptables open 22 (own IP), 80, 443. **On the VM:** port 8080 closed from outside.
-- [x] TLS, HSTS, CSP, no third-party scripts: `Caddyfile.example`; the pages have no inline scripts, styles or foreign sources, and the policy has no `unsafe-*` (`StaticPagesTest`); all pages run through Caddy without a CSP violation. **On the VM:** SSL Labs grade A.
+- [x] Only Caddy is exposed: Jetty binds `PORTAL_BIND=127.0.0.1` (checked: listens on 127.0.0.1 only), the systemd unit allows the service only loopback traffic (`IPAddressDeny=any`), the firewall opens 22, 80 and 443 only. **On the server:** port 8080 closed from outside.
+- [x] TLS, HSTS, CSP, no third-party scripts: `Caddyfile.example`; the pages have no inline scripts, styles or foreign sources, and the policy has no `unsafe-*` (`StaticPagesTest`); all pages run through Caddy without a CSP violation. **On the server:** SSL Labs grade A.
 - [x] Argon2id, optional TOTP, generic login errors, rate limits, audit of logins: one message for a wrong user name or password, an unknown user costs the same hashing time; log-ins and failures go to the journal with the client address (`AuthServiceTest`, `RateLimiterTest`).
 - [x] Secure session cookie and an Origin check on writes: `__Host-` cookie with Secure, HttpOnly, SameSite=Strict over HTTPS (checked behind Caddy); `OriginCsrfFilter` (`PortalServerTest`). The client address comes from Caddy's `X-Forwarded-For`; a spoofed header is ignored (checked).
 - [x] Club scoping tested against attempts to reach another club's rows (`StarterServiceTest`, `PortalServerTest`).
 - [x] Access codes: 80 bits, hashed, shown once, rotatable and revocable, never in logs (the invite link carries the code after `#`, which never reaches a server log).
 - [x] Limits on body size (1 MB) and row counts (500 per club, 5000 per meet, text lengths); all output escaped. Malformed JSON gets a JSON error without parser details. Destructive organiser actions (delete registrations, delete a meet) need the meet's key, checked by the server.
-- [x] Atomic file writes, encrypted backups, a tested restore: backup consistent while the portal runs (20 backups during 237 saves all readable), restore drill with identical export and change log; a cut-off audit line costs only that line. **On the VM:** restore drill with a backup from the bucket.
+- [x] Atomic file writes, encrypted backups, a tested restore: backup consistent while the portal runs (20 backups during 237 saves all readable), restore drill with identical export and change log; a cut-off audit line costs only that line. **On the server:** restore drill with a backup copied off the server.
 - [x] Dependencies pinned and checked monthly: versions fixed in `pom.xml`; `.github/dependabot.yml` checks the portal monthly. Note: Jetty 11 is out of community support; moving the portal (and the Manager) to Jetty 12 is a separate task.
 
 **GDPR**
-- [x] The controller, **SV Bad Zell**, is named on `/privacy/` with address and contact, entered by the organiser (*Account*). **On the VM:** enter it.
-- [x] Privacy notice in English and German covering purpose, legal basis, data, recipients (Oracle as processor, EU region), retention, rights and complaint authority.
+- [x] The controller, **SV Bad Zell**, is named on `/privacy/` with address and contact, entered by the organiser (*Account*). **On the server:** enter it, and the hoster if the server is rented.
+- [x] Privacy notice in English and German covering purpose, legal basis, data, recipients (the hoster as processor, if the server is rented: set by the organiser), retention, rights and complaint authority.
 - [x] Data minimisation: year of birth only, starter email off by default (`collect_email`), no phone.
 - [x] Clubs confirm on first save that they may pass on their members' data (`consent`, refused without it).
 - [x] Only essential cookies (session, language), so no cookie banner is needed.
-- [x] Retention: the deletion job at the meet's deletion date (default meet date + 90 days; also a minute after each start, so an older restored backup is cleaned up), backups expire after 30 days (bucket lifecycle, local copies 7), logs after 14 (journald, Caddy).
+- [x] Retention: the deletion job at the meet's deletion date (default meet date + 90 days; also a minute after each start, so an older restored backup is cleaned up), backups expire after 30 days (`BACKUP_KEEP_LOCAL_DAYS`; the place they are copied to deletes its own), logs after 14 (journald, Caddy).
 - [x] Data subject requests: the organiser finds a starter in *Starters*, exports the meet's or the club's file, changes or deletes the row in the club's sheet (organiser mode).
-- [x] Records of processing and a breach procedure (72 h) are documented (`setup-oci.md` §14, §15).
+- [x] Records of processing and a breach procedure (72 h) are documented (`setup.md` §9, §10).
 
 ## 11. Phases
 
@@ -296,7 +284,7 @@ Walked through in phase 9; each item says where it is enforced or tested. Untick
 | 5 | Club sheet frontend and `rules.js` | 2.5 d | Playwright smoke |
 | 6 | Organiser admin pages, privacy page | 2 d | Playwright smoke |
 | 7 | Export and compatibility | 0.5 d | Golden file; end-to-end import into a local Manager, then a re-import that changes nothing |
-| 8 | Deployment: VM, Caddy, backups, restore drill | 1.5 d | Restore drill, SSL Labs A, port 8080 closed from outside |
+| 8 | Deployment: server, Caddy, backups, restore drill | 1.5 d | Restore drill, SSL Labs A, port 8080 closed from outside |
 | 9 | Hardening, GDPR review, README section, OpenAPI | 1 d | Checklist walked through |
 
 **Total: about 15 person-days** (phase 0 done).

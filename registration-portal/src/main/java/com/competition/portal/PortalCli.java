@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
- * Server commands, run on the VM as the portal's user, e.g.
+ * Server commands, run on the server as the portal's user, e.g.
  * <pre>sudo -u mlaic-portal java -jar mlaic-portal.jar --add-organiser stefan</pre>
  * <ul>
  * <li>--add-organiser NAME: creates an organiser account (the first one, or any later one);</li>

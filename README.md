@@ -23,7 +23,7 @@ A Java backend for managing historical firearms shooting competitions (MLAIC eve
 
 ## Registration Portal (in development)
 
-`registration-portal/` holds a separate program for online registration: clubs log in with an access code and enter their starters for a meet, and the organiser downloads them as one file for the **Import Registrations** page. It runs on its own server (Oracle Cloud; runbook in [`deploy/portal/setup-oci.md`](deploy/portal/setup-oci.md)), so this app never has to go on the internet. See [`registration-portal/README.md`](registration-portal/README.md) and the plan in [`docs/registration-portal-plan.md`](docs/registration-portal-plan.md).
+`registration-portal/` holds a separate program for online registration: clubs log in with an access code and enter their starters for a meet, and the organiser downloads them as one file for the **Import Registrations** page. It runs on its own Linux server, installed with one script and updated before every start (runbook in [`deploy/portal/setup.md`](deploy/portal/setup.md)), so this app never has to go on the internet. See [`registration-portal/README.md`](registration-portal/README.md) and the plan in [`docs/registration-portal-plan.md`](docs/registration-portal-plan.md).
 
 ## Technology Stack
 

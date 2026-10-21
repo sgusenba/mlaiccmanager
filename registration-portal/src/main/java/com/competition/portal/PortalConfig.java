@@ -12,7 +12,7 @@ import java.nio.file.Paths;
  * @param bind      address to listen on; 127.0.0.1 behind the reverse proxy, never 0.0.0.0 in production
  * @param port      HTTP port (0 picks a free one, for tests)
  * @param dataDir   portal.json and meets/ live here
- * @param staticDir the pages (static/)
+ * @param staticDir the pages: a folder (PORTAL_STATIC_DIR, for working on them), or null for the copy inside the jar
  * @param baseUrl   the public address, e.g. https://reg.example.org; writes must come from this origin
  */
 public record PortalConfig(String bind, int port, Path dataDir, Path staticDir, String baseUrl) {
@@ -23,8 +23,13 @@ public record PortalConfig(String bind, int port, Path dataDir, Path staticDir, 
             setting("bind", "127.0.0.1"),
             port,
             Paths.get(setting("data.dir", "portal-data")).toAbsolutePath(),
-            Paths.get(setting("static.dir", "static")).toAbsolutePath(),
+            staticDirSetting(),
             setting("base.url", "http://localhost:" + port));
+    }
+
+    private static Path staticDirSetting() {
+        String dir = setting("static.dir", null);
+        return dir == null ? null : Paths.get(dir).toAbsolutePath();
     }
 
     /** -Dportal.data.dir, else PORTAL_DATA_DIR, else the default. */

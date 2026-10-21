@@ -3,13 +3,13 @@
 #
 #   portal-restore.sh check   BACKUP [-i KEY]       decrypt and list it; changes nothing
 #   portal-restore.sh extract BACKUP DIR [-i KEY]   unpack into a new, empty DIR (the restore drill)
-#   portal-restore.sh install BACKUP [-i KEY]       on the VM, as root: stop the portal, put the
+#   portal-restore.sh install BACKUP [-i KEY]       on the server, as root: stop the portal, put the
 #                                                   backup in place of its data, start it again
 #
 # BACKUP is a .tar.gz.age file (then KEY, the age private key file, is needed)
 # or a .tar.gz already decrypted elsewhere. The private key belongs offline:
 # decrypt on your own computer (age -d -i key.txt -o x.tar.gz x.tar.gz.age),
-# copy the .tar.gz to the VM, install it, delete it.
+# copy the .tar.gz to the server, install it, delete it.
 #
 # install keeps the data it replaces in PORTAL_DATA_DIR.before-restore-<time>;
 # delete that once the portal works (it holds personal data). Meets past their

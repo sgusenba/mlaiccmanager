@@ -1,0 +1,24 @@
+# Checks for a new build of the registration portal and installs it
+# (portal-update.sh). mlaic-portal.service pulls this in, so it runs before
+# every start of the portal: at boot and on every systemctl start/restart.
+# It never keeps the portal from starting. Installed by portal-install.sh.
+
+[Unit]
+Description=Update check of the MLAIC registration portal
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mlaic-portal/portal-update.sh
+TimeoutStartSec=10min
+# Root, to replace the jar in /opt/mlaic-portal (read-only for the portal itself)
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/mlaic-portal /var/backups/mlaic-portal
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes

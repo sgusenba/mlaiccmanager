@@ -6,6 +6,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Settings {
     public Controller controller = new Controller();
+    /**
+     * Who runs the server, if not the organiser itself (e.g. "Hetzner Online
+     * GmbH, Gunzenhausen, Germany"): named on the privacy page as processor.
+     */
+    public String hosting;
 
     /** The data controller under the GDPR, e.g. the organising association. */
     @JsonIgnoreProperties(ignoreUnknown = true)

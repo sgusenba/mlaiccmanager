@@ -1,10 +1,7 @@
 # One backup of the registration portal's data: portal-backup.sh packs it,
-# encrypts it with age and uploads it to OCI Object Storage. Started daily by
-# mlaic-portal-backup.timer, and by portal-deploy.sh before an update.
-#
-# Install together with the timer (see setup-oci.md):
-#   cp mlaic-portal-backup.service mlaic-portal-backup.timer /etc/systemd/system/
-#   systemctl daemon-reload && systemctl enable --now mlaic-portal-backup.timer
+# encrypts it with age and, if set up, copies it elsewhere. Started daily by
+# mlaic-portal-backup.timer (portal-install.sh enables it once a backup key is
+# given); portal-update.sh takes one before installing a new build.
 # Run one now:   systemctl start mlaic-portal-backup && journalctl -u mlaic-portal-backup -n 20
 
 [Unit]
@@ -17,7 +14,7 @@ Type=oneshot
 User=mlaic-portal
 Group=mlaic-portal
 EnvironmentFile=/etc/mlaic-portal/portal.env
-# The OCI CLI wants a home directory; it stores nothing secret there
+# A home for the copy command's tools (rclone, ssh)
 Environment=HOME=/var/backups/mlaic-portal
 ExecStart=/opt/mlaic-portal/portal-backup.sh daily
 UMask=0077

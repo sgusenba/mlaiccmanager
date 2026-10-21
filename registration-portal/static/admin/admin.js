@@ -532,6 +532,8 @@ async function renderAccount() {
                     <div class="field"><label for="s-address">${escapeHtml(t('admin.address'))}</label><input id="s-address" value="${escapeHtml(c.address || '')}"></div>
                     <div class="field"><label for="s-email">${escapeHtml(t('admin.contactEmail'))}</label><input id="s-email" type="email" value="${escapeHtml(c.email || '')}"></div>
                 </div>
+                <div class="field mt-10"><label for="s-hosting">${escapeHtml(t('admin.hosting'))}</label><input id="s-hosting" value="${escapeHtml(settings.hosting || '')}"></div>
+                <p class="muted fs-85">${escapeHtml(t('admin.hostingHint'))}</p>
                 <div class="btn-row mt-10"><button type="submit" class="btn primary">${escapeHtml(t('admin.save'))}</button></div>
                 <p id="msg-settings" class="section-msg"></p>
             </form>
@@ -578,7 +580,7 @@ async function renderAccount() {
     $('settings-form').addEventListener('submit', (e) => {
         e.preventDefault();
         guarded('msg-settings', async () => {
-            await api('/admin/settings', 'PUT', { controller: { name: $('s-name').value, address: $('s-address').value, email: $('s-email').value } });
+            await api('/admin/settings', 'PUT', { controller: { name: $('s-name').value, address: $('s-address').value, email: $('s-email').value }, hosting: $('s-hosting').value });
             message('msg-settings', t('admin.saved'), 'ok');
         });
     });
