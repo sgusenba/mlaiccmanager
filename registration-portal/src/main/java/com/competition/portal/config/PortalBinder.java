@@ -1,28 +1,34 @@
 package com.competition.portal.config;
 
 import com.competition.portal.PortalConfig;
+import com.competition.portal.PortalServices;
+import com.competition.portal.auth.SessionStore;
+import com.competition.portal.service.AuthService;
+import com.competition.portal.service.ClubService;
 import com.competition.portal.service.MeetService;
 import com.competition.portal.service.MeetStore;
+import com.competition.portal.service.OrganiserService;
 import com.competition.portal.service.PortalStore;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 
-/** Creates the portal's services once and hands them to the resources. */
+/** Hands the shared services to the resources. */
 public class PortalBinder extends AbstractBinder {
-    private final PortalConfig config;
+    private final PortalServices services;
 
-    public PortalBinder(PortalConfig config) {
-        this.config = config;
+    public PortalBinder(PortalServices services) {
+        this.services = services;
     }
 
     @Override
     protected void configure() {
-        PortalStore portalStore = new PortalStore(config.dataDir());
-        MeetStore meetStore = new MeetStore(config.dataDir(), portalStore);
-        MeetService meetService = new MeetService(meetStore);
-
-        bind(config).to(PortalConfig.class);
-        bind(portalStore).to(PortalStore.class);
-        bind(meetStore).to(MeetStore.class);
-        bind(meetService).to(MeetService.class);
+        bind(services).to(PortalServices.class);
+        bind(services.config).to(PortalConfig.class);
+        bind(services.portalStore).to(PortalStore.class);
+        bind(services.meetStore).to(MeetStore.class);
+        bind(services.sessions).to(SessionStore.class);
+        bind(services.meetService).to(MeetService.class);
+        bind(services.clubService).to(ClubService.class);
+        bind(services.organiserService).to(OrganiserService.class);
+        bind(services.authService).to(AuthService.class);
     }
 }

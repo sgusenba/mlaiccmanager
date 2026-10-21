@@ -1,5 +1,6 @@
 package com.competition.portal.resource;
 
+import com.competition.portal.auth.SessionStore;
 import com.competition.portal.model.Meet;
 import com.competition.portal.service.MeetService;
 import com.competition.portal.service.SnapshotService;
@@ -33,6 +34,9 @@ public class AdminMeetResource {
     @Inject
     private MeetService meetService;
 
+    @Inject
+    private SessionStore sessions;
+
     @GET
     public List<Map<String, Object>> list() throws Exception {
         return meetService.list().stream().map(MeetService::view).collect(Collectors.toList());
@@ -59,6 +63,7 @@ public class AdminMeetResource {
     @Path("/{id: \\d+}")
     public Response delete(@PathParam("id") int id) throws Exception {
         meetService.delete(id);
+        sessions.endWhere(s -> s.isClub() && s.meetId == id);
         return Response.noContent().build();
     }
 

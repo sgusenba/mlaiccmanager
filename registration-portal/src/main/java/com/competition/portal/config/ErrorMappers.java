@@ -60,6 +60,24 @@ public final class ErrorMappers {
         }
     }
 
+    /** 401, 403 or 429 from the log-in; 429 says when to try again, a missing authenticator code says so. */
+    @Provider
+    public static class Auth implements ExceptionMapper<com.competition.portal.auth.AuthException> {
+        @Override
+        public Response toResponse(com.competition.portal.auth.AuthException e) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", e.getMessage());
+            if (e.isTotpRequired()) {
+                body.put("totp_required", true);
+            }
+            Response.ResponseBuilder response = Response.status(e.getStatus()).type(MediaType.APPLICATION_JSON).entity(body);
+            if (e.getRetryAfter() != null) {
+                response.header("Retry-After", Math.max(1, e.getRetryAfter().getSeconds()));
+            }
+            return response.build();
+        }
+    }
+
     @Provider
     public static class Unexpected implements ExceptionMapper<Exception> {
         @Override

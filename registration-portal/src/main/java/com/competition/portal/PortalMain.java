@@ -1,6 +1,7 @@
 package com.competition.portal;
 
-import com.competition.portal.config.AdminGuardFilter;
+import com.competition.portal.config.AuthFilter;
+import com.competition.portal.config.OriginCsrfFilter;
 import com.competition.portal.config.PortalJerseyConfig;
 import com.competition.portal.config.RequestSizeFilter;
 import com.competition.portal.config.SecurityHeadersFilter;
@@ -19,6 +20,7 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
 import java.util.EnumSet;
 
 /**
@@ -26,16 +28,23 @@ import java.util.EnumSet;
  * organiser downloads them as one file for the MLAICC Manager's Import
  * Registrations page. It runs on its own, behind a reverse proxy (Caddy)
  * that terminates HTTPS; the Manager itself never goes on the internet.
+ *
+ * <p>With arguments it runs a server command instead (see {@link PortalCli}),
+ * e.g. --add-organiser NAME to create the first organiser account.
  */
 public class PortalMain {
     private static final Logger logger = LoggerFactory.getLogger(PortalMain.class);
 
     public static void main(String[] args) throws Exception {
         PortalConfig config = PortalConfig.fromEnvironment();
-        Server server = createServer(config);
+        if (args.length > 0) {
+            System.exit(PortalCli.run(args, new PortalServices(config, Clock.systemUTC())));
+        }
+        Server server = createServer(new PortalServices(config, Clock.systemUTC()));
         try {
             server.start();
-            logger.info("Registration portal on http://{}:{}, data in {}", config.bind(), config.port(), config.dataDir());
+            logger.info("Registration portal on http://{}:{}, data in {}, public address {}",
+                config.bind(), config.port(), config.dataDir(), config.baseUrl());
             server.join();
         } catch (Exception e) {
             logger.error("Error starting the portal", e);
@@ -44,13 +53,15 @@ public class PortalMain {
     }
 
     /** The configured server, not yet started. */
-    public static Server createServer(PortalConfig config) {
+    public static Server createServer(PortalServices services) {
+        PortalConfig config = services.config;
         Server server = new Server();
 
         HttpConfiguration http = new HttpConfiguration();
         http.setSendServerVersion(false);
         http.setSendXPoweredBy(false);
-        // Client address and scheme from the reverse proxy's X-Forwarded-* headers
+        // Client address and scheme from the reverse proxy's X-Forwarded-* headers. Trusted because
+        // the portal listens on 127.0.0.1 only, where nothing but the proxy can reach it
         http.addCustomizer(new ForwardedRequestCustomizer());
         ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(http));
         connector.setHost(config.bind());
@@ -63,9 +74,10 @@ public class PortalMain {
         context.addFilter(new FilterHolder(new RequestSizeFilter()), "/*", requests);
         context.addFilter(new FilterHolder(new SecurityHeadersFilter()), "/*", requests);
         context.addFilter(new FilterHolder(new LocaleFilter()), "/*", requests);
-        context.addFilter(new FilterHolder(new AdminGuardFilter()), "/api/*", requests);
+        context.addFilter(new FilterHolder(new OriginCsrfFilter(config.baseUrl())), "/api/*", requests);
+        context.addFilter(new FilterHolder(new AuthFilter(services)), "/api/*", requests);
 
-        ServletHolder jersey = new ServletHolder(new ServletContainer(new PortalJerseyConfig(config)));
+        ServletHolder jersey = new ServletHolder(new ServletContainer(new PortalJerseyConfig(services)));
         jersey.setInitOrder(0);
         context.addServlet(jersey, "/api/*");
 
