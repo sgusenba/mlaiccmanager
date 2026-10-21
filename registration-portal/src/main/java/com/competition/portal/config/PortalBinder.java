@@ -5,6 +5,7 @@ import com.competition.portal.PortalServices;
 import com.competition.portal.auth.SessionStore;
 import com.competition.portal.service.AuditLog;
 import com.competition.portal.service.AuthService;
+import com.competition.portal.service.ExportService;
 import com.competition.portal.service.StarterService;
 import com.competition.portal.service.ClubService;
 import com.competition.portal.service.MeetService;
@@ -34,5 +35,6 @@ public class PortalBinder extends AbstractBinder {
         bind(services.authService).to(AuthService.class);
         bind(services.auditLog).to(AuditLog.class);
         bind(services.starterService).to(StarterService.class);
+        bind(services.exportService).to(ExportService.class);
     }
 }

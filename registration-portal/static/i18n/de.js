@@ -127,7 +127,6 @@ export default {
     'admin.contact': 'Ansprechperson',
     'admin.year': 'Jg.', 'admin.country': 'Land', 'admin.rankings': 'Wertungen', 'admin.notes': 'Hinweise',
     'admin.noStarters': 'Noch keine Starter gemeldet.',
-    'admin.downloadSoon': 'Der Download für den MLAICC Manager folgt.',
     'admin.audit': 'Änderungsprotokoll', 'admin.when': 'Wann', 'admin.who': 'Wer', 'admin.what': 'Was',
     'admin.noAudit': 'Noch keine Einträge', 'admin.deletedClub': '(gelöschter Verein)',
     'admin.purge': 'Alle Anmeldungen löschen',
@@ -175,5 +174,13 @@ export default {
     'privacy.rights.title': 'Ihre Rechte',
     'privacy.rights.text': 'Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Wenden Sie sich dazu an den oben genannten Verantwortlichen oder an Ihren Verein.',
     'privacy.complaint.title': 'Beschwerde',
-    'privacy.complaint.text': 'Sie können sich bei der Österreichischen Datenschutzbehörde beschweren: Barichgasse 40–42, 1030 Wien, www.dsb.gv.at.'
+    'privacy.complaint.text': 'Sie können sich bei der Österreichischen Datenschutzbehörde beschweren: Barichgasse 40–42, 1030 Wien, www.dsb.gv.at.',
+'sheet.export': 'Meine Anmeldungen herunterladen',
+    'admin.downloadTitle': 'Datei für den MLAICC Manager',
+    'admin.downloadSummary': '{starters} Starter von {clubs} Vereinen.',
+    'admin.stillOpen': 'Anmeldung noch offen',
+    'admin.downloadButton': 'Datei herunterladen',
+    'admin.downloadStep1': 'Nach dem Anmeldeschluss die Datei herunterladen.',
+    'admin.downloadStep2': 'Im MLAICC Manager unter „Starter → Anmeldungen importieren“ die Datei hineinziehen.',
+    'admin.downloadStep3': 'Vorschau prüfen und „Importieren“ klicken. Ein zweiter Import derselben Datei ändert nichts; Nachmeldungen kommen mit einem neuen Download dazu.'
 };

@@ -232,6 +232,14 @@ class PortalServerTest {
         assertTrue(closed.body().contains("\"closed\":true"));
         assertEquals(200, get("/api/club/starters", a).statusCode(), "still readable");
 
+        HttpResponse<String> export = get("/api/admin/meets/1/export", cookie);
+        assertEquals(200, export.statusCode());
+        assertTrue(export.headers().firstValue("Content-Disposition").orElse("").contains("registrations-ooe-lm-"), export.headers().map().toString());
+        assertTrue(export.body().contains("\"format\":\"mlaic-registrations\"") && export.body().contains("Anna Huber"));
+        HttpResponse<String> own = get("/api/club/export", b);
+        assertEquals(200, own.statusCode());
+        assertFalse(own.body().contains("Anna Huber"), "club B's copy holds none of club A's starters");
+
         HttpResponse<String> purge = send("DELETE", "/api/admin/meets/1/starters", null, cookie, "Content-Type", "application/json", "Origin", ORIGIN);
         assertEquals(400, purge.statusCode(), "needs the key as confirmation");
         assertEquals("{\"deleted\":1}", send("DELETE", "/api/admin/meets/1/starters?confirm=ooe-lm", null, cookie,

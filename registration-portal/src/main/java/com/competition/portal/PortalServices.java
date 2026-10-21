@@ -4,6 +4,7 @@ import com.competition.portal.auth.RateLimiter;
 import com.competition.portal.auth.SessionStore;
 import com.competition.portal.service.AuditLog;
 import com.competition.portal.service.AuthService;
+import com.competition.portal.service.ExportService;
 import com.competition.portal.service.RetentionJob;
 import com.competition.portal.service.StarterService;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class PortalServices {
     public final AuditLog auditLog;
     public final StarterService starterService;
     public final RetentionJob retentionJob;
+    public final ExportService exportService;
 
     public PortalServices(PortalConfig config, Clock clock) {
         this.config = config;
@@ -48,6 +50,7 @@ public class PortalServices {
         this.auditLog = new AuditLog(meetStore, clock);
         this.starterService = new StarterService(meetStore, auditLog, clock);
         this.retentionJob = new RetentionJob(meetStore, auditLog, clock);
+        this.exportService = new ExportService(meetStore, clock);
     }
 
     /**

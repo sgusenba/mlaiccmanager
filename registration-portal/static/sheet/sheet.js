@@ -100,6 +100,7 @@ function fillHeader() {
     document.getElementById('meet-name').textContent = m.name;
     document.getElementById('club-name').textContent = ORGANISER ? `${m.club.name} · ${t('sheet.organiserMode')}` : m.club.name;
     document.getElementById('back').hidden = !ORGANISER;
+    document.getElementById('export').hidden = ORGANISER;
     document.getElementById('late').hidden = !(ORGANISER && m.registration_open === false);
     if (m.deadline) {
         const deadline = new Date(m.deadline);

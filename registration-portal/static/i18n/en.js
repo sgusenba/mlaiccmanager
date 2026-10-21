@@ -127,7 +127,6 @@ export default {
     'admin.contact': 'Contact person',
     'admin.year': 'Born', 'admin.country': 'Country', 'admin.rankings': 'Rankings', 'admin.notes': 'Notes',
     'admin.noStarters': 'No starters registered yet.',
-    'admin.downloadSoon': 'The download for the MLAICC Manager follows.',
     'admin.audit': 'Change log', 'admin.when': 'When', 'admin.who': 'Who', 'admin.what': 'What',
     'admin.noAudit': 'No entries yet', 'admin.deletedClub': '(deleted club)',
     'admin.purge': 'Delete all registrations',
@@ -175,5 +174,13 @@ export default {
     'privacy.rights.title': 'Your rights',
     'privacy.rights.text': 'You have the right to access, rectification, erasure, restriction of processing, data portability and objection. Contact the controller named above or your club.',
     'privacy.complaint.title': 'Complaints',
-    'privacy.complaint.text': 'You can lodge a complaint with the Austrian Data Protection Authority: Barichgasse 40–42, 1030 Vienna, www.dsb.gv.at.'
+    'privacy.complaint.text': 'You can lodge a complaint with the Austrian Data Protection Authority: Barichgasse 40–42, 1030 Vienna, www.dsb.gv.at.',
+'sheet.export': 'Download my registrations',
+    'admin.downloadTitle': 'File for the MLAICC Manager',
+    'admin.downloadSummary': '{starters} starters from {clubs} clubs.',
+    'admin.stillOpen': 'registration still open',
+    'admin.downloadButton': 'Download file',
+    'admin.downloadStep1': 'After the deadline, download the file.',
+    'admin.downloadStep2': 'In the MLAICC Manager, drop it on "Starters → Import Registrations".',
+    'admin.downloadStep3': 'Check the preview and click "Import". Importing the same file again changes nothing; late entries come with a new download.'
 };

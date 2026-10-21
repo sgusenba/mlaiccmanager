@@ -45,7 +45,10 @@
         <section class="sheet-wrap" id="sheet-wrap">
             <div class="sheet-tools">
                 <h2 data-i18n="sheet.starters">Starter</h2>
-                <button type="button" class="btn" id="add-5" data-i18n="sheet.add5">5 Zeilen hinzufügen</button>
+                <div class="btn-row">
+                    <a class="btn" id="export" href="/api/club/export" download data-i18n="sheet.export">Meine Anmeldungen herunterladen</a>
+                    <button type="button" class="btn" id="add-5" data-i18n="sheet.add5">5 Zeilen hinzufügen</button>
+                </div>
             </div>
             <div class="scroll" id="scroll"><table class="sheet" id="sheet"></table></div>
             <details class="legend"><summary data-i18n="sheet.legend">Wertungen</summary><div class="legend-grid" id="legend"></div></details>

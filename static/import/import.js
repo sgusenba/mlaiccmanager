@@ -74,6 +74,9 @@ function parse(text) {
     if (data?.format !== 'mlaic-registrations' || !Array.isArray(data.starters)) {
         throw new Error(t('import.wrongFormat'));
     }
+    if (Number(data.version) > 1) {
+        throw new Error(t('import.newerVersion'));
+    }
     return data;
 }
 
@@ -162,7 +165,10 @@ function renderPreview() {
     const file = state.file;
     const info = [
         file.meet?.name && t('import.fileMeet', { meet: file.meet.name }),
-        file.contact?.club && t('import.fileClub', { club: file.contact.club }),
+        // A file of the registration portal lists every club that registered; show how many
+        Array.isArray(file.contacts) && file.contacts.length > 1
+            ? t('import.fileClubs', { count: file.contacts.length })
+            : file.contact?.club && t('import.fileClub', { club: file.contact.club }),
         file.contact?.name && t('import.fileContact', { name: [file.contact.name, file.contact.email].filter(Boolean).join(', ') })
     ].filter(Boolean).join(' · ');
     document.getElementById('file-info').textContent = info;

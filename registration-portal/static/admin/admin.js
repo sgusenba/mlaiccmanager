@@ -406,10 +406,19 @@ async function renderStarters() {
         }).join('')}`;
 }
 
-// --- download (phase 7) ---------------------------------------------------------------
+// --- download ---------------------------------------------------------------------------
 
 function renderDownload() {
-    $('tab-download').innerHTML = `<div class="card"><p class="muted">${escapeHtml(t('admin.downloadSoon'))}</p></div>`;
+    const m = meet();
+    $('tab-download').innerHTML = `<div class="card">
+        <h2>${escapeHtml(t('admin.downloadTitle'))}</h2>
+        <p>${escapeHtml(t('admin.downloadSummary', { starters: m.starters, clubs: m.clubs }))}
+            ${m.status === 'open' ? `<span class="pill open">${escapeHtml(t('admin.stillOpen'))}</span>` : ''}</p>
+        <div class="btn-row"><a class="btn primary" href="/api/admin/meets/${m.id}/export" download>${escapeHtml(t('admin.downloadButton'))}</a></div>
+        <ol class="muted" style="font-size:.9rem;margin:14px 0 0;padding-left:20px">
+            <li>${escapeHtml(t('admin.downloadStep1'))}</li><li>${escapeHtml(t('admin.downloadStep2'))}</li><li>${escapeHtml(t('admin.downloadStep3'))}</li>
+        </ol>
+    </div>`;
 }
 
 // --- data -----------------------------------------------------------------------------

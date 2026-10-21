@@ -3,6 +3,7 @@ package com.competition.portal.resource;
 import com.competition.portal.auth.SessionStore;
 import com.competition.portal.model.Meet;
 import com.competition.portal.service.AuditLog;
+import com.competition.portal.service.ExportService;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.QueryParam;
 import com.competition.portal.service.MeetService;
@@ -43,6 +44,9 @@ public class AdminMeetResource {
     @Inject
     private AuditLog auditLog;
 
+    @Inject
+    private ExportService exportService;
+
     @GET
     public List<Map<String, Object>> list() throws Exception {
         return meetService.list().stream().map(MeetService::view).collect(Collectors.toList());
@@ -78,6 +82,14 @@ public class AdminMeetResource {
     @Path("/{id: \\d+}/snapshot")
     public MeetService.UploadResult uploadSnapshot(@PathParam("id") int id, JsonNode body) throws Exception {
         return meetService.uploadSnapshot(id, body != null ? body.get("rankings") : null, body != null ? body.get("catalog") : null);
+    }
+
+    /** The file for the Manager's Import Registrations page: all clubs' starters. */
+    @GET
+    @Path("/{id: \\d+}/export")
+    public Response export(@PathParam("id") int id) {
+        return Response.ok(exportService.meet(id))
+            .header("Content-Disposition", "attachment; filename=\"" + exportService.fileName(id, null) + "\"").build();
     }
 
     /** The meet's audit log, newest first. */

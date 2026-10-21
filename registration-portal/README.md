@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 6: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet) and the organiser's pages. The export for the Manager and the deployment follow in the next phases.
+**Status:** phases 1 to 7: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet), the organiser's pages and the export for the Manager. The deployment follows.
 
 ## Build and run
 
@@ -33,6 +33,10 @@ Plain HTML and JavaScript modules with one stylesheet (`static/css/portal.css`),
   - *Data*: the change log; delete all registrations or the whole meet, each confirmed by typing the meet's key
   - *Account*: own password, authenticator app (set up with a QR code), further organiser accounts, and the data controller shown on the privacy page
 - **`/privacy/`**: the privacy notice in German and English, with the data controller from the organiser's settings.
+
+## Export for the Manager
+
+`GET /api/admin/meets/{id}/export` (the organiser's *Download* tab) writes the `mlaic-registrations` file (version 1) that the Manager's **Starters → Import Registrations** page imports: per starter name, gender, year of birth, club, country, email (if collected) and `starts` (discipline id, name and short name; a discipline ticked twice, e.g. Colt alone and in Remington O, once), plus `rankings` (names, e.g. `Whitworth O/R: WHITR`). The top-level `contact` is the meet's contact; the portal adds `contacts` (one per club, with its contact person and number of starters), `registered_by` per starter and `generator`; the Manager ignores fields it does not know and shows "N clubs". A club downloads its own starters in the same form from its sheet. Importing the same file twice changes nothing, so late entries come with a new download.
 
 ## Organiser accounts
 
@@ -102,6 +106,8 @@ All JSON, snake_case; errors are `{"error": "..."}` in the language of the reque
 | PUT | `/api/club/contact` | The club's contact person `{name, email, version}` |
 | GET | `/api/privacy` | The data controller for the privacy page; set with GET/PUT `/api/admin/settings` `{controller: {name, address, email}}` |
 | GET | `/api/admin/meets/{id}/clubs/{cid}/sheet`, `/starters` | A club's sheet and starters for the organiser (always editable) |
+| GET | `/api/admin/meets/{id}/export` | The file for the Manager's Import Registrations page (all clubs), as a download |
+| GET | `/api/club/export` | The club's own starters in the same format, as a confirmation copy |
 | GET | `/api/countries` | `[{code, name}]`: the countries a starter can have, English names as the Manager stores them |
 | GET, POST | `/api/admin/meets` | List the meets / create one: `{key, name, date, deadline, time_zone, delete_after, collect_email, contact:{name,email,club}}`. The deadline is a local date-time in the meet's time zone (default Europe/Vienna) or one with an offset; `delete_after` defaults to the meet date plus 90 days |
 | GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data |
