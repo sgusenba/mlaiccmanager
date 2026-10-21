@@ -60,6 +60,30 @@ public final class ErrorMappers {
         }
     }
 
+    /** 400 with the rows of the sheet that have errors. */
+    @Provider
+    public static class Validation implements ExceptionMapper<com.competition.portal.service.ValidationException> {
+        @Override
+        public Response toResponse(com.competition.portal.service.ValidationException e) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", e.getMessage());
+            body.put("rows", e.getRows());
+            return Response.status(Response.Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON).entity(body).build();
+        }
+    }
+
+    /** 403 with "closed": true, so the page turns read-only. */
+    @Provider
+    public static class Closed implements ExceptionMapper<com.competition.portal.service.ClosedException> {
+        @Override
+        public Response toResponse(com.competition.portal.service.ClosedException e) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("error", e.getMessage());
+            body.put("closed", true);
+            return Response.status(Response.Status.FORBIDDEN).type(MediaType.APPLICATION_JSON).entity(body).build();
+        }
+    }
+
     /** 401, 403 or 429 from the log-in; 429 says when to try again, a missing authenticator code says so. */
     @Provider
     public static class Auth implements ExceptionMapper<com.competition.portal.auth.AuthException> {

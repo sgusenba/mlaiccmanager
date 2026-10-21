@@ -2,6 +2,9 @@ package com.competition.portal.resource;
 
 import com.competition.portal.auth.SessionStore;
 import com.competition.portal.model.Meet;
+import com.competition.portal.service.AuditLog;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.QueryParam;
 import com.competition.portal.service.MeetService;
 import com.competition.portal.service.SnapshotService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,6 +39,9 @@ public class AdminMeetResource {
 
     @Inject
     private SessionStore sessions;
+
+    @Inject
+    private AuditLog auditLog;
 
     @GET
     public List<Map<String, Object>> list() throws Exception {
@@ -72,6 +78,16 @@ public class AdminMeetResource {
     @Path("/{id: \\d+}/snapshot")
     public MeetService.UploadResult uploadSnapshot(@PathParam("id") int id, JsonNode body) throws Exception {
         return meetService.uploadSnapshot(id, body != null ? body.get("rankings") : null, body != null ? body.get("catalog") : null);
+    }
+
+    /** The meet's audit log, newest first. */
+    @GET
+    @Path("/{id: \\d+}/audit")
+    public List<Map<String, Object>> audit(@PathParam("id") int id,
+                                           @QueryParam("offset") @DefaultValue("0") int offset,
+                                           @QueryParam("limit") @DefaultValue("100") int limit) throws Exception {
+        meetService.get(id);
+        return auditLog.read(id, Math.max(0, offset), Math.max(1, Math.min(limit, 1000)));
     }
 
     /** What clubs can register for: the individual rankings with their entries. */

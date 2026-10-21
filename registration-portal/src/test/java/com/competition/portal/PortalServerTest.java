@@ -195,6 +195,63 @@ class PortalServerTest {
     }
 
     @Test
+    void aClubRegistersItsStartersAndSeesOnlyItsOwn() throws Exception {
+        String cookie = organiserCookie();
+        send("POST", "/api/admin/meets", "{\"key\":\"ooe-lm\",\"name\":\"OÖ VL LM\",\"deadline\":\"2099-04-30T23:59\"}", cookie);
+        send("PUT", "/api/admin/meets/1/snapshot", "{\"rankings\":" + Fixtures.ooeRankings() + ",\"catalog\":" + Fixtures.mlaicCatalog() + "}", cookie);
+        String codeA = code(send("POST", "/api/admin/meets/1/clubs", "{\"name\":\"SV Bad Zell\",\"default_country\":\"Austria\"}", cookie));
+        String codeB = code(send("POST", "/api/admin/meets/1/clubs", "{\"name\":\"SG Linz\",\"default_country\":\"Austria\"}", cookie));
+        send("PUT", "/api/admin/meets/1", "{\"key\":\"ooe-lm\",\"name\":\"OÖ VL LM\",\"deadline\":\"2099-04-30T23:59\",\"status\":\"open\"}", cookie);
+
+        String a = cookie(send("POST", "/api/auth/club", "{\"code\":\"" + codeA + "\"}", null));
+        HttpResponse<String> meet = get("/api/club/meet", a);
+        assertTrue(meet.body().contains("\"open\":true") && meet.body().contains("\"ranking_id\":84"), meet.body());
+
+        HttpResponse<String> noConsent = send("PUT", "/api/club/starters", "{\"upsert\":[{\"name\":\"Anna Huber\"}]}", a);
+        assertEquals(400, noConsent.statusCode());
+        HttpResponse<String> bad = send("PUT", "/api/club/starters",
+            "{\"consent\":true,\"upsert\":[{\"name\":\"Anna Huber\"},{\"name\":\"\",\"country\":\"Atlantis\"}]}", a);
+        assertEquals(400, bad.statusCode());
+        assertTrue(bad.body().contains("\"rows\":[{\"index\":1"), bad.body());
+
+        HttpResponse<String> saved = send("PUT", "/api/club/starters",
+            "{\"consent\":true,\"upsert\":[{\"name\":\"Anna Huber\",\"choices\":[{\"ranking_id\":84,\"entry\":0},{\"ranking_id\":84,\"entry\":1}]}]}", a);
+        assertEquals(200, saved.statusCode(), saved.body());
+        assertTrue(saved.body().contains("\"name\":\"Anna Huber\"") && saved.body().contains("\"country\":\"Austria\""), saved.body());
+
+        String b = cookie(send("POST", "/api/auth/club", "{\"code\":\"" + codeB + "\"}", null));
+        assertFalse(get("/api/club/starters", b).body().contains("Anna Huber"), "another club sees nothing of it");
+        assertTrue(get("/api/admin/meets/1/starters", cookie).body().contains("Anna Huber"));
+        assertTrue(get("/api/admin/meets/1/audit", cookie).body().contains("starter.created"));
+        assertEquals(401, get("/api/club/starters", null).statusCode());
+
+        // Closed by the organiser: read-only for the club
+        send("PUT", "/api/admin/meets/1", "{\"key\":\"ooe-lm\",\"name\":\"OÖ VL LM\",\"deadline\":\"2099-04-30T23:59\",\"status\":\"closed\"}", cookie);
+        HttpResponse<String> closed = send("PUT", "/api/club/starters", "{\"upsert\":[{\"name\":\"Late\"}]}", a);
+        assertEquals(403, closed.statusCode());
+        assertTrue(closed.body().contains("\"closed\":true"));
+        assertEquals(200, get("/api/club/starters", a).statusCode(), "still readable");
+
+        HttpResponse<String> purge = send("DELETE", "/api/admin/meets/1/starters", null, cookie, "Content-Type", "application/json", "Origin", ORIGIN);
+        assertEquals(400, purge.statusCode(), "needs the key as confirmation");
+        assertEquals("{\"deleted\":1}", send("DELETE", "/api/admin/meets/1/starters?confirm=ooe-lm", null, cookie,
+            "Content-Type", "application/json", "Origin", ORIGIN).body());
+    }
+
+    @Test
+    void theCountriesAreOpenToEveryone() throws Exception {
+        HttpResponse<String> countries = get("/api/countries", null);
+        assertEquals(200, countries.statusCode());
+        assertTrue(countries.body().contains("{\"code\":\"AT\",\"name\":\"Austria\"}"));
+    }
+
+    private static String code(HttpResponse<String> response) {
+        Matcher code = Pattern.compile("\"code\":\"([0-9A-Z-]{19})\"").matcher(response.body());
+        assertTrue(code.find(), response.body());
+        return code.group(1);
+    }
+
+    @Test
     void tooManyWrongClubCodesAreRefusedForAWhile() throws Exception {
         for (int i = 0; i < 10; i++) {
             assertEquals(401, send("POST", "/api/auth/club", "{\"code\":\"0000-0000-0000-000" + i + "\"}", null).statusCode());

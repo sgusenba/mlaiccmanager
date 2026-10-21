@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 3: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, and the log-ins (organiser accounts, club access codes). The starters, the entry sheet and the export follow in the next phases.
+**Status:** phases 1 to 4: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), and the starters (clubs save their sheet, checks, deadline, audit log, deletion). The pages (entry sheet, organiser pages) and the export for the Manager follow in the next phases.
 
 ## Build and run
 
@@ -80,12 +80,23 @@ All JSON, snake_case; errors are `{"error": "..."}` in the language of the reque
 | GET, POST | `/api/admin/meets/{id}/clubs` | The meet's clubs / create one `{name, default_country}`, answering `code` and `invite_url` once |
 | PUT, DELETE | `/api/admin/meets/{id}/clubs/{cid}` | Change name and default country (with `version`) / delete (409 while it has starters, unless `?with_starters=true`) |
 | POST | `/api/admin/meets/{id}/clubs/{cid}/code`, `/revoke` | New code (shown once, the old one stops working) / block `{revoked: true}` or unblock |
+| PUT | `/api/admin/meets/{id}/clubs/{cid}/starters`, `/contact` | Change a club's starters (same body as the club's save, also after the deadline) / its contact person |
+| GET, DELETE | `/api/admin/meets/{id}/starters` | All starters with warnings (incl. a name registered by two clubs) / delete all registrations of the meet: `?confirm=<meet key>` |
+| GET | `/api/admin/meets/{id}/audit` | The audit log, newest first (`?offset=&limit=`) |
+| GET | `/api/club/meet` | For the logged-in club: the meet, its deadline, `open` (changes still possible), the club's details and the offer |
+| GET, PUT | `/api/club/starters` | The club's own starters with warnings / save the sheet: `{upsert: [rows], delete: [{id, version}], consent: true}` |
+| PUT | `/api/club/contact` | The club's contact person `{name, email, version}` |
+| GET | `/api/countries` | `[{code, name}]`: the countries a starter can have, English names as the Manager stores them |
 | GET, POST | `/api/admin/meets` | List the meets / create one: `{key, name, date, deadline, time_zone, delete_after, collect_email, contact:{name,email,club}}`. The deadline is a local date-time in the meet's time zone (default Europe/Vienna) or one with an offset; `delete_after` defaults to the meet date plus 90 days |
 | GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data |
 | PUT | `/api/admin/meets/{id}/snapshot` | `{rankings: <Manager's rankings export>, catalog: <its discipline catalog export>}`; answers the meet, the `offer` and `warnings`. 400 if the files are not the Manager's or do not fit together, 409 listing the starters concerned if the new rankings would drop or change an entry they ticked |
 | GET | `/api/admin/meets/{id}/offer` | What clubs can register for: the individual rankings with their entries (a ranking with O and R has two) and the disciplines behind each |
 
-Rules: only one meet can be open at a time; opening needs uploaded rankings and a deadline; a closed meet takes no new upload. Team rankings are kept in the upload but not offered.
+**Saving the sheet** is all or nothing: every row is checked first (400 with `rows: [{index, id, errors}]`), then the versions (409 with the rows someone changed meanwhile as `current`), then it is written. A row with an `id` changes that starter and needs its `version`; a row without one is new; unchanged rows stay as they are. Rules: name (at most 100 characters) and country (from `/api/countries`; empty means the club's default) are required; gender male, female, other or empty; year of birth 1900 to this year; email only when the meet collects it; club defaults to the club's name; every ticked entry must be offered (O and R of a ranking may both be ticked). Warnings (not blocking): no ranking ticked, a name twice. A club confirms on its first save (`consent: true`) that it may pass on its members' data. Clubs can save only while the meet is open and before the deadline (else 403 with `closed: true`); the organiser can still change everything. Every change goes to the meet's audit log (who, what, the starter's name; no other personal data).
+
+**Deletion:** the day after a meet's `delete_after` (default: meet date + 90 days), a background job deletes its starters, the clubs' contact persons and the audit log; the meet, its clubs and the uploaded rankings stay. The organiser can do the same at any time (`DELETE /api/admin/meets/{id}/starters?confirm=<key>`).
+
+Rules for meets: only one meet can be open at a time; opening needs uploaded rankings and a deadline; a closed meet takes no new upload. Team rankings are kept in the upload but not offered.
 
 ## Release
 

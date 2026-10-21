@@ -16,6 +16,8 @@ public class Club {
     public String codeCreatedAt;
     public boolean revoked;
     public String lastLoginAt;
+    /** When the club confirmed it may pass on its members' data (asked on its first save). */
+    public String consentAt;
     public Contact contact = new Contact();
     public int version;
 }
