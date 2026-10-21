@@ -761,6 +761,8 @@ export default {
     'import.fileMeet': 'Veranstaltung: {meet}',
     'import.fileClub': 'Verein: {club}',
     'import.fileContact': 'Gemeldet von {name}',
+    'import.fileClubs': { one: '{count} Verein', other: '{count} Vereine' },
+    'import.newerVersion': 'Diese Datei stammt aus einer neueren Version des Anmeldeformulars oder -portals. Bitte den MLAICC Manager aktualisieren, um sie zu importieren.',
     'import.meetDiffers': 'Die Datei wurde für „{file}“ erstellt, hier läuft „{meet}“. Bitte prüfen, ob es die richtige Datei ist.',
     'import.col.competitor': 'Teilnehmer',
     'import.col.starts': 'Starts',

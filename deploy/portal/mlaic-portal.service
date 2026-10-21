@@ -1,0 +1,63 @@
+# systemd unit for the MLAIC registration portal.
+#
+# Install (see setup-oci.md):
+#   cp mlaic-portal.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now mlaic-portal
+#
+# The jar and pages are in /opt/mlaic-portal (owned by root, read-only for the
+# service), the data in /var/lib/mlaic-portal (created by systemd, 0700, the
+# only place the service may write). It listens on 127.0.0.1 only and may not
+# talk to any other address: Caddy on the same machine is its only client.
+
+[Unit]
+Description=MLAIC registration portal
+After=network.target
+
+[Service]
+Type=simple
+User=mlaic-portal
+Group=mlaic-portal
+EnvironmentFile=/etc/mlaic-portal/portal.env
+WorkingDirectory=/opt/mlaic-portal
+ExecStart=/usr/bin/java -Xms64m -Xmx512m -XX:+ExitOnOutOfMemoryError -jar /opt/mlaic-portal/mlaic-portal.jar
+# 143: stopped by SIGTERM, the normal way systemd stops it
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+StateDirectory=mlaic-portal
+StateDirectoryMode=0700
+UMask=0077
+MemoryMax=1G
+TasksMax=512
+
+# Sandbox
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Network: only the loopback interface, in and out
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenschutz · Anmeldeportal</title>
+    <link rel="stylesheet" href="/css/portal.css">
+</head>
+<!-- Privacy notice; the data controller comes from the organiser's settings (GET /api/privacy) -->
+<body>
+    <main class="wrap maxw-760 pb-40">
+        <div class="topbar">
+            <h1 data-i18n="privacy.title">Datenschutz</h1>
+            <div class="seg" role="group" data-i18n-aria-label="common.language">
+                <button type="button" data-lang="de">DE</button><button type="button" data-lang="en">EN</button>
+            </div>
+        </div>
+        <div class="card" id="privacy"></div>
+        <p class="muted fs-85"><a href="/login/" data-i18n="privacy.back">Zur Anmeldung</a></p>
+    </main>
+    <script type="module" src="privacy.js"></script>
+</body>
+</html>

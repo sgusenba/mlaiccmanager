@@ -79,6 +79,19 @@ public class AdminClubResource {
         return clubService.rotate(meetId, clubId);
     }
 
+    /** The club's sheet as the organiser edits it (the same shape as GET /api/club/meet, always editable). */
+    @GET
+    @Path("/{clubId: \\d+}/sheet")
+    public Map<String, Object> sheet(@PathParam("meetId") int meetId, @PathParam("clubId") int clubId) {
+        return starters.organiserSheet(meetId, clubId);
+    }
+
+    @GET
+    @Path("/{clubId: \\d+}/starters")
+    public Map<String, Object> listStarters(@PathParam("meetId") int meetId, @PathParam("clubId") int clubId) {
+        return starters.list(meetId, clubId);
+    }
+
     /** Changes the club's starters, with the same body as the club's own save; the deadline does not apply. */
     @PUT
     @Path("/{clubId: \\d+}/starters")

@@ -1,0 +1,462 @@
+openapi: 3.0.3
+info:
+  title: MLAIC Registration Portal API
+  version: "1"
+  description: |
+    The JSON API behind the portal's pages. Documentation only: it is not
+    served by the portal. `OpenApiTest` checks that every endpoint of the
+    resource classes is listed here and nothing else.
+
+    - Log-in sets the session cookie (`__Host-mlaicportal` over HTTPS,
+      `mlaicportal` for local HTTP); `/api/admin/**` needs an organiser's
+      session, `/api/club/**` a club's.
+    - Every write (POST, PUT, DELETE) must send `Content-Type: application/json`
+      and the portal's own `Origin` (or `Referer`), else 403.
+    - Errors answer `{"error": "message"}` in the language of the `lang` cookie
+      or `Accept-Language` (German or English), sometimes with more fields
+      (see the responses). Bodies are at most 1 MB.
+    - Records carry a `version`; a change sends the version it was loaded with
+      and gets 409 with the stored record (`current`) if someone changed it meanwhile.
+servers:
+  - url: /api
+security:
+  - session: []
+
+paths:
+  /health:
+    get:
+      summary: Whether the portal runs and can read its data
+      security: []
+      responses:
+        "200": { description: '`{"ok": true}`' }
+        "503": { description: '`{"ok": false}`: the data cannot be read' }
+  /countries:
+    get:
+      summary: The countries a starter can be registered for
+      security: []
+      responses:
+        "200": { description: '`[{"code", "name"}]`, English names as the Manager stores them' }
+  /privacy:
+    get:
+      summary: The data controller for the privacy page
+      security: []
+      responses:
+        "200": { description: '`{"controller": {"name", "address", "email"}}`' }
+
+  /auth/organiser:
+    post:
+      summary: Organiser log-in
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                totp: { type: string, description: Only once the authenticator app is on }
+      responses:
+        "204": { description: Logged in; sets the session cookie }
+        "401": { description: 'Wrong user name or password (one message for both); `"totp_required": true` when the authenticator code is missing or wrong' }
+        "429": { description: Too many failed log-ins; `Retry-After` says when to try again }
+  /auth/club:
+    post:
+      summary: Club log-in with its access code
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, description: 'As typed or from the invite link; case, dashes and spaces do not matter' }
+      responses:
+        "204": { description: Logged in; sets the session cookie }
+        "401": { description: Unknown, replaced or blocked code }
+        "403": { description: The meet is not open (yet) }
+        "429": { description: Too many failed codes from this address }
+  /auth/logout:
+    post:
+      summary: Ends the session
+      security: []
+      responses:
+        "204": { description: Logged out; the cookie is cleared }
+  /session:
+    get:
+      summary: Who is logged in
+      security: []
+      responses:
+        "200": { description: '`{"role": "organiser", "username"}` or `{"role": "club", "meet": {...}, "club": {...}}`' }
+        "401": { description: Nobody }
+
+  /club/meet:
+    get:
+      summary: The club's meet and sheet settings
+      description: Deadline and time zone, `open` (changes still possible), `collect_email`, the club (`id`, `name`, `default_country`, `contact`, `consent_given`, `version`) and `offer`, the individual rankings with their entries.
+      responses:
+        "200": { description: The meet as the club sees it }
+  /club/starters:
+    get:
+      summary: The club's own starters
+      responses:
+        "200": { description: '`{"starters": [Starter], "warnings": [...]}`' }
+    put:
+      summary: Saves the club's sheet (all rows or none)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SheetSave" }
+      responses:
+        "200": { description: The club's starters as stored now }
+        "400": { description: '`{"error", "rows": [{"index", "id", "errors"}]}`: rows with errors, nothing saved' }
+        "403": { description: '`"closed": true`: the deadline has passed or the meet is closed' }
+        "409": { description: A row was changed meanwhile; nothing saved }
+  /club/contact:
+    put:
+      summary: The club's contact person
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Contact" }
+      responses:
+        "200": { description: The club as stored now }
+        "403": { description: Registration closed }
+        "409": { description: Changed meanwhile }
+  /club/export:
+    get:
+      summary: The club's own starters as an mlaic-registrations file
+      responses:
+        "200": { description: 'A download (`Content-Disposition: attachment`)' }
+
+  /admin/meets:
+    get:
+      summary: All meets
+      responses:
+        "200": { description: '[Meet]' }
+    post:
+      summary: Creates a meet
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Meet" }
+      responses:
+        "200": { description: The meet }
+        "400": { description: Invalid field }
+  /admin/meets/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      summary: One meet
+      responses:
+        "200": { description: Meet }
+        "404": { description: No such meet }
+    put:
+      summary: Changes a meet, also opens or closes it (`status`)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Meet" }
+      responses:
+        "200": { description: The meet }
+        "400": { description: 'Invalid field; opening without rankings or deadline, or while another meet is open' }
+        "409": { description: Changed meanwhile }
+    delete:
+      summary: Deletes the meet with everything in it
+      parameters:
+        - { name: confirm, in: query, required: true, schema: { type: string }, description: The meet's key }
+      responses:
+        "204": { description: Deleted; the meet's clubs are logged out }
+        "400": { description: Wrong key }
+  /admin/meets/{id}/snapshot:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    put:
+      summary: Uploads the rankings and discipline catalog exported from the Manager
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rankings: { type: object, description: The Manager's mlaic-rankings export }
+                catalog: { type: object, description: The Manager's mlaic-disciplines export }
+      responses:
+        "200": { description: '`{"meet", "offer", "warnings"}`' }
+        "400": { description: Not the expected files, or the meet is closed }
+        "409": { description: Starters chose rankings that the new files no longer have }
+  /admin/meets/{id}/offer:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      summary: The individual rankings clubs can choose, with their entries
+      responses:
+        "200": { description: Offer }
+  /admin/meets/{id}/export:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      summary: The mlaic-registrations file of all clubs, for the Manager's Import Registrations page
+      responses:
+        "200": { description: 'A download (`Content-Disposition: attachment`)' }
+  /admin/meets/{id}/audit:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      summary: The meet's change log, newest first
+      parameters:
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+        - { name: limit, in: query, schema: { type: integer, default: 100 } }
+      responses:
+        "200": { description: '[{"at", "actor", "action", "starter_id" or "club_id", "summary"}]' }
+
+  /admin/meets/{meetId}/clubs:
+    parameters: [{ $ref: "#/components/parameters/meetId" }]
+    get:
+      summary: The meet's clubs (never their codes)
+      responses:
+        "200": { description: '[Club]' }
+    post:
+      summary: Creates a club; the answer holds its access code, shown this once
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Club" }
+      responses:
+        "200": { description: '`{"club", "code", "invite_url"}`' }
+  /admin/meets/{meetId}/clubs/{clubId}:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    put:
+      summary: Changes a club
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Club" }
+      responses:
+        "200": { description: The club }
+        "409": { description: Changed meanwhile }
+    delete:
+      summary: Deletes a club
+      parameters:
+        - { name: with_starters, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "204": { description: Deleted }
+        "409": { description: The club has starters and with_starters is not set }
+  /admin/meets/{meetId}/clubs/{clubId}/code:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    post:
+      summary: A new access code; the old one stops working and the club is logged out
+      responses:
+        "200": { description: '`{"club", "code", "invite_url"}`, the code shown this once' }
+  /admin/meets/{meetId}/clubs/{clubId}/revoke:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    post:
+      summary: Blocks or unblocks the club's code; blocking logs it out
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { revoked: { type: boolean } } }
+      responses:
+        "200": { description: The club }
+  /admin/meets/{meetId}/clubs/{clubId}/sheet:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    get:
+      summary: The club's sheet for the organiser (like GET /club/meet, always editable)
+      responses:
+        "200": { description: 'As /club/meet, with `organiser: true` and `registration_open`' }
+  /admin/meets/{meetId}/clubs/{clubId}/starters:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    get:
+      summary: The club's starters
+      responses:
+        "200": { description: '`{"starters", "warnings"}`' }
+    put:
+      summary: Saves the club's sheet for it; the deadline does not apply
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SheetSave" }
+      responses:
+        "200": { description: The club's starters as stored now }
+        "400": { description: Rows with errors }
+        "409": { description: Changed meanwhile }
+  /admin/meets/{meetId}/clubs/{clubId}/contact:
+    parameters: [{ $ref: "#/components/parameters/meetId" }, { $ref: "#/components/parameters/clubId" }]
+    put:
+      summary: The club's contact person
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Contact" }
+      responses:
+        "200": { description: The club }
+        "409": { description: Changed meanwhile }
+
+  /admin/meets/{meetId}/starters:
+    parameters: [{ $ref: "#/components/parameters/meetId" }]
+    get:
+      summary: All starters of the meet
+      responses:
+        "200": { description: '`{"starters", "warnings"}`; the warnings include names registered by two clubs' }
+    delete:
+      summary: Deletes all registrations (starters, contact persons, change log); the meet and its clubs stay
+      parameters:
+        - { name: confirm, in: query, required: true, schema: { type: string }, description: The meet's key }
+      responses:
+        "200": { description: How many were deleted }
+        "400": { description: Wrong key }
+
+  /admin/organisers:
+    get:
+      summary: The organiser accounts
+      responses:
+        "200": { description: '[{"id", "username", "totp_enabled", "created_at"}]' }
+    post:
+      summary: An account for a further organiser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, minLength: 12 }
+      responses:
+        "200": { description: The account }
+        "400": { description: Name taken or password too short }
+  /admin/organisers/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    delete:
+      summary: Deletes an account (not the last one); its sessions end
+      responses:
+        "204": { description: Deleted }
+        "400": { description: The last account }
+  /admin/password:
+    put:
+      summary: Changes the own password; the account's other sessions end, this one gets a new cookie
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current, password]
+              properties:
+                current: { type: string }
+                password: { type: string, minLength: 12 }
+      responses:
+        "204": { description: Changed }
+        "400": { description: The new password is too short }
+        "403": { description: Wrong current password }
+  /admin/settings:
+    get:
+      summary: The portal's settings
+      responses:
+        "200": { description: '`{"controller": {"name", "address", "email"}}`' }
+    put:
+      summary: Changes the data controller shown on the privacy page
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                controller:
+                  type: object
+                  properties:
+                    name: { type: string, maxLength: 300 }
+                    address: { type: string, maxLength: 300 }
+                    email: { type: string, maxLength: 300 }
+      responses:
+        "200": { description: The settings }
+  /admin/totp/setup:
+    post:
+      summary: Starts setting up the authenticator app
+      responses:
+        "200": { description: '`{"secret", "otpauth_uri"}` for the QR code' }
+  /admin/totp/confirm:
+    post:
+      summary: Confirms the app with a code; from now on it is asked at log-in
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [code], properties: { code: { type: string } } }
+      responses:
+        "204": { description: On }
+        "400": { description: Wrong code }
+  /admin/totp/disable:
+    post:
+      summary: Turns the authenticator app off
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [password], properties: { password: { type: string } } }
+      responses:
+        "204": { description: Off }
+        "403": { description: Wrong password }
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: __Host-mlaicportal
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: integer } }
+    meetId: { name: meetId, in: path, required: true, schema: { type: integer } }
+    clubId: { name: clubId, in: path, required: true, schema: { type: integer } }
+  schemas:
+    Meet:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        key: { type: string, description: 'Short name, e.g. ooe-lm-2027; also in the export file name' }
+        name: { type: string }
+        date: { type: string, format: date }
+        deadline: { type: string, description: Local date-time in time_zone }
+        time_zone: { type: string, example: Europe/Vienna }
+        status: { type: string, enum: [draft, open, closed] }
+        delete_after: { type: string, format: date, description: The registrations are deleted on this day }
+        collect_email: { type: boolean, default: false }
+        contact: { $ref: "#/components/schemas/Contact" }
+        version: { type: integer }
+    Club:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        name: { type: string }
+        default_country: { type: string }
+        version: { type: integer }
+    Contact:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        version: { type: integer, description: The club's version (club contact only) }
+    Starter:
+      type: object
+      properties:
+        id: { type: integer, description: Absent for a new row }
+        version: { type: integer, description: Required when id is given }
+        name: { type: string, maxLength: 100 }
+        gender: { type: string, enum: [male, female, other], nullable: true }
+        year_of_birth: { type: integer, nullable: true }
+        club: { type: string, description: "Defaults to the club account's name" }
+        country: { type: string, description: English name from /countries }
+        email: { type: string, description: Kept only when the meet collects email }
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              ranking_id: { type: integer }
+              entry: { type: integer, description: 'Index of the ranking entry, e.g. 0 = O, 1 = R' }
+    SheetSave:
+      type: object
+      properties:
+        upsert: { type: array, items: { $ref: "#/components/schemas/Starter" } }
+        delete:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              version: { type: integer }
+        consent: { type: boolean, description: "The club confirms it may pass on its members' data; needed on its first save" }

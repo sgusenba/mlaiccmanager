@@ -3,6 +3,7 @@ package com.competition.portal.config;
 import com.competition.portal.i18n.Messages;
 import com.competition.portal.service.ConflictException;
 import com.competition.portal.service.RecordNotFoundException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -28,6 +29,19 @@ public final class ErrorMappers {
     static Response error(Response.Status status, String message) {
         return Response.status(status).type(MediaType.APPLICATION_JSON)
             .entity(Map.of("error", message != null ? message : Messages.get("error.unknown"))).build();
+    }
+
+    /**
+     * 400 for a body that is not JSON or not of the expected shape, without
+     * the parser's message (which names server classes); replaces Jackson's
+     * own mappers, which answer in plain text.
+     */
+    @Provider
+    public static class UnreadableJson implements ExceptionMapper<JsonProcessingException> {
+        @Override
+        public Response toResponse(JsonProcessingException e) {
+            return error(Response.Status.BAD_REQUEST, Messages.get("error.request"));
+        }
     }
 
     /** 409 with the record as stored now, so the page can reload it. */

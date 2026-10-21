@@ -762,6 +762,8 @@ export default {
     'import.fileMeet': 'Meet: {meet}',
     'import.fileClub': 'Club: {club}',
     'import.fileContact': 'Registered by {name}',
+    'import.fileClubs': { one: '{count} club', other: '{count} clubs' },
+    'import.newerVersion': 'This file comes from a newer version of the registration form or portal. Update the MLAICC Manager to import it.',
     'import.meetDiffers': 'The file was made for "{file}", this installation runs "{meet}". Check that it is the right file.',
     'import.col.competitor': 'Competitor',
     'import.col.starts': 'Starts',

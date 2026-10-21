@@ -1,9 +1,14 @@
 package com.competition.portal.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +29,7 @@ import java.util.Map;
  * with the meet's registrations.
  */
 public class AuditLog {
+    private static final Logger logger = LoggerFactory.getLogger(AuditLog.class);
     private final MeetStore meets;
     private final Clock clock;
 
@@ -59,7 +65,21 @@ public class AuditLog {
         }
         Path file = meets.auditFile(meetId);
         Files.createDirectories(file.getParent());
+        if (!endsWithNewline(file)) {
+            lines.insert(0, '\n'); // after a cut-off line: start a new one, so only that one is lost
+        }
         Files.writeString(file, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+    }
+
+    private static boolean endsWithNewline(Path file) throws IOException {
+        if (!Files.exists(file) || Files.size(file) == 0) {
+            return true;
+        }
+        try (SeekableByteChannel channel = Files.newByteChannel(file)) {
+            ByteBuffer last = ByteBuffer.allocate(1);
+            channel.position(channel.size() - 1).read(last);
+            return last.get(0) == '\n';
+        }
     }
 
     /** Removes the log; the caller holds the meet's lock. */
@@ -67,20 +87,29 @@ public class AuditLog {
         Files.deleteIfExists(meets.auditFile(meetId));
     }
 
-    /** The newest lines first: offset lines skipped, at most limit returned. */
+    /**
+     * The newest lines first: offset lines skipped, at most limit returned. A
+     * line that cannot be read (cut off by a power failure, or by a backup
+     * taken while it was written) is skipped, so the rest of the log stays
+     * readable.
+     */
     public List<Map<String, Object>> read(int meetId, int offset, int limit) throws IOException {
         Path file = meets.auditFile(meetId);
         if (!Files.exists(file)) {
             return List.of();
         }
-        List<String> lines = new ArrayList<>(Files.readAllLines(file, StandardCharsets.UTF_8));
-        Collections.reverse(lines);
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (String line : lines.subList(Math.min(offset, lines.size()), Math.min(lines.size(), offset + limit))) {
-            if (!line.isBlank()) {
-                result.add(JsonFile.MAPPER.readValue(line, new TypeReference<LinkedHashMap<String, Object>>() {}));
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+            if (line.isBlank()) {
+                continue;
+            }
+            try {
+                entries.add(JsonFile.MAPPER.readValue(line, new TypeReference<LinkedHashMap<String, Object>>() {}));
+            } catch (JsonProcessingException e) {
+                logger.warn("Skipping an unreadable line in {}", file);
             }
         }
-        return result;
+        Collections.reverse(entries);
+        return new ArrayList<>(entries.subList(Math.min(offset, entries.size()), Math.min(entries.size(), offset + limit)));
     }
 }

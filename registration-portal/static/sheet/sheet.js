@@ -11,6 +11,13 @@ import { isEmpty, rowErrors, rowWarnings } from '../js/rules.js';
 
 translatePage();
 
+// Opened by an organiser as /sheet/?meet=1&club=2: the same sheet for that club,
+// through the organiser's API, editable also after the deadline (late entries)
+const params = new URLSearchParams(location.search);
+const ORGANISER = params.has('meet') && params.has('club');
+const BASE = ORGANISER ? `/admin/meets/${Number(params.get('meet'))}/clubs/${Number(params.get('club'))}` : '/club';
+const PATHS = { meet: ORGANISER ? `${BASE}/sheet` : '/club/meet', starters: `${BASE}/starters`, contact: `${BASE}/contact` };
+
 const state = {
     meet: null,
     countries: [],          // [{code, name}], name in English as stored
@@ -30,7 +37,7 @@ const localNames = new Intl.DisplayNames([language], { type: 'region' });
 
 async function load() {
     try {
-        const [meet, starters, countries] = await Promise.all([api('/club/meet'), api('/club/starters'), api('/countries')]);
+        const [meet, starters, countries] = await Promise.all([api(PATHS.meet), api(PATHS.starters), api('/countries')]);
         state.meet = meet;
         state.countries = countries;
         state.countryNames = new Set(countries.map(c => c.name));
@@ -91,7 +98,10 @@ function fillHeader() {
     const m = state.meet;
     document.title = `${m.name} · ${t('sheet.title')}`;
     document.getElementById('meet-name').textContent = m.name;
-    document.getElementById('club-name').textContent = m.club.name;
+    document.getElementById('club-name').textContent = ORGANISER ? `${m.club.name} · ${t('sheet.organiserMode')}` : m.club.name;
+    document.getElementById('back').hidden = !ORGANISER;
+    document.getElementById('export').hidden = ORGANISER;
+    document.getElementById('late').hidden = !(ORGANISER && m.registration_open === false);
     if (m.deadline) {
         const deadline = new Date(m.deadline);
         const date = new Intl.DateTimeFormat(language, { dateStyle: 'full', timeStyle: 'short', timeZone: m.time_zone }).format(deadline);
@@ -104,7 +114,6 @@ function fillHeader() {
     const select = document.getElementById('default-country');
     select.innerHTML = countryOptions('');
     select.value = m.club.default_country || '';
-    document.getElementById('consent-box').hidden = m.club.consent_given || state.readOnly;
     applyReadOnly();
 }
 
@@ -114,7 +123,7 @@ function applyReadOnly() {
     for (const id of ['save', 'add-5', 'contact-save', 'c-name', 'c-email', 'default-country']) {
         document.getElementById(id).disabled = state.readOnly;
     }
-    document.getElementById('consent-box').hidden = state.meet.club.consent_given || state.readOnly;
+    document.getElementById('consent-box').hidden = ORGANISER || state.meet.club.consent_given || state.readOnly;
 }
 
 // --- the table ---------------------------------------------------------------------
@@ -178,12 +187,12 @@ function rowHtml(row, i) {
     }).join('');
     return `<tr data-row="${row.uid}">
         <td class="c-num sticky">${i + 1}</td>
-        <td class="sticky c-name"><input type="text" data-row="${row.uid}" data-f="name" value="${escapeHtml(row.name)}" placeholder="${escapeHtml(t('sheet.namePlaceholder'))}" aria-label="${escapeHtml(t('sheet.name'))}" style="min-width:190px" maxlength="100"></td>
-        <td><select data-row="${row.uid}" data-f="gender" aria-label="${escapeHtml(t('sheet.gender'))}" style="min-width:56px">${g('', '–')}${g('male', t('sheet.m'))}${g('female', t('sheet.f'))}${g('other', t('sheet.o'))}</select></td>
-        <td><input type="number" min="1900" max="2100" data-row="${row.uid}" data-f="year" value="${escapeHtml(row.year)}" aria-label="${escapeHtml(t('sheet.year'))}" style="width:76px"></td>
-        <td><input type="text" data-row="${row.uid}" data-f="club" value="${escapeHtml(row.club)}" placeholder="${escapeHtml(state.meet.club.name)}" aria-label="${escapeHtml(t('sheet.club'))}" style="min-width:140px" maxlength="200"></td>
-        <td><select data-row="${row.uid}" data-f="country" data-value="${escapeHtml(row.country)}" aria-label="${escapeHtml(t('sheet.country'))}" style="min-width:130px">${countryOptions(defaultCountryLabel())}</select></td>
-        ${email ? `<td><input type="email" data-row="${row.uid}" data-f="email" value="${escapeHtml(row.email)}" aria-label="${escapeHtml(t('sheet.email'))}" style="min-width:170px"></td>` : ''}
+        <td class="sticky c-name"><input type="text" data-row="${row.uid}" data-f="name" value="${escapeHtml(row.name)}" placeholder="${escapeHtml(t('sheet.namePlaceholder'))}" aria-label="${escapeHtml(t('sheet.name'))}" class="minw-190" maxlength="100"></td>
+        <td><select data-row="${row.uid}" data-f="gender" aria-label="${escapeHtml(t('sheet.gender'))}" class="minw-56">${g('', '–')}${g('male', t('sheet.m'))}${g('female', t('sheet.f'))}${g('other', t('sheet.o'))}</select></td>
+        <td><input type="number" min="1900" max="2100" data-row="${row.uid}" data-f="year" value="${escapeHtml(row.year)}" aria-label="${escapeHtml(t('sheet.year'))}" class="w-76"></td>
+        <td><input type="text" data-row="${row.uid}" data-f="club" value="${escapeHtml(row.club)}" placeholder="${escapeHtml(state.meet.club.name)}" aria-label="${escapeHtml(t('sheet.club'))}" class="minw-140" maxlength="200"></td>
+        <td><select data-row="${row.uid}" data-f="country" data-value="${escapeHtml(row.country)}" aria-label="${escapeHtml(t('sheet.country'))}" class="minw-130">${countryOptions(defaultCountryLabel())}</select></td>
+        ${email ? `<td><input type="email" data-row="${row.uid}" data-f="email" value="${escapeHtml(row.email)}" aria-label="${escapeHtml(t('sheet.email'))}" class="minw-170"></td>` : ''}
         ${cells}
         <td class="c-starts" data-starts="${row.uid}"></td>
         <td class="c-status" data-status="${row.uid}"></td>
@@ -195,7 +204,7 @@ function render() {
     const { head, fixed } = headerHtml();
     const scroll = document.getElementById('scroll');
     const pos = [scroll.scrollLeft, scroll.scrollTop];
-    const foot = `<tfoot><tr><td class="sticky c-num"></td><td class="sticky c-name" style="text-align:left">Σ</td><td colspan="${fixed - 1}"></td>`
+    const foot = `<tfoot><tr><td class="sticky c-num"></td><td class="sticky c-name text-left">Σ</td><td colspan="${fixed - 1}"></td>`
         + state.columns.map(col => `<td data-count="${col.key}"></td>`).join('') + '<td colspan="3"></td></tr></tfoot>';
     sheet.innerHTML = `${head}<tbody>${state.rows.map(rowHtml).join('')}</tbody>${foot}`;
     sheet.querySelectorAll('select[data-f="country"]').forEach(s => { s.value = s.dataset.value; });
@@ -234,8 +243,8 @@ function renderTotals() {
     document.getElementById('totals').innerHTML = [
         `<strong>${escapeHtml(t('sheet.totStarters', { count: filled.length }))}</strong>`,
         escapeHtml(t('sheet.totStarts', { count: starts })),
-        errors ? `<span class="st-err" style="display:inline">${escapeHtml(t('sheet.totErrors', { count: errors }))}</span>` : '',
-        unsaved ? `<span class="st-warn" style="display:inline">${escapeHtml(t('sheet.unsavedCount', { count: unsaved }))}</span>` : ''
+        errors ? `<span class="st-err inline">${escapeHtml(t('sheet.totErrors', { count: errors }))}</span>` : '',
+        unsaved ? `<span class="st-warn inline">${escapeHtml(t('sheet.unsavedCount', { count: unsaved }))}</span>` : ''
     ].filter(Boolean).map(x => `<span>${x}</span>`).join('');
     for (const col of state.columns) {
         const td = sheet.querySelector(`tfoot [data-count="${col.key}"]`);
@@ -388,7 +397,7 @@ async function save() {
         return;
     }
     const consent = document.getElementById('consent');
-    if (!state.meet.club.consent_given && !consent.checked) {
+    if (!ORGANISER && !state.meet.club.consent_given && !consent.checked) {
         setState(t('sheet.consentFirst'), 'bad');
         consent.focus();
         return;
@@ -399,7 +408,7 @@ async function save() {
     const button = document.getElementById('save');
     button.disabled = true;
     try {
-        const result = await api('/club/starters', 'PUT', {
+        const result = await api(PATHS.starters, 'PUT', {
             upsert: sent.map(payload), delete: deletes, consent: consent.checked || undefined
         });
         state.rows = result.starters.map(fromStarter);
@@ -453,7 +462,7 @@ document.getElementById('save').addEventListener('click', save);
 document.getElementById('contact-save').addEventListener('click', async () => {
     const stateEl = document.getElementById('contact-state');
     try {
-        const club = await api('/club/contact', 'PUT', {
+        const club = await api(PATHS.contact, 'PUT', {
             name: document.getElementById('c-name').value,
             email: document.getElementById('c-email').value,
             version: state.meet.club.version

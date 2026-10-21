@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * The pages work under the strict Content-Security-Policy the reverse proxy
  * sets (scripts and styles only from the portal itself): no inline scripts,
- * no event handler attributes, nothing loaded from other sites.
+ * no event handler attributes, no inline styles, nothing loaded from other sites.
  */
 class StaticPagesTest {
     private static final Path STATIC = Path.of("static");
@@ -48,5 +48,34 @@ class StaticPagesTest {
         for (Path js : files("*.js")) {
             assertFalse(foreignImport.matcher(Files.readString(js)).find(), js + " imports from another site");
         }
+    }
+
+    @Test
+    void pagesAndScriptsHaveNoInlineStyles() throws IOException {
+        // style="..." in markup (also markup built in JavaScript) and <style> blocks are blocked by
+        // style-src 'self'; use a class from css/portal.css. element.style in code is allowed.
+        Pattern inline = Pattern.compile("\\sstyle\\s*=\\s*[\"']|<style[\\s>]", Pattern.CASE_INSENSITIVE);
+        for (Path file : Stream.concat(files("*.html").stream(), files("*.js").stream()).toList()) {
+            assertFalse(inline.matcher(Files.readString(file)).find(), file + " has an inline style");
+        }
+    }
+
+    @Test
+    void theProxysPolicyAllowsNothingInline() throws IOException {
+        // The policy these tests guard: deploy/portal/Caddyfile.example sets it
+        String caddyfile = Files.readString(Path.of("..", "deploy", "portal", "Caddyfile.example"));
+        Matcher csp = Pattern.compile("Content-Security-Policy\\s+\"([^\"]+)\"").matcher(caddyfile);
+        assertTrue(csp.find(), "the Caddyfile sets a Content-Security-Policy");
+        String policy = csp.group(1);
+        assertFalse(policy.contains("unsafe-"), policy);
+        for (String directive : List.of("default-src 'self'", "script-src 'self'", "style-src 'self'", "frame-ancestors 'none'", "object-src 'none'")) {
+            assertTrue(policy.contains(directive), policy + " lacks " + directive);
+        }
+    }
+
+    @Test
+    void theQrCodeModuleIsTheManagers() throws IOException {
+        // A copy of the Manager's static/js/qrCode.js (no build step to share it); keep them identical
+        assertEquals(Files.readString(Path.of("..", "static", "js", "qrCode.js")), Files.readString(STATIC.resolve("js/qrCode.js")));
     }
 }

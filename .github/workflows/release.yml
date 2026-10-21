@@ -12,6 +12,7 @@ on:
     # portal-only change must not redeploy the installations at the ranges
     paths-ignore:
       - 'registration-portal/**'
+      - 'deploy/portal/**'
       - 'docs/registration-portal-plan.md'
       - '.github/workflows/portal-release.yml'
   workflow_dispatch:

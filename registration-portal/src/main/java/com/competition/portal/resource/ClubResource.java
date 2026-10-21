@@ -1,7 +1,9 @@
 package com.competition.portal.resource;
 
 import com.competition.portal.auth.Session;
+import com.competition.portal.service.ExportService;
 import com.competition.portal.service.StarterService;
+import jakarta.ws.rs.core.Response;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
@@ -26,6 +28,9 @@ public class ClubResource {
 
     @Inject
     private StarterService starters;
+
+    @Inject
+    private ExportService exports;
 
     @Context
     private HttpServletRequest request;
@@ -55,6 +60,15 @@ public class ClubResource {
     public Map<String, Object> save(Map<String, Object> body) throws Exception {
         Session s = session();
         return starters.save(s.meetId, s.clubId, body, s.actor(), false);
+    }
+
+    /** The club's own starters as a file (the Manager's import format), as a confirmation copy. */
+    @GET
+    @Path("/export")
+    public Response export() {
+        Session s = session();
+        return Response.ok(exports.club(s.meetId, s.clubId))
+            .header("Content-Disposition", "attachment; filename=\"" + exports.fileName(s.meetId, s.clubId) + "\"").build();
     }
 
     /** The club's contact person: {"name", "email", "version"}. */

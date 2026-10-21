@@ -1,0 +1,46 @@
+# Caddy in front of the registration portal: HTTPS with a Let's Encrypt
+# certificate (fetched and renewed automatically; ports 80 and 443 must be
+# reachable), HTTP redirected to HTTPS, security headers, access log kept 14
+# days.
+#
+# Install as /etc/caddy/Caddyfile, put in the portal's host name (the same as
+# PORTAL_BASE_URL in /etc/mlaic-portal/portal.env) and an email address for
+# Let's Encrypt, then:
+#   caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
+
+{
+	email webmaster@example.org
+	servers {
+		# No HTTP/3, so the firewall needs only TCP 80 and 443
+		protocols h1 h2
+	}
+}
+
+anmeldung.example.org {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		# Scripts, styles, images and requests only from the portal itself: the pages
+		# have no inline scripts or styles and load nothing from other sites
+		# (registration-portal StaticPagesTest checks both, and this policy)
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		-Server
+	}
+
+	# The portal takes the client's address (for rate limits and the log) from
+	# X-Forwarded-For. Caddy sets it to the address the connection comes from and
+	# drops whatever a client sends, as long as no trusted_proxies are configured:
+	# keep it that way.
+	reverse_proxy 127.0.0.1:8080
+
+	log {
+		output file /var/log/caddy/mlaic-portal-access.log {
+			roll_size 20MiB
+			roll_keep_for 336h
+		}
+	}
+}

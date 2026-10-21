@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -125,6 +126,16 @@ class PortalServerTest {
     }
 
     @Test
+    void aBodyThatIsNotTheExpectedJsonGetsAJsonErrorWithoutDetails() throws Exception {
+        for (String body : List.of("{\"username\": broken", "[1,2]", "\"text\"")) {
+            HttpResponse<String> response = send("POST", "/api/auth/organiser", body, null);
+            assertEquals(400, response.statusCode(), body);
+            assertEquals("application/json", response.headers().firstValue("Content-Type").orElse(null), body);
+            assertEquals("{\"error\":\"The request could not be processed.\"}", response.body(), body);
+        }
+    }
+
+    @Test
     void theOrganisersApiNeedsAnOrganiserLogIn() throws Exception {
         assertEquals(401, get("/api/admin/meets", null).statusCode());
         assertEquals(401, get("/api/admin/meets", "mlaicportal=made-up").statusCode());
@@ -232,10 +243,48 @@ class PortalServerTest {
         assertTrue(closed.body().contains("\"closed\":true"));
         assertEquals(200, get("/api/club/starters", a).statusCode(), "still readable");
 
+        HttpResponse<String> export = get("/api/admin/meets/1/export", cookie);
+        assertEquals(200, export.statusCode());
+        assertTrue(export.headers().firstValue("Content-Disposition").orElse("").contains("registrations-ooe-lm-"), export.headers().map().toString());
+        assertTrue(export.body().contains("\"format\":\"mlaic-registrations\"") && export.body().contains("Anna Huber"));
+        HttpResponse<String> own = get("/api/club/export", b);
+        assertEquals(200, own.statusCode());
+        assertFalse(own.body().contains("Anna Huber"), "club B's copy holds none of club A's starters");
+
         HttpResponse<String> purge = send("DELETE", "/api/admin/meets/1/starters", null, cookie, "Content-Type", "application/json", "Origin", ORIGIN);
         assertEquals(400, purge.statusCode(), "needs the key as confirmation");
         assertEquals("{\"deleted\":1}", send("DELETE", "/api/admin/meets/1/starters?confirm=ooe-lm", null, cookie,
             "Content-Type", "application/json", "Origin", ORIGIN).body());
+
+        assertEquals(400, send("DELETE", "/api/admin/meets/1?confirm=other", null, cookie,
+            "Content-Type", "application/json", "Origin", ORIGIN).statusCode(), "deleting the meet needs its key too");
+        assertEquals(204, send("DELETE", "/api/admin/meets/1?confirm=ooe-lm", null, cookie,
+            "Content-Type", "application/json", "Origin", ORIGIN).statusCode());
+        assertEquals(404, get("/api/admin/meets/1", cookie).statusCode());
+    }
+
+    @Test
+    void thePrivacyPageShowsTheControllerTheOrganiserSet() throws Exception {
+        assertEquals("{\"controller\":{\"name\":null,\"address\":null,\"email\":null}}", get("/api/privacy", null).body());
+        String cookie = organiserCookie();
+        assertEquals(401, send("PUT", "/api/admin/settings", "{\"controller\":{\"name\":\"x\"}}", null).statusCode());
+        assertEquals(200, send("PUT", "/api/admin/settings",
+            "{\"controller\":{\"name\":\"SV Bad Zell\",\"address\":\"4283 Bad Zell\",\"email\":\"info@example.org\"}}", cookie).statusCode());
+        assertTrue(get("/api/privacy", null).body().contains("\"name\":\"SV Bad Zell\""));
+    }
+
+    @Test
+    void theOrganiserEditsAClubsListAfterTheDeadline() throws Exception {
+        String cookie = organiserCookie();
+        send("POST", "/api/admin/meets", "{\"key\":\"ooe-lm\",\"name\":\"OÖ VL LM\",\"deadline\":\"2020-04-30T23:59\"}", cookie);
+        send("PUT", "/api/admin/meets/1/snapshot", "{\"rankings\":" + Fixtures.ooeRankings() + ",\"catalog\":" + Fixtures.mlaicCatalog() + "}", cookie);
+        send("POST", "/api/admin/meets/1/clubs", "{\"name\":\"SV Bad Zell\",\"default_country\":\"Austria\"}", cookie);
+        HttpResponse<String> sheet = get("/api/admin/meets/1/clubs/1/sheet", cookie);
+        assertTrue(sheet.body().contains("\"open\":true") && sheet.body().contains("\"registration_open\":false")
+            && sheet.body().contains("\"organiser\":true"), sheet.body());
+        HttpResponse<String> saved = send("PUT", "/api/admin/meets/1/clubs/1/starters", "{\"upsert\":[{\"name\":\"Late Entry\"}]}", cookie);
+        assertEquals(200, saved.statusCode(), saved.body());
+        assertTrue(get("/api/admin/meets/1/clubs/1/starters", cookie).body().contains("Late Entry"));
     }
 
     @Test
