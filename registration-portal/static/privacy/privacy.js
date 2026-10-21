@@ -20,7 +20,7 @@ async function render() {
         || `<span class="muted">${escapeHtml(t('privacy.controllerMissing'))}</span>`;
     document.getElementById('privacy').innerHTML = `
         <h2>${escapeHtml(t('privacy.controller'))}</h2><p>${who}</p>
-        ${SECTIONS.map(s => `<h2 style="margin-top:18px">${escapeHtml(t(`privacy.${s}.title`))}</h2><p>${escapeHtml(t(`privacy.${s}.text`))}</p>`).join('')}`;
+        ${SECTIONS.map(s => `<h2 class="mt-18">${escapeHtml(t(`privacy.${s}.title`))}</h2><p>${escapeHtml(t(`privacy.${s}.text`))}</p>`).join('')}`;
 }
 
 render();

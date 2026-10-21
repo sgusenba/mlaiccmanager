@@ -10,10 +10,10 @@
 <body>
     <div class="wrap">
         <div class="topbar">
-            <div style="min-width:0">
+            <div class="minw-0">
                 <span class="label" id="club-name"></span>
                 <h1 id="meet-name" data-i18n="sheet.title">Starter melden</h1>
-                <p class="muted" style="margin:2px 0 0" id="deadline"></p>
+                <p class="muted m-0 mt-2" id="deadline"></p>
             </div>
             <div class="actions">
                 <div class="seg" role="group" data-i18n-aria-label="common.language">
@@ -35,11 +35,11 @@
                 <div class="field"><label for="c-email" data-i18n="sheet.contactEmail">E-Mail</label><input id="c-email" type="email" autocomplete="email"></div>
                 <div class="field"><label for="default-country" data-i18n="sheet.defaultCountry">Land</label><select id="default-country"></select></div>
             </div>
-            <div class="btn-row" style="margin-top:10px">
+            <div class="btn-row mt-10">
                 <button type="button" class="btn" id="contact-save" data-i18n="sheet.contactSave">Speichern</button>
                 <span id="contact-state" class="save-state"></span>
             </div>
-            <p class="muted" style="margin:12px 0 0;font-size:.88rem" data-i18n="sheet.how"></p>
+            <p class="muted m-0 mt-12 fs-88" data-i18n="sheet.how"></p>
         </section>
 
         <section class="sheet-wrap" id="sheet-wrap">
@@ -57,7 +57,7 @@
 
     <div class="footer">
         <div class="footer-in">
-            <div style="display:grid;gap:4px">
+            <div class="grid-4">
                 <div class="totals" id="totals"></div>
                 <span id="save-state" class="save-state" role="status"></span>
             </div>
@@ -69,7 +69,7 @@
             </div>
         </div>
     </div>
-    <p class="wrap muted" style="padding-top:0;font-size:.85rem"><a href="/privacy/" data-i18n="common.privacy">Datenschutz</a></p>
+    <p class="wrap muted pt-0 fs-85"><a href="/privacy/" data-i18n="common.privacy">Datenschutz</a></p>
     <script type="module" src="sheet.js"></script>
 </body>
 </html>

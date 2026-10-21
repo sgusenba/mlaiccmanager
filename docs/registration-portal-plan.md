@@ -16,7 +16,7 @@
 | 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
-Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page) and 7 (export, Manager import compatibility) are implemented in `registration-portal/`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
+Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page) and 7 (export, Manager import compatibility) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup-oci.md`), tested locally (Caddy over HTTPS, backup and restore drill, update with rollback), still to be done on the real VM. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
 
 ## 1. Overview and boundaries
 
@@ -41,7 +41,7 @@ Why. `.github/workflows/release.yml` copies `target/mlaiccmanager-*.jar` from th
 registration-portal/
   pom.xml                     same Jetty / Jersey / Jackson / SLF4J / Logback / JUnit 5 versions; --release 17; shade plugin
   src/main/java/com/competition/portal/
-    PortalMain.java           Jetty on 127.0.0.1:8080; CLI: --add-organiser, --reset-totp, --backup <file>
+    PortalMain.java           Jetty on 127.0.0.1:8080; CLI: --add-organiser, --set-password, --reset-totp
     config/                   binder, AuthFilter, OriginCsrfFilter, SecurityHeadersFilter, exception mappers (409, 404, 403, 429)
     format/                   read-side DTOs for mlaic-rankings / mlaic-disciplines, write-side DTO for mlaic-registrations
     model/                    Meet, Club, Starter, Choice, Organiser
@@ -52,7 +52,8 @@ registration-portal/
   src/main/resources/         portal-messages(.properties|_de.properties), logback.xml
   static/                     login/ sheet/ admin/ privacy/ js/{api,i18n,rules,countries,tailwind}.js i18n/{en,de}.js
   src/test/...                JUnit 5; smoke/ (Playwright for Java, profile -Psmoke); rules-cases.json
-deploy/portal/                Caddyfile.example, mlaic-portal.service, backup service + timer, portal-deploy.sh, setup-oci.md
+deploy/portal/                Caddyfile.example, mlaic-portal.service, backup service + timer, portal-deploy.sh,
+                              portal-backup.sh, portal-restore.sh, portal-cli.sh, portal.env.example, setup-oci.md
 .github/workflows/portal-release.yml
 ```
 
@@ -250,7 +251,7 @@ The merged file stays `mlaic-registrations` version 1. Fields are only added, an
 7. **systemd unit.** Restart on failure, sandboxed (ProtectSystem=strict, NoNewPrivileges, PrivateTmp), write access only to the data directory, 1 GB memory cap.
 8. **Caddy.** Reverse proxy to 127.0.0.1:8080 with automatic Let's Encrypt. Headers: HSTS, CSP, nosniff, no-referrer. Access logs kept 14 days. Use your own domain, with DuckDNS as a fallback.
 9. **Backups.**
-   - A daily timer takes a consistent backup via the CLI.
+   - A daily timer packs the data folder (`portal-backup.sh`; see the status note above for why that is consistent).
    - The backup is encrypted with `age` to an offline key, so the private key is never on the VM.
    - It is uploaded to a private Object Storage bucket using instance-principal authentication, so no API keys are stored on the VM. Backups are deleted after 30 days.
    - Do a restore drill once before go-live.

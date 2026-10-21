@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 7: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet), the organiser's pages and the export for the Manager. The deployment follows.
+**Status:** phases 1 to 7: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet), the organiser's pages and the export for the Manager; the deployment files for Oracle Cloud are in [`../deploy/portal/`](../deploy/portal/).
 
 ## Build and run
 
@@ -38,9 +38,18 @@ Plain HTML and JavaScript modules with one stylesheet (`static/css/portal.css`),
 
 `GET /api/admin/meets/{id}/export` (the organiser's *Download* tab) writes the `mlaic-registrations` file (version 1) that the Manager's **Starters → Import Registrations** page imports: per starter name, gender, year of birth, club, country, email (if collected) and `starts` (discipline id, name and short name; a discipline ticked twice, e.g. Colt alone and in Remington O, once), plus `rankings` (names, e.g. `Whitworth O/R: WHITR`). The top-level `contact` is the meet's contact; the portal adds `contacts` (one per club, with its contact person and number of starters), `registered_by` per starter and `generator`; the Manager ignores fields it does not know and shows "N clubs". A club downloads its own starters in the same form from its sheet. Importing the same file twice changes nothing, so late entries come with a new download.
 
+## Deployment
+
+[`../deploy/portal/setup-oci.md`](../deploy/portal/setup-oci.md) is the runbook for an Oracle Cloud Always Free VM: firewall, Caddy (HTTPS, security headers, the Content-Security-Policy), the sandboxed systemd service, nightly backups encrypted with age and uploaded to Object Storage, the restore drill, updates, monitoring, the records of processing and the breach procedure. The scripts there run on the VM:
+
+- `portal-deploy.sh`: installs or updates to the latest `portal-latest` build (checksum, backup first, jar last, rollback if the new build does not answer)
+- `portal-backup.sh`: one encrypted backup (daily via `mlaic-portal-backup.timer`)
+- `portal-restore.sh`: `check`, `extract` (the drill) or `install` a backup
+- `portal-cli.sh`: the server commands below, as the portal's user with its settings
+
 ## Organiser accounts
 
-There is no sign-up. Create the first account on the server, as the portal's user:
+There is no sign-up. Create the first account on the server, as the portal's user (on the VM: `sudo /opt/mlaic-portal/portal-cli.sh --add-organiser stefan`):
 
 ```bash
 java -jar mlaic-portal.jar --add-organiser stefan        # asks for the password twice

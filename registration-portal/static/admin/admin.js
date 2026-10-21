@@ -141,7 +141,7 @@ function renderMeets() {
     const deadlineLocal = m?.deadline ? m.deadline.slice(0, 16) : '';
     el.innerHTML = `
         <div class="card">
-            <div class="topbar" style="margin-bottom:8px">
+            <div class="topbar mb-8">
                 <h2>${escapeHtml(t('admin.meets'))}</h2>
                 <button type="button" class="btn" id="new-meet">${escapeHtml(t('admin.newMeet'))}</button>
             </div>
@@ -170,7 +170,7 @@ function renderMeets() {
                 <div class="field"><label for="f-cclub">${escapeHtml(t('admin.contactClub'))}</label><input id="f-cclub" value="${escapeHtml(m?.contact?.club || '')}"></div>
                 <div class="field check"><input id="f-email" type="checkbox" ${m?.collect_email ? 'checked' : ''}><label for="f-email">${escapeHtml(t('admin.collectEmail'))}</label></div>
             </div>
-            <p class="muted" style="font-size:.85rem">${escapeHtml(t('admin.deleteAfterHint'))}</p>
+            <p class="muted fs-85">${escapeHtml(t('admin.deleteAfterHint'))}</p>
             <div class="btn-row">
                 <button type="submit" class="btn primary">${escapeHtml(m ? t('admin.saveMeet') : t('admin.createMeet'))}</button>
                 ${m ? `
@@ -183,14 +183,14 @@ function renderMeets() {
 
         ${m ? `<div class="card">
             <h2>${escapeHtml(t('admin.rankingsTitle'))}</h2>
-            <p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.rankingsHint'))}</p>
+            <p class="muted fs-88">${escapeHtml(t('admin.rankingsHint'))}</p>
             <p>${m.snapshot ? escapeHtml(t('admin.rankingsUploaded', { date: formatDateTime(m.snapshot.uploaded_at), offered: m.snapshot.offered, total: m.snapshot.rankings }))
                 : `<span class="pill bad">${escapeHtml(t('admin.rankingsMissing'))}</span>`}</p>
             <div class="fields">
                 <div class="field"><label for="u-rankings">${escapeHtml(t('admin.rankingsFile'))}</label><input id="u-rankings" type="file" accept=".json,application/json"></div>
                 <div class="field"><label for="u-catalog">${escapeHtml(t('admin.catalogFile'))}</label><input id="u-catalog" type="file" accept=".json,application/json"></div>
             </div>
-            <div class="btn-row" style="margin-top:10px"><button type="button" class="btn primary" id="upload">${escapeHtml(t('admin.upload'))}</button></div>
+            <div class="btn-row mt-10"><button type="button" class="btn primary" id="upload">${escapeHtml(t('admin.upload'))}</button></div>
             <p id="msg-upload" class="section-msg"></p>
             <div id="offer"></div>
         </div>` : ''}`;
@@ -265,7 +265,7 @@ async function showOffer(meetId) {
     const offer = await api(`/admin/meets/${meetId}/offer`).catch(() => []);
     const el = $('offer');
     if (!el) return;
-    el.innerHTML = `<details style="margin-top:8px"><summary>${escapeHtml(t('admin.offer', { count: offer.length }))}</summary>
+    el.innerHTML = `<details class="mt-8"><summary>${escapeHtml(t('admin.offer', { count: offer.length }))}</summary>
         <div class="legend-grid">${offer.map(r => `<div><span class="code">${escapeHtml(r.short_name)}</span> ${escapeHtml(r.name)}: ${r.entries.map(e => escapeHtml(e.label)).join(' / ')}</div>`).join('')}</div></details>`;
 }
 
@@ -285,7 +285,7 @@ async function renderClubs() {
                 <div class="field"><label for="club-name">${escapeHtml(t('admin.clubName'))} *</label><input id="club-name" maxlength="200" required></div>
                 <div class="field"><label for="club-country">${escapeHtml(t('admin.defaultCountry'))}</label><select id="club-country"><option value="">–</option>${countryOptions}</select></div>
             </div>
-            <div class="btn-row" style="margin-top:10px"><button type="submit" class="btn primary">${escapeHtml(t('admin.createClub'))}</button></div>
+            <div class="btn-row mt-10"><button type="submit" class="btn primary">${escapeHtml(t('admin.createClub'))}</button></div>
             <p id="msg-club" class="section-msg"></p>
             <div id="code-box"></div>
         </form>
@@ -345,7 +345,7 @@ function showCode(withCode) {
             <button type="button" class="btn" data-copy="${escapeHtml(withCode.code)}">${escapeHtml(t('admin.copyCode'))}</button>
             <span class="section-msg" id="copy-state"></span>
         </div>
-        <span class="muted" style="font-size:.85rem">${escapeHtml(t('admin.codeOnce'))}</span>
+        <span class="muted fs-85">${escapeHtml(t('admin.codeOnce'))}</span>
     </div>`;
     box.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
         try {
@@ -390,11 +390,11 @@ async function renderStarters() {
         ${clubs.map(c => {
             const own = result.starters.filter(s => s.club_id === c.id);
             return `<div class="card">
-                <div class="topbar" style="margin-bottom:6px">
-                    <h2>${escapeHtml(c.name)} <span class="muted" style="font-weight:400">· ${escapeHtml(t('admin.startersCount', { count: own.length }))}</span></h2>
+                <div class="topbar mb-6">
+                    <h2>${escapeHtml(c.name)} <span class="muted fw-normal">· ${escapeHtml(t('admin.startersCount', { count: own.length }))}</span></h2>
                     <a class="btn" href="/sheet/?meet=${state.meetId}&club=${c.id}">${escapeHtml(t('admin.editList'))}</a>
                 </div>
-                ${c.contact?.name || c.contact?.email ? `<p class="muted" style="margin:0 0 8px;font-size:.88rem">${escapeHtml(t('admin.contact'))}: ${escapeHtml([c.contact.name, c.contact.email].filter(Boolean).join(', '))}</p>` : ''}
+                ${c.contact?.name || c.contact?.email ? `<p class="muted m-0 mb-8 fs-88">${escapeHtml(t('admin.contact'))}: ${escapeHtml([c.contact.name, c.contact.email].filter(Boolean).join(', '))}</p>` : ''}
                 ${own.length ? `<div class="table-scroll"><table class="list">
                     <thead><tr><th>${escapeHtml(t('admin.name'))}</th><th>${escapeHtml(t('admin.year'))}</th><th>${escapeHtml(t('admin.country'))}</th>
                         <th>${escapeHtml(t('admin.rankings'))}</th><th>${escapeHtml(t('admin.notes'))}</th></tr></thead>
@@ -415,7 +415,7 @@ function renderDownload() {
         <p>${escapeHtml(t('admin.downloadSummary', { starters: m.starters, clubs: m.clubs }))}
             ${m.status === 'open' ? `<span class="pill open">${escapeHtml(t('admin.stillOpen'))}</span>` : ''}</p>
         <div class="btn-row"><a class="btn primary" href="/api/admin/meets/${m.id}/export" download>${escapeHtml(t('admin.downloadButton'))}</a></div>
-        <ol class="muted" style="font-size:.9rem;margin:14px 0 0;padding-left:20px">
+        <ol class="muted steps">
             <li>${escapeHtml(t('admin.downloadStep1'))}</li><li>${escapeHtml(t('admin.downloadStep2'))}</li><li>${escapeHtml(t('admin.downloadStep3'))}</li>
         </ol>
     </div>`;
@@ -447,16 +447,16 @@ async function renderData() {
         <div class="grid2">
             <div class="card danger">
                 <h2>${escapeHtml(t('admin.purge'))}</h2>
-                <p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.purgeHint', { date: m.delete_after || '–' }))}</p>
+                <p class="muted fs-88">${escapeHtml(t('admin.purgeHint', { date: m.delete_after || '–' }))}</p>
                 <div class="field"><label for="purge-key">${escapeHtml(t('admin.typeKey', { key: m.key }))}</label><input id="purge-key" autocomplete="off"></div>
-                <div class="btn-row" style="margin-top:10px"><button type="button" class="btn danger" id="purge">${escapeHtml(t('admin.purgeButton'))}</button></div>
+                <div class="btn-row mt-10"><button type="button" class="btn danger" id="purge">${escapeHtml(t('admin.purgeButton'))}</button></div>
                 <p id="msg-purge" class="section-msg"></p>
             </div>
             <div class="card danger">
                 <h2>${escapeHtml(t('admin.deleteMeet'))}</h2>
-                <p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.deleteMeetHint'))}</p>
+                <p class="muted fs-88">${escapeHtml(t('admin.deleteMeetHint'))}</p>
                 <div class="field"><label for="delete-key">${escapeHtml(t('admin.typeKey', { key: m.key }))}</label><input id="delete-key" autocomplete="off"></div>
-                <div class="btn-row" style="margin-top:10px"><button type="button" class="btn danger" id="delete-meet">${escapeHtml(t('admin.deleteMeetButton'))}</button></div>
+                <div class="btn-row mt-10"><button type="button" class="btn danger" id="delete-meet">${escapeHtml(t('admin.deleteMeetButton'))}</button></div>
                 <p id="msg-delete" class="section-msg"></p>
             </div>
         </div>`;
@@ -495,16 +495,16 @@ async function renderAccount() {
                     <div class="field"><label for="pw-current">${escapeHtml(t('admin.currentPassword'))}</label><input id="pw-current" type="password" autocomplete="current-password"></div>
                     <div class="field"><label for="pw-new">${escapeHtml(t('admin.newPassword'))}</label><input id="pw-new" type="password" autocomplete="new-password" minlength="12"></div>
                 </div>
-                <div class="btn-row" style="margin-top:10px"><button type="submit" class="btn primary">${escapeHtml(t('admin.changePassword'))}</button></div>
+                <div class="btn-row mt-10"><button type="submit" class="btn primary">${escapeHtml(t('admin.changePassword'))}</button></div>
                 <p id="msg-pw" class="section-msg"></p>
             </form>
             <div class="card">
                 <h2>${escapeHtml(t('admin.totp'))}</h2>
                 <p>${session.totp_enabled ? `<span class="pill open">${escapeHtml(t('admin.totpOn'))}</span>` : `<span class="pill">${escapeHtml(t('admin.totpOff'))}</span>`}</p>
-                <p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.totpHint'))}</p>
+                <p class="muted fs-88">${escapeHtml(t('admin.totpHint'))}</p>
                 ${session.totp_enabled ? `
                     <div class="field"><label for="totp-pw">${escapeHtml(t('admin.currentPassword'))}</label><input id="totp-pw" type="password" autocomplete="current-password"></div>
-                    <div class="btn-row" style="margin-top:10px"><button type="button" class="btn danger" id="totp-off">${escapeHtml(t('admin.totpDisable'))}</button></div>`
+                    <div class="btn-row mt-10"><button type="button" class="btn danger" id="totp-off">${escapeHtml(t('admin.totpDisable'))}</button></div>`
                     : `<div class="btn-row"><button type="button" class="btn" id="totp-setup">${escapeHtml(t('admin.totpSetup'))}</button></div><div id="totp-box"></div>`}
                 <p id="msg-totp" class="section-msg"></p>
             </div>
@@ -515,24 +515,24 @@ async function renderAccount() {
                 <table class="list"><tbody>${organisers.map(o => `<tr><td>${escapeHtml(o.username)}${o.id === session.id ? ` <span class="muted">(${escapeHtml(t('admin.you'))})</span>` : ''}</td>
                     <td>${o.totp_enabled ? `<span class="pill open">${escapeHtml(t('admin.totpShort'))}</span>` : ''}</td>
                     <td>${o.id !== session.id ? `<button type="button" class="btn danger" data-del-org="${o.id}">${escapeHtml(t('admin.delete'))}</button>` : ''}</td></tr>`).join('')}</tbody></table>
-                <form id="org-form" novalidate style="margin-top:12px">
+                <form id="org-form" novalidate class="mt-12">
                     <div class="fields">
                         <div class="field"><label for="org-name">${escapeHtml(t('login.username'))}</label><input id="org-name" autocomplete="off" autocapitalize="none"></div>
                         <div class="field"><label for="org-pw">${escapeHtml(t('admin.initialPassword'))}</label><input id="org-pw" type="password" autocomplete="new-password"></div>
                     </div>
-                    <div class="btn-row" style="margin-top:10px"><button type="submit" class="btn">${escapeHtml(t('admin.addOrganiser'))}</button></div>
+                    <div class="btn-row mt-10"><button type="submit" class="btn">${escapeHtml(t('admin.addOrganiser'))}</button></div>
                     <p id="msg-org" class="section-msg"></p>
                 </form>
             </div>
             <form class="card" id="settings-form" novalidate>
                 <h2>${escapeHtml(t('admin.controller'))}</h2>
-                <p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.controllerHint'))}</p>
+                <p class="muted fs-88">${escapeHtml(t('admin.controllerHint'))}</p>
                 <div class="fields">
                     <div class="field"><label for="s-name">${escapeHtml(t('admin.name'))}</label><input id="s-name" value="${escapeHtml(c.name || '')}"></div>
                     <div class="field"><label for="s-address">${escapeHtml(t('admin.address'))}</label><input id="s-address" value="${escapeHtml(c.address || '')}"></div>
                     <div class="field"><label for="s-email">${escapeHtml(t('admin.contactEmail'))}</label><input id="s-email" type="email" value="${escapeHtml(c.email || '')}"></div>
                 </div>
-                <div class="btn-row" style="margin-top:10px"><button type="submit" class="btn primary">${escapeHtml(t('admin.save'))}</button></div>
+                <div class="btn-row mt-10"><button type="submit" class="btn primary">${escapeHtml(t('admin.save'))}</button></div>
                 <p id="msg-settings" class="section-msg"></p>
             </form>
         </div>`;
@@ -548,11 +548,11 @@ async function renderAccount() {
     });
     $('totp-setup')?.addEventListener('click', () => guarded('msg-totp', async () => {
         const setup = await api('/admin/totp/setup', 'POST');
-        $('totp-box').innerHTML = `<p class="muted" style="font-size:.88rem">${escapeHtml(t('admin.totpScan'))}</p>
+        $('totp-box').innerHTML = `<p class="muted fs-88">${escapeHtml(t('admin.totpScan'))}</p>
             <div class="qr">${qrSvg(setup.otpauth_uri, 45)}</div>
-            <p style="font-size:.8rem;word-break:break-all"><span class="muted">${escapeHtml(t('admin.totpSecret'))}:</span> <span class="chip">${escapeHtml(setup.secret)}</span></p>
+            <p class="fs-80 break-all"><span class="muted">${escapeHtml(t('admin.totpSecret'))}:</span> <span class="chip">${escapeHtml(setup.secret)}</span></p>
             <div class="field"><label for="totp-code">${escapeHtml(t('login.totp'))}</label><input id="totp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></div>
-            <div class="btn-row" style="margin-top:10px"><button type="button" class="btn primary" id="totp-confirm">${escapeHtml(t('admin.totpConfirm'))}</button></div>`;
+            <div class="btn-row mt-10"><button type="button" class="btn primary" id="totp-confirm">${escapeHtml(t('admin.totpConfirm'))}</button></div>`;
         $('totp-confirm').addEventListener('click', () => guarded('msg-totp', async () => {
             await api('/admin/totp/confirm', 'POST', { code: $('totp-code').value });
             await renderAccount();

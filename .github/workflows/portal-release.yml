@@ -1,7 +1,9 @@
 name: Build and release the registration portal
 
-# Builds registration-portal/ and publishes it as one tarball (jar + static/)
-# on its own rolling "portal-latest" release. It never touches the Manager's
+# Builds registration-portal/ and publishes it as one tarball (jar, static/,
+# and deploy/ with the scripts and unit files of deploy/portal/, which
+# portal-deploy.sh installs on the VM) on its own rolling "portal-latest"
+# release. It never touches the Manager's
 # "latest" release, which the installations at the ranges update from.
 
 on:
@@ -9,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'registration-portal/**'
+      - 'deploy/portal/**'
       - '.github/workflows/portal-release.yml'
   workflow_dispatch:
 
@@ -35,6 +38,7 @@ jobs:
           mkdir -p portal-bundle
           cp registration-portal/target/mlaic-portal-*.jar portal-bundle/mlaic-portal.jar
           cp -r registration-portal/static portal-bundle/static
+          cp -r deploy/portal portal-bundle/deploy
           echo "{\"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"commit\": \"${GITHUB_SHA}\"}" > portal-bundle/build-info.json
           tar -czf mlaic-portal-dist.tar.gz -C portal-bundle .
           sha256sum mlaic-portal-dist.tar.gz > mlaic-portal-dist.tar.gz.sha256
