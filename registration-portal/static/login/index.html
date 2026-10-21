@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anmeldeportal</title>
+    <link rel="stylesheet" href="/css/portal.css">
+</head>
+<!-- Log-in for clubs (access code, or the invite link /login/#c=CODE) and organisers -->
+<body>
+    <main class="narrow">
+        <div class="topbar">
+            <div>
+                <h1 data-i18n="login.title">Anmeldeportal</h1>
+                <p class="muted" style="margin:4px 0 0" data-i18n="login.intro"></p>
+            </div>
+            <div class="seg" role="group" data-i18n-aria-label="common.language">
+                <button type="button" data-lang="de">DE</button><button type="button" data-lang="en">EN</button>
+            </div>
+        </div>
+
+        <p id="link-state" class="notice ok" hidden data-i18n="login.checkingLink"></p>
+
+        <form id="club-form" class="card" novalidate>
+            <h2 data-i18n="login.clubTitle">Verein</h2>
+            <p class="muted" style="margin:4px 0 0" data-i18n="login.clubIntro"></p>
+            <div class="fields">
+                <div class="field">
+                    <label for="code" data-i18n="login.code">Zugangscode</label>
+                    <input id="code" class="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                           placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="24" required>
+                </div>
+            </div>
+            <p id="club-error" class="inline-error" role="alert"></p>
+            <button type="submit" class="btn primary" data-i18n="login.clubSubmit">Anmelden</button>
+        </form>
+
+        <form id="organiser-form" class="card" novalidate>
+            <h2 data-i18n="login.organiserTitle">Veranstalter</h2>
+            <div class="fields">
+                <div class="field">
+                    <label for="username" data-i18n="login.username">Benutzername</label>
+                    <input id="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+                </div>
+                <div class="field">
+                    <label for="password" data-i18n="login.password">Passwort</label>
+                    <input id="password" type="password" autocomplete="current-password" required>
+                </div>
+                <div class="field" id="totp-field" hidden>
+                    <label for="totp" data-i18n="login.totp">Code</label>
+                    <input id="totp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7">
+                </div>
+            </div>
+            <p id="organiser-error" class="inline-error" role="alert"></p>
+            <button type="submit" class="btn primary" data-i18n="login.organiserSubmit">Anmelden</button>
+        </form>
+    </main>
+    <script type="module" src="login.js"></script>
+</body>
+</html>
