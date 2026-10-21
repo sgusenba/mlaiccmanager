@@ -16,7 +16,7 @@
 | 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
-Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton) and 2 (meets and upload) are implemented in `registration-portal/`.
+Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload) and 3 (log-ins) are implemented in `registration-portal/`.
 
 ## 1. Overview and boundaries
 

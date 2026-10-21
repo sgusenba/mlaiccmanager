@@ -12,6 +12,8 @@ public class Organiser {
     /** Base32 TOTP secret, null while the second factor is off. */
     public String totpSecret;
     public boolean totpConfirmed;
+    /** The last 30-second step a TOTP code was accepted for, so a code cannot be used twice. */
+    public long totpLastStep;
     public String createdAt;
     public int version;
 }

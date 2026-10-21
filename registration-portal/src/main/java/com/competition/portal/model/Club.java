@@ -15,6 +15,7 @@ public class Club {
     public String codeHint;
     public String codeCreatedAt;
     public boolean revoked;
+    public String lastLoginAt;
     public Contact contact = new Contact();
     public int version;
 }
