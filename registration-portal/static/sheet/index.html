@@ -19,12 +19,14 @@
                 <div class="seg" role="group" data-i18n-aria-label="common.language">
                     <button type="button" data-lang="de">DE</button><button type="button" data-lang="en">EN</button>
                 </div>
+                <a class="btn" id="back" href="/admin/#starters" hidden data-i18n="sheet.back">Zur Übersicht</a>
                 <button type="button" class="btn" id="logout" data-i18n="common.logout">Abmelden</button>
             </div>
         </div>
 
         <p id="load-error" class="notice bad" hidden></p>
         <p id="closed" class="notice warn" hidden data-i18n="sheet.closed"></p>
+        <p id="late" class="notice warn" hidden data-i18n="sheet.lateEntry"></p>
 
         <section class="card" id="contact-card">
             <h2 data-i18n="sheet.contactTitle">Ansprechperson</h2>
@@ -64,6 +66,7 @@
             </div>
         </div>
     </div>
+    <p class="wrap muted" style="padding-top:0;font-size:.85rem"><a href="/privacy/" data-i18n="common.privacy">Datenschutz</a></p>
     <script type="module" src="sheet.js"></script>
 </body>
 </html>

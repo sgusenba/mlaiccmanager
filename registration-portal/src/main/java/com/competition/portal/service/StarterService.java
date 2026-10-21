@@ -63,6 +63,18 @@ public class StarterService {
         return view;
     }
 
+    /**
+     * The same view for the organiser editing a club's list: always editable
+     * ("open"), with "registration_open" saying whether clubs can still change it.
+     */
+    public Map<String, Object> organiserSheet(int meetId, int clubId) {
+        Map<String, Object> view = clubMeet(meetId, clubId);
+        view.put("registration_open", view.get("open"));
+        view.put("open", true);
+        view.put("organiser", true);
+        return view;
+    }
+
     /** A club's starters with their warnings: {starters, warnings: {id: [...]}}. */
     public Map<String, Object> list(int meetId, int clubId) {
         Meet meet = meets.get(meetId);

@@ -11,6 +11,13 @@ import { isEmpty, rowErrors, rowWarnings } from '../js/rules.js';
 
 translatePage();
 
+// Opened by an organiser as /sheet/?meet=1&club=2: the same sheet for that club,
+// through the organiser's API, editable also after the deadline (late entries)
+const params = new URLSearchParams(location.search);
+const ORGANISER = params.has('meet') && params.has('club');
+const BASE = ORGANISER ? `/admin/meets/${Number(params.get('meet'))}/clubs/${Number(params.get('club'))}` : '/club';
+const PATHS = { meet: ORGANISER ? `${BASE}/sheet` : '/club/meet', starters: `${BASE}/starters`, contact: `${BASE}/contact` };
+
 const state = {
     meet: null,
     countries: [],          // [{code, name}], name in English as stored
@@ -30,7 +37,7 @@ const localNames = new Intl.DisplayNames([language], { type: 'region' });
 
 async function load() {
     try {
-        const [meet, starters, countries] = await Promise.all([api('/club/meet'), api('/club/starters'), api('/countries')]);
+        const [meet, starters, countries] = await Promise.all([api(PATHS.meet), api(PATHS.starters), api('/countries')]);
         state.meet = meet;
         state.countries = countries;
         state.countryNames = new Set(countries.map(c => c.name));
@@ -91,7 +98,9 @@ function fillHeader() {
     const m = state.meet;
     document.title = `${m.name} · ${t('sheet.title')}`;
     document.getElementById('meet-name').textContent = m.name;
-    document.getElementById('club-name').textContent = m.club.name;
+    document.getElementById('club-name').textContent = ORGANISER ? `${m.club.name} · ${t('sheet.organiserMode')}` : m.club.name;
+    document.getElementById('back').hidden = !ORGANISER;
+    document.getElementById('late').hidden = !(ORGANISER && m.registration_open === false);
     if (m.deadline) {
         const deadline = new Date(m.deadline);
         const date = new Intl.DateTimeFormat(language, { dateStyle: 'full', timeStyle: 'short', timeZone: m.time_zone }).format(deadline);
@@ -104,7 +113,6 @@ function fillHeader() {
     const select = document.getElementById('default-country');
     select.innerHTML = countryOptions('');
     select.value = m.club.default_country || '';
-    document.getElementById('consent-box').hidden = m.club.consent_given || state.readOnly;
     applyReadOnly();
 }
 
@@ -114,7 +122,7 @@ function applyReadOnly() {
     for (const id of ['save', 'add-5', 'contact-save', 'c-name', 'c-email', 'default-country']) {
         document.getElementById(id).disabled = state.readOnly;
     }
-    document.getElementById('consent-box').hidden = state.meet.club.consent_given || state.readOnly;
+    document.getElementById('consent-box').hidden = ORGANISER || state.meet.club.consent_given || state.readOnly;
 }
 
 // --- the table ---------------------------------------------------------------------
@@ -388,7 +396,7 @@ async function save() {
         return;
     }
     const consent = document.getElementById('consent');
-    if (!state.meet.club.consent_given && !consent.checked) {
+    if (!ORGANISER && !state.meet.club.consent_given && !consent.checked) {
         setState(t('sheet.consentFirst'), 'bad');
         consent.focus();
         return;
@@ -399,7 +407,7 @@ async function save() {
     const button = document.getElementById('save');
     button.disabled = true;
     try {
-        const result = await api('/club/starters', 'PUT', {
+        const result = await api(PATHS.starters, 'PUT', {
             upsert: sent.map(payload), delete: deletes, consent: consent.checked || undefined
         });
         state.rows = result.starters.map(fromStarter);
@@ -453,7 +461,7 @@ document.getElementById('save').addEventListener('click', save);
 document.getElementById('contact-save').addEventListener('click', async () => {
     const stateEl = document.getElementById('contact-state');
     try {
-        const club = await api('/club/contact', 'PUT', {
+        const club = await api(PATHS.contact, 'PUT', {
             name: document.getElementById('c-name').value,
             email: document.getElementById('c-email').value,
             version: state.meet.club.version

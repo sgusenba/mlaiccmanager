@@ -49,4 +49,10 @@ class StaticPagesTest {
             assertFalse(foreignImport.matcher(Files.readString(js)).find(), js + " imports from another site");
         }
     }
+
+    @Test
+    void theQrCodeModuleIsTheManagers() throws IOException {
+        // A copy of the Manager's static/js/qrCode.js (no build step to share it); keep them identical
+        assertEquals(Files.readString(Path.of("..", "static", "js", "qrCode.js")), Files.readString(STATIC.resolve("js/qrCode.js")));
+    }
 }

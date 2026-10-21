@@ -3,6 +3,7 @@ package com.competition.portal.resource;
 import com.competition.portal.PortalServices;
 import com.competition.portal.auth.Session;
 import com.competition.portal.auth.SessionCookie;
+import com.competition.portal.model.Settings;
 import com.competition.portal.service.OrganiserService;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,6 +66,20 @@ public class AdminUserResource {
     public Response password(Map<String, Object> body) throws Exception {
         String token = services.organiserService.changePassword(me(), text(body, "current"), text(body, "password"));
         return Response.noContent().header("Set-Cookie", SessionCookie.set(token, services.secure())).build();
+    }
+
+    /** The portal's settings: the data controller shown on the privacy page. */
+    @GET
+    @Path("/settings")
+    public Settings settings() {
+        return services.portalStore.get().settings;
+    }
+
+    /** Body: {"controller": {"name", "address", "email"}}. */
+    @PUT
+    @Path("/settings")
+    public Settings updateSettings(Map<String, Object> body) throws Exception {
+        return SettingsResource.update(services.portalStore, body);
     }
 
     /** Starts setting up the authenticator app: {"secret", "otpauth_uri"} for the QR code. */

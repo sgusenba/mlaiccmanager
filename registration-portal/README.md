@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 5: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion) and the club's pages (log-in, entry sheet). The organiser's pages and the export for the Manager follow in the next phases.
+**Status:** phases 1 to 6: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet) and the organiser's pages. The export for the Manager and the deployment follow in the next phases.
 
 ## Build and run
 
@@ -26,7 +26,13 @@ Plain HTML and JavaScript modules with one stylesheet (`static/css/portal.css`),
 
 - **`/login/`**: clubs log in with their access code, typed or from the invite link (`/login/#c=CODE`; the code is removed from the address bar at once); organisers with name and password, then the authenticator code if it is on.
 - **`/sheet/`**: the club's entry sheet. One row per starter (name, gender, year of birth, club, country, email if the meet collects it), one checkbox column per ranking entry, grouped into rifle and pistol (O and R of a ranking are two columns). Rows are checked while typing (`static/js/rules.js`, the same rules as the server); changed rows are marked and saved in one go with the Save button; the server's answer is shown on the rows (errors per row, rows someone else changed meanwhile, registration closed). Enter and the arrow keys move between rows like in Excel, rows copied from Excel (name, gender, year, club, country) can be pasted into the name column, the countdown to the deadline is shown in the meet's time zone, and after the deadline the sheet is read-only. The club's contact person is saved separately; on the first save the club confirms that it may pass on its members' data.
-- **`/admin/`**: placeholder until the organiser's pages (phase 6).
+- **`/admin/`**: the organiser's page, with tabs for the meet chosen at the top:
+  - *Meets*: list, create and edit (name, key, date, deadline in the meet's time zone, deletion date, whether starters' email is collected, contact), open and close the registration, upload the rankings and catalog exported from the Manager with the list of rankings offered
+  - *Clubs*: add a club (name, default country); its access code and invite link are shown once with copy buttons; new code, block/unblock, delete (with its starters, confirmed by a second click)
+  - *Starters*: all starters by club with their rankings and notes (e.g. a name registered by two clubs), counts per ranking, and "Edit list", which opens the club's entry sheet in organiser mode (`/sheet/?meet=…&club=…`: always editable, for late entries)
+  - *Data*: the change log; delete all registrations or the whole meet, each confirmed by typing the meet's key
+  - *Account*: own password, authenticator app (set up with a QR code), further organiser accounts, and the data controller shown on the privacy page
+- **`/privacy/`**: the privacy notice in German and English, with the data controller from the organiser's settings.
 
 ## Organiser accounts
 
@@ -94,6 +100,8 @@ All JSON, snake_case; errors are `{"error": "..."}` in the language of the reque
 | GET | `/api/club/meet` | For the logged-in club: the meet, its deadline, `open` (changes still possible), the club's details and the offer |
 | GET, PUT | `/api/club/starters` | The club's own starters with warnings / save the sheet: `{upsert: [rows], delete: [{id, version}], consent: true}` |
 | PUT | `/api/club/contact` | The club's contact person `{name, email, version}` |
+| GET | `/api/privacy` | The data controller for the privacy page; set with GET/PUT `/api/admin/settings` `{controller: {name, address, email}}` |
+| GET | `/api/admin/meets/{id}/clubs/{cid}/sheet`, `/starters` | A club's sheet and starters for the organiser (always editable) |
 | GET | `/api/countries` | `[{code, name}]`: the countries a starter can have, English names as the Manager stores them |
 | GET, POST | `/api/admin/meets` | List the meets / create one: `{key, name, date, deadline, time_zone, delete_after, collect_email, contact:{name,email,club}}`. The deadline is a local date-time in the meet's time zone (default Europe/Vienna) or one with an offset; `delete_after` defaults to the meet date plus 90 days |
 | GET, PUT, DELETE | `/api/admin/meets/{id}` | One meet / change it (all settings plus `status` draft, open or closed, and the `version` you saw: 409 with the current meet if someone saved in between) / delete it with all its data |

@@ -19,7 +19,7 @@ import java.io.IOException;
 /**
  * The one place that decides who may call which part of the API:
  * <ul>
- * <li>/api/health, /api/auth/... and /api/session: everyone;</li>
+ * <li>everything else (health, log-in, session, countries, privacy): everyone;</li>
  * <li>/api/admin/...: logged-in organisers;</li>
  * <li>/api/club/...: logged-in clubs, while their code is not revoked and
  *     their meet still exists. Which meet and club comes from the session,

@@ -239,6 +239,30 @@ class PortalServerTest {
     }
 
     @Test
+    void thePrivacyPageShowsTheControllerTheOrganiserSet() throws Exception {
+        assertEquals("{\"controller\":{\"name\":null,\"address\":null,\"email\":null}}", get("/api/privacy", null).body());
+        String cookie = organiserCookie();
+        assertEquals(401, send("PUT", "/api/admin/settings", "{\"controller\":{\"name\":\"x\"}}", null).statusCode());
+        assertEquals(200, send("PUT", "/api/admin/settings",
+            "{\"controller\":{\"name\":\"SV Bad Zell\",\"address\":\"4283 Bad Zell\",\"email\":\"info@example.org\"}}", cookie).statusCode());
+        assertTrue(get("/api/privacy", null).body().contains("\"name\":\"SV Bad Zell\""));
+    }
+
+    @Test
+    void theOrganiserEditsAClubsListAfterTheDeadline() throws Exception {
+        String cookie = organiserCookie();
+        send("POST", "/api/admin/meets", "{\"key\":\"ooe-lm\",\"name\":\"OÖ VL LM\",\"deadline\":\"2020-04-30T23:59\"}", cookie);
+        send("PUT", "/api/admin/meets/1/snapshot", "{\"rankings\":" + Fixtures.ooeRankings() + ",\"catalog\":" + Fixtures.mlaicCatalog() + "}", cookie);
+        send("POST", "/api/admin/meets/1/clubs", "{\"name\":\"SV Bad Zell\",\"default_country\":\"Austria\"}", cookie);
+        HttpResponse<String> sheet = get("/api/admin/meets/1/clubs/1/sheet", cookie);
+        assertTrue(sheet.body().contains("\"open\":true") && sheet.body().contains("\"registration_open\":false")
+            && sheet.body().contains("\"organiser\":true"), sheet.body());
+        HttpResponse<String> saved = send("PUT", "/api/admin/meets/1/clubs/1/starters", "{\"upsert\":[{\"name\":\"Late Entry\"}]}", cookie);
+        assertEquals(200, saved.statusCode(), saved.body());
+        assertTrue(get("/api/admin/meets/1/clubs/1/starters", cookie).body().contains("Late Entry"));
+    }
+
+    @Test
     void theCountriesAreOpenToEveryone() throws Exception {
         HttpResponse<String> countries = get("/api/countries", null);
         assertEquals(200, countries.statusCode());

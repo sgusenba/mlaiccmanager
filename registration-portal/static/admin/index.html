@@ -3,16 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anmeldeportal</title>
+    <title>Anmeldeportal · Veranstalter</title>
     <link rel="stylesheet" href="/css/portal.css">
 </head>
-<!-- Placeholder until the organiser pages exist (phase 6) -->
+<!-- The organiser's page: meets, clubs and codes, starters, data, account -->
 <body>
-    <main class="narrow">
-        <h1 data-i18n="common.portal">Anmeldeportal</h1>
-        <p class="notice ok" data-i18n="login.adminSoon"></p>
-        <button type="button" class="btn" id="logout" data-i18n="common.logout">Abmelden</button>
-    </main>
+    <div class="wrap" style="padding-bottom:40px">
+        <div class="topbar">
+            <div>
+                <span class="label" id="who"></span>
+                <h1 data-i18n="admin.title">Veranstalter</h1>
+            </div>
+            <div class="actions">
+                <div class="field" style="min-width:240px">
+                    <label for="meet-select" class="label" data-i18n="admin.meet">Veranstaltung</label>
+                    <select id="meet-select"></select>
+                </div>
+                <div class="seg" role="group" data-i18n-aria-label="common.language">
+                    <button type="button" data-lang="de">DE</button><button type="button" data-lang="en">EN</button>
+                </div>
+                <button type="button" class="btn" id="logout" data-i18n="common.logout">Abmelden</button>
+            </div>
+        </div>
+
+        <nav class="tabs" role="tablist">
+            <button type="button" role="tab" data-tab="meets" data-i18n="admin.tab.meets">Veranstaltungen</button>
+            <button type="button" role="tab" data-tab="clubs" data-i18n="admin.tab.clubs">Vereine</button>
+            <button type="button" role="tab" data-tab="starters" data-i18n="admin.tab.starters">Starter</button>
+            <button type="button" role="tab" data-tab="download" data-i18n="admin.tab.download">Download</button>
+            <button type="button" role="tab" data-tab="data" data-i18n="admin.tab.data">Daten</button>
+            <button type="button" role="tab" data-tab="account" data-i18n="admin.tab.account">Konto</button>
+        </nav>
+
+        <p id="no-meet" class="notice warn" hidden data-i18n="admin.noMeet"></p>
+        <section id="tab-meets" role="tabpanel" hidden></section>
+        <section id="tab-clubs" role="tabpanel" hidden></section>
+        <section id="tab-starters" role="tabpanel" hidden></section>
+        <section id="tab-download" role="tabpanel" hidden></section>
+        <section id="tab-data" role="tabpanel" hidden></section>
+        <section id="tab-account" role="tabpanel" hidden></section>
+        <p class="muted" style="font-size:.85rem"><a href="/privacy/" data-i18n="common.privacy">Datenschutz</a></p>
+    </div>
     <script type="module" src="admin.js"></script>
 </body>
 </html>

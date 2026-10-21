@@ -9,6 +9,7 @@ import com.competition.portal.resource.CountriesResource;
 import com.competition.portal.resource.AdminUserResource;
 import com.competition.portal.resource.AuthResource;
 import com.competition.portal.resource.HealthResource;
+import com.competition.portal.resource.SettingsResource;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
@@ -25,6 +26,7 @@ public class PortalJerseyConfig extends ResourceConfig {
         register(AdminStarterResource.class);
         register(ClubResource.class);
         register(CountriesResource.class);
+        register(SettingsResource.class);
 
         // No generated API description (application.wadl) on the internet
         property(ServerProperties.WADL_FEATURE_DISABLE, true);
