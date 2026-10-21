@@ -85,12 +85,17 @@ public class MeetStore {
 
     /** Runs change on the stored meet and saves it; RecordNotFoundException if there is none. */
     public <R> R update(int id, Change<Meet, R> change) throws Exception {
+        return update(id, change, null);
+    }
+
+    /** Like {@link #update(int, Change)}, then runs afterSave while the meet is still locked (e.g. the audit log). */
+    public <R> R update(int id, Change<Meet, R> change, Change<R, Void> afterSave) throws Exception {
         return file(id).update(meet -> {
             if (meet.id == 0) {
                 throw notFound(id);
             }
             return change.apply(meet);
-        });
+        }, afterSave);
     }
 
     /** Deletes the meet's file and its audit log, i.e. all of its data. */

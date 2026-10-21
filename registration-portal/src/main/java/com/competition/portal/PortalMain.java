@@ -40,7 +40,9 @@ public class PortalMain {
         if (args.length > 0) {
             System.exit(PortalCli.run(args, new PortalServices(config, Clock.systemUTC())));
         }
-        Server server = createServer(new PortalServices(config, Clock.systemUTC()));
+        PortalServices services = new PortalServices(config, Clock.systemUTC());
+        services.startBackgroundJobs();
+        Server server = createServer(services);
         try {
             server.start();
             logger.info("Registration portal on http://{}:{}, data in {}, public address {}",

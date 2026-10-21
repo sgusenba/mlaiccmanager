@@ -6,30 +6,36 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/** A clock tests can move forward. */
+/** A clock tests can move forward; its views in other zones (withZone) move with it. */
 public class MutableClock extends Clock {
-    private Instant now;
+    private final Instant[] now;
+    private final ZoneId zone;
 
     public MutableClock(Instant start) {
-        this.now = start;
+        this(new Instant[] {start}, ZoneOffset.UTC);
+    }
+
+    private MutableClock(Instant[] now, ZoneId zone) {
+        this.now = now;
+        this.zone = zone;
     }
 
     public void advance(Duration d) {
-        now = now.plus(d);
+        now[0] = now[0].plus(d);
     }
 
     @Override
     public ZoneId getZone() {
-        return ZoneOffset.UTC;
+        return zone;
     }
 
     @Override
     public Clock withZone(ZoneId zone) {
-        return this;
+        return new MutableClock(now, zone);
     }
 
     @Override
     public Instant instant() {
-        return now;
+        return now[0];
     }
 }

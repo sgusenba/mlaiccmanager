@@ -3,7 +3,9 @@ package com.competition.portal.config;
 import com.competition.portal.PortalConfig;
 import com.competition.portal.PortalServices;
 import com.competition.portal.auth.SessionStore;
+import com.competition.portal.service.AuditLog;
 import com.competition.portal.service.AuthService;
+import com.competition.portal.service.StarterService;
 import com.competition.portal.service.ClubService;
 import com.competition.portal.service.MeetService;
 import com.competition.portal.service.MeetStore;
@@ -30,5 +32,7 @@ public class PortalBinder extends AbstractBinder {
         bind(services.clubService).to(ClubService.class);
         bind(services.organiserService).to(OrganiserService.class);
         bind(services.authService).to(AuthService.class);
+        bind(services.auditLog).to(AuditLog.class);
+        bind(services.starterService).to(StarterService.class);
     }
 }

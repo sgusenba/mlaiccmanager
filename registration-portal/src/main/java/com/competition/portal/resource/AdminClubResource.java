@@ -1,6 +1,10 @@
 package com.competition.portal.resource;
 
+import com.competition.portal.auth.Session;
 import com.competition.portal.service.ClubService;
+import com.competition.portal.service.StarterService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -29,6 +33,16 @@ public class AdminClubResource {
 
     @Inject
     private ClubService clubService;
+
+    @Inject
+    private StarterService starters;
+
+    @Context
+    private HttpServletRequest request;
+
+    private String actor() {
+        return ((Session) request.getAttribute(Session.ATTRIBUTE)).actor();
+    }
 
     @GET
     public List<Map<String, Object>> list(@PathParam("meetId") int meetId) {
@@ -63,6 +77,22 @@ public class AdminClubResource {
     @Path("/{clubId: \\d+}/code")
     public ClubService.WithCode rotate(@PathParam("meetId") int meetId, @PathParam("clubId") int clubId) throws Exception {
         return clubService.rotate(meetId, clubId);
+    }
+
+    /** Changes the club's starters, with the same body as the club's own save; the deadline does not apply. */
+    @PUT
+    @Path("/{clubId: \\d+}/starters")
+    public Map<String, Object> saveStarters(@PathParam("meetId") int meetId, @PathParam("clubId") int clubId,
+                                            Map<String, Object> body) throws Exception {
+        return starters.save(meetId, clubId, body, actor(), true);
+    }
+
+    /** The club's contact person: {"name", "email", "version"}. */
+    @PUT
+    @Path("/{clubId: \\d+}/contact")
+    public Map<String, Object> contact(@PathParam("meetId") int meetId, @PathParam("clubId") int clubId,
+                                       Map<String, Object> body) throws Exception {
+        return starters.saveContact(meetId, clubId, body, actor(), true);
     }
 
     /** Body: {"revoked": true|false}; blocking logs the club out. */

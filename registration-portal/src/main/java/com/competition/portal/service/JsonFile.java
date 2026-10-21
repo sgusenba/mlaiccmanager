@@ -59,11 +59,23 @@ public class JsonFile<T> {
 
     /** Runs change on the stored document and saves it if change returns normally. */
     public <R> R update(Change<T, R> change) throws Exception {
+        return update(change, null);
+    }
+
+    /**
+     * Like {@link #update(Change)}, then runs afterSave with the result while
+     * the lock is still held, e.g. to append to a log in the same order as the
+     * saves. afterSave does not run if the change or the save fails.
+     */
+    public <R> R update(Change<T, R> change, Change<R, Void> afterSave) throws Exception {
         lock.lock();
         try {
             T data = load();
             R result = change.apply(data);
             save(data);
+            if (afterSave != null) {
+                afterSave.apply(result);
+            }
             return result;
         } finally {
             lock.unlock();
