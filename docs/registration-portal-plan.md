@@ -16,7 +16,7 @@
 | 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
-Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins) and 4 (starters) are implemented in `registration-portal/`.
+Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters) and 5 (club pages) are implemented in `registration-portal/`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
 
 ## 1. Overview and boundaries
 

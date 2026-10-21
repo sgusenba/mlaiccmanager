@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 4: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), and the starters (clubs save their sheet, checks, deadline, audit log, deletion). The pages (entry sheet, organiser pages) and the export for the Manager follow in the next phases.
+**Status:** phases 1 to 5: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion) and the club's pages (log-in, entry sheet). The organiser's pages and the export for the Manager follow in the next phases.
 
 ## Build and run
 
@@ -19,6 +19,14 @@ java -jar target/mlaic-portal-1.0.0.jar
 The portal then listens on `http://127.0.0.1:8080` and keeps its data in `portal-data/` (git-ignored: it holds personal data). `GET /api/health` answers `{"ok":true}` while it runs and can read its data, else 503.
 
 The jar is pure Java, so the one built on x64 runs unchanged on Oracle Cloud's ARM (Ampere) VMs.
+
+## Pages
+
+Plain HTML and JavaScript modules with one stylesheet (`static/css/portal.css`), in German and English (`static/i18n/`), no framework and nothing loaded from other sites, so the strict Content-Security-Policy of the reverse proxy needs no exceptions (`StaticPagesTest` checks that no page has inline scripts or foreign sources).
+
+- **`/login/`**: clubs log in with their access code, typed or from the invite link (`/login/#c=CODE`; the code is removed from the address bar at once); organisers with name and password, then the authenticator code if it is on.
+- **`/sheet/`**: the club's entry sheet. One row per starter (name, gender, year of birth, club, country, email if the meet collects it), one checkbox column per ranking entry, grouped into rifle and pistol (O and R of a ranking are two columns). Rows are checked while typing (`static/js/rules.js`, the same rules as the server); changed rows are marked and saved in one go with the Save button; the server's answer is shown on the rows (errors per row, rows someone else changed meanwhile, registration closed). Enter and the arrow keys move between rows like in Excel, rows copied from Excel (name, gender, year, club, country) can be pasted into the name column, the countdown to the deadline is shown in the meet's time zone, and after the deadline the sheet is read-only. The club's contact person is saved separately; on the first save the club confirms that it may pass on its members' data.
+- **`/admin/`**: placeholder until the organiser's pages (phase 6).
 
 ## Organiser accounts
 
