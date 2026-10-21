@@ -57,3 +57,6 @@ deploy/pct.env
 
 # Test feeder: event data extracted from results PDFs (real competitor names)
 tools/testfeeder/data/
+
+# Registration portal: runtime data (registrations, i.e. personal data - never commit)
+registration-portal/portal-data/

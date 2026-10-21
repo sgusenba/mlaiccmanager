@@ -8,6 +8,11 @@ name: Build and release
 on:
   push:
     branches: [main]
+    # The registration portal is released on its own (portal-release.yml); a
+    # portal-only change must not redeploy the installations at the ranges
+    paths-ignore:
+      - 'registration-portal/**'
+      - '.github/workflows/portal-release.yml'
   workflow_dispatch:
 
 permissions:
