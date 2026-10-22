@@ -10,6 +10,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -27,10 +28,14 @@ public class SettingsResource {
     @Inject
     private PortalStore store;
 
-    /** For the privacy page: {"controller": {name, address, email}}. */
+    /** For the privacy page: {"controller": {name, address, email}, "hosting": who runs the server or null}. */
     @GET
     public Map<String, Object> privacy() {
-        return Map.of("controller", store.get().settings.controller);
+        Settings settings = store.get().settings;
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("controller", settings.controller);
+        result.put("hosting", settings.hosting);
+        return result;
     }
 
     /** The organiser's PUT /api/admin/settings (in AdminUserResource, whose path covers /admin). */
@@ -41,8 +46,10 @@ public class SettingsResource {
             controller.address = text(c, "address");
             controller.email = text(c, "email");
         }
+        String hosting = body != null ? text(body, "hosting") : null;
         return store.update(data -> {
             data.settings.controller = controller;
+            data.settings.hosting = hosting;
             return data.settings;
         });
     }

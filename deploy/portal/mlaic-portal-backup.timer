@@ -1,5 +1,5 @@
-# Starts mlaic-portal-backup.service every night; a run missed while the VM
-# was off is made up at the next boot.
+# Starts mlaic-portal-backup.service every night; a run missed while the
+# machine was off is made up at the next boot.
 
 [Unit]
 Description=Daily backup of the MLAIC registration portal

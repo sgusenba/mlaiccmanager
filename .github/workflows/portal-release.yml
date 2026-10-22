@@ -1,10 +1,10 @@
 name: Build and release the registration portal
 
-# Builds registration-portal/ and publishes it as one tarball (jar, static/,
-# and deploy/ with the scripts and unit files of deploy/portal/, which
-# portal-deploy.sh installs on the VM) on its own rolling "portal-latest"
-# release. It never touches the Manager's
-# "latest" release, which the installations at the ranges update from.
+# Builds registration-portal/ (one jar, the pages inside) and publishes it on
+# its own rolling "portal-latest" release, next to the install and update
+# scripts and unit files of deploy/portal/ and their SHA256SUMS, which
+# portal-install.sh and portal-update.sh download. It never touches the
+# Manager's "latest" release, which the installations at the ranges update from.
 
 on:
   push:
@@ -31,17 +31,28 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: mvn -B -f registration-portal/pom.xml clean verify
+        run: mvn -B -f registration-portal/pom.xml clean verify -Dportal.commit=${GITHUB_SHA::7}
 
-      - name: Package portal bundle
+      - name: Collect release files
         run: |
-          mkdir -p portal-bundle
-          cp registration-portal/target/mlaic-portal-*.jar portal-bundle/mlaic-portal.jar
-          cp -r registration-portal/static portal-bundle/static
-          cp -r deploy/portal portal-bundle/deploy
-          echo "{\"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"commit\": \"${GITHUB_SHA}\"}" > portal-bundle/build-info.json
-          tar -czf mlaic-portal-dist.tar.gz -C portal-bundle .
-          sha256sum mlaic-portal-dist.tar.gz > mlaic-portal-dist.tar.gz.sha256
+          mkdir -p portal-release
+          cp registration-portal/target/mlaic-portal-*[0-9].jar portal-release/mlaic-portal.jar
+          cp deploy/portal/portal-install.sh deploy/portal/portal-update.sh deploy/portal/portal-backup.sh \
+             deploy/portal/portal-restore.sh deploy/portal/portal-cli.sh \
+             deploy/portal/mlaic-portal.service deploy/portal/mlaic-portal-update.service \
+             deploy/portal/mlaic-portal-backup.service deploy/portal/mlaic-portal-backup.timer \
+             deploy/portal/Caddyfile.example deploy/portal/portal.env.example portal-release/
+          (cd portal-release && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+          java -jar portal-release/mlaic-portal.jar --version
+
+      # The rolling release keeps files of earlier builds; the tarball of the old layout is gone
+      - name: Remove outdated release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in mlaic-portal-dist.tar.gz mlaic-portal-dist.tar.gz.sha256; do
+            gh release delete-asset portal-latest "$f" --yes --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          done
 
       - name: Publish "portal-latest" release
         uses: softprops/action-gh-release@v3
@@ -50,6 +61,13 @@ jobs:
           name: Registration portal (latest build)
           target_commitish: ${{ github.sha }}
           prerelease: true
-          files: |
-            mlaic-portal-dist.tar.gz
-            mlaic-portal-dist.tar.gz.sha256
+          body: |
+            The MLAIC registration portal: one jar (`mlaic-portal.jar`) with the pages inside.
+
+            **Install on a Linux machine** (Debian/Ubuntu), as root:
+            ```
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/portal-latest/portal-install.sh
+            sudo bash portal-install.sh --domain anmeldung.example.org --email you@example.org
+            ```
+            Before every start the portal checks this release for a newer build and installs it. Details: `deploy/portal/setup.md`.
+          files: portal-release/*

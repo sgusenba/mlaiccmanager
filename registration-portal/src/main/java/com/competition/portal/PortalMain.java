@@ -16,12 +16,16 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Clock;
 import java.util.EnumSet;
+import java.util.Properties;
 
 /**
  * The registration portal: clubs enter their starters for a meet, the
@@ -30,12 +34,18 @@ import java.util.EnumSet;
  * that terminates HTTPS; the Manager itself never goes on the internet.
  *
  * <p>With arguments it runs a server command instead (see {@link PortalCli}),
- * e.g. --add-organiser NAME to create the first organiser account.
+ * e.g. --add-organiser NAME to create the first organiser account, or prints
+ * its version (--version), which the update script uses to check that a
+ * downloaded jar runs.
  */
 public class PortalMain {
     private static final Logger logger = LoggerFactory.getLogger(PortalMain.class);
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 1 && args[0].equals("--version")) {
+            System.out.println(version());
+            return;
+        }
         PortalConfig config = PortalConfig.fromEnvironment();
         if (args.length > 0) {
             System.exit(PortalCli.run(args, new PortalServices(config, Clock.systemUTC())));
@@ -45,13 +55,27 @@ public class PortalMain {
         Server server = createServer(services);
         try {
             server.start();
-            logger.info("Registration portal on http://{}:{}, data in {}, public address {}",
-                config.bind(), config.port(), config.dataDir(), config.baseUrl());
+            logger.info("{} on http://{}:{}, data in {}, public address {}",
+                version(), config.bind(), config.port(), config.dataDir(), config.baseUrl());
             server.join();
         } catch (Exception e) {
             logger.error("Error starting the portal", e);
             System.exit(1);
         }
+    }
+
+    /** "mlaic-portal 1.0.0 (commit …, built …)", from build-info.properties. */
+    static String version() {
+        Properties info = new Properties();
+        try (InputStream in = PortalMain.class.getClassLoader().getResourceAsStream("build-info.properties")) {
+            if (in != null) {
+                info.load(in);
+            }
+        } catch (IOException e) {
+            // no build information: shown as unknown
+        }
+        return "mlaic-portal " + info.getProperty("version", "?") + " (commit " + info.getProperty("commit", "?")
+            + ", built " + info.getProperty("built", "?") + ")";
     }
 
     /** The configured server, not yet started. */
@@ -83,8 +107,17 @@ public class PortalMain {
         jersey.setInitOrder(0);
         context.addServlet(jersey, "/api/*");
 
-        // The pages; "no-cache" makes browsers revalidate, so an update never runs old JS against a newer API
-        context.setResourceBase(config.staticDir().toString());
+        // The pages, from the jar (or a folder while working on them); "no-cache" makes browsers
+        // revalidate, so an update never runs old JS against a newer API
+        if (config.staticDir() != null) {
+            context.setResourceBase(config.staticDir().toString());
+        } else {
+            Resource pages = Resource.newClassPathResource("/static");
+            if (pages == null) {
+                throw new IllegalStateException("The jar has no pages (static/)");
+            }
+            context.setBaseResource(pages);
+        }
         ServletHolder staticFiles = new ServletHolder(new DefaultServlet());
         staticFiles.setInitParameter("cacheControl", "no-cache");
         staticFiles.setInitParameter("dirAllowed", "false");

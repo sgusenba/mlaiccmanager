@@ -4,7 +4,7 @@ Online registration for MLAIC meets: clubs log in with an access code and enter 
 
 The plan, with the decisions taken so far, is in [`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md).
 
-**Status:** phases 1 to 7: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet), the organiser's pages and the export for the Manager; the deployment files for Oracle Cloud are in [`../deploy/portal/`](../deploy/portal/).
+**Status:** phases 1 to 7: server, storage, health check, the organiser's meets with the upload of the rankings and catalog from the Manager, the log-ins (organiser accounts, club access codes), the starters (saving, checks, deadline, audit log, deletion), the club's pages (log-in, entry sheet), the organiser's pages and the export for the Manager; the installation on a Linux machine is in [`../deploy/portal/`](../deploy/portal/).
 
 ## Build and run
 
@@ -18,7 +18,7 @@ java -jar target/mlaic-portal-1.0.0.jar
 
 The portal then listens on `http://127.0.0.1:8080` and keeps its data in `portal-data/` (git-ignored: it holds personal data). `GET /api/health` answers `{"ok":true}` while it runs and can read its data, else 503.
 
-The jar is pure Java, so the one built on x64 runs unchanged on Oracle Cloud's ARM (Ampere) VMs.
+The jar holds everything, the pages (`static/`) included, and is pure Java, so the same file runs on x64 and ARM machines. `java -jar mlaic-portal.jar --version` prints its version and commit. While working on the pages, `PORTAL_STATIC_DIR=static` serves them from the folder instead of the jar.
 
 ## Pages
 
@@ -40,16 +40,24 @@ Plain HTML and JavaScript modules with one stylesheet (`static/css/portal.css`),
 
 ## Deployment
 
-[`../deploy/portal/setup-oci.md`](../deploy/portal/setup-oci.md) is the runbook for an Oracle Cloud Always Free VM: firewall, Caddy (HTTPS, security headers, the Content-Security-Policy), the sandboxed systemd service, nightly backups encrypted with age and uploaded to Object Storage, the restore drill, updates, monitoring, the records of processing and the breach procedure. The scripts there run on the VM:
+On a Linux machine (Debian or Ubuntu), as root:
 
-- `portal-deploy.sh`: installs or updates to the latest `portal-latest` build (checksum, backup first, jar last, rollback if the new build does not answer)
+```bash
+curl -fsSLO https://github.com/sgusenba/mlaiccmanager/releases/download/portal-latest/portal-install.sh
+sudo bash portal-install.sh --domain anmeldung.example.org --email you@example.org --backup-key age1...
+```
+
+installs Java, the jar and the scripts, the systemd services, and Caddy for HTTPS, and starts the portal. Before every start it checks the `portal-latest` release for a newer build and installs it. [`../deploy/portal/setup.md`](../deploy/portal/setup.md) is the runbook: install, backups and the restore drill, updates, hardening, monitoring, the records of processing and the breach procedure. The scripts, installed in `/opt/mlaic-portal`:
+
+- `portal-install.sh`: installs, or brings an installation's scripts and unit files up to date
+- `portal-update.sh`: the update check before every start (checksum, test run, backup first; `--rollback`); freeze with `/etc/mlaic-portal/no-auto-update`
 - `portal-backup.sh`: one encrypted backup (daily via `mlaic-portal-backup.timer`)
 - `portal-restore.sh`: `check`, `extract` (the drill) or `install` a backup
 - `portal-cli.sh`: the server commands below, as the portal's user with its settings
 
 ## Organiser accounts
 
-There is no sign-up. Create the first account on the server, as the portal's user (on the VM: `sudo /opt/mlaic-portal/portal-cli.sh --add-organiser stefan`):
+There is no sign-up. Create the first account on the server, as the portal's user (on an installed server: `sudo /opt/mlaic-portal/portal-cli.sh --add-organiser stefan`):
 
 ```bash
 java -jar mlaic-portal.jar --add-organiser stefan        # asks for the password twice
@@ -71,7 +79,7 @@ Without a terminal (in a script) the password is read as one line from standard 
 
 ## Data protection
 
-What the portal stores and for how long is on its privacy page (`/privacy/`, German and English) and in the plan's checklist ([`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md) §10): starters' name, gender, year of birth, club, country and rankings, email only if the meet collects it; the clubs' contact persons; the IP address in the logs (14 days). Clubs confirm on their first save that they may pass on their members' data. Each meet's registrations are deleted automatically at its deletion date (default: meet date + 90 days), backups 30 days later. Only the session and language cookies are set. The records of processing and the breach procedure are in [`../deploy/portal/setup-oci.md`](../deploy/portal/setup-oci.md).
+What the portal stores and for how long is on its privacy page (`/privacy/`, German and English) and in the plan's checklist ([`../docs/registration-portal-plan.md`](../docs/registration-portal-plan.md) §10): starters' name, gender, year of birth, club, country and rankings, email only if the meet collects it; the clubs' contact persons; the IP address in the logs (14 days). Clubs confirm on their first save that they may pass on their members' data. Each meet's registrations are deleted automatically at its deletion date (default: meet date + 90 days), backups 30 days later. Only the session and language cookies are set. The privacy page names who runs the server if it is rented (*Account* tab). The records of processing and the breach procedure are in [`../deploy/portal/setup.md`](../deploy/portal/setup.md).
 
 ## Configuration
 
@@ -138,4 +146,4 @@ Rules for meets: only one meet can be open at a time; opening needs uploaded ran
 
 ## Release
 
-`.github/workflows/portal-release.yml` builds the portal on every push to `main` that touches `registration-portal/` and publishes `mlaic-portal-dist.tar.gz` (jar and `static/`) on the release tag `portal-latest`. The Manager's release (`release.yml`, tag `latest`) skips portal-only changes, so they never redeploy the installations at the ranges.
+`.github/workflows/portal-release.yml` builds the portal on every push to `main` that touches `registration-portal/` or `deploy/portal/` and publishes `mlaic-portal.jar`, the scripts and unit files of `deploy/portal/` and their `SHA256SUMS` on the release tag `portal-latest`, which the installed servers update from. The Manager's release (`release.yml`, tag `latest`) skips portal-only changes, so they never redeploy the installations at the ranges.

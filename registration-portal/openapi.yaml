@@ -38,10 +38,10 @@ paths:
         "200": { description: '`[{"code", "name"}]`, English names as the Manager stores them' }
   /privacy:
     get:
-      summary: The data controller for the privacy page
+      summary: The data controller and the server's operator for the privacy page
       security: []
       responses:
-        "200": { description: '`{"controller": {"name", "address", "email"}}`' }
+        "200": { description: '`{"controller": {"name", "address", "email"}, "hosting"}`' }
 
   /auth/organiser:
     post:
@@ -349,9 +349,9 @@ paths:
     get:
       summary: The portal's settings
       responses:
-        "200": { description: '`{"controller": {"name", "address", "email"}}`' }
+        "200": { description: '`{"controller": {"name", "address", "email"}, "hosting"}`' }
     put:
-      summary: Changes the data controller shown on the privacy page
+      summary: Changes the data controller and the server's operator shown on the privacy page
       requestBody:
         content:
           application/json:
@@ -364,6 +364,7 @@ paths:
                     name: { type: string, maxLength: 300 }
                     address: { type: string, maxLength: 300 }
                     email: { type: string, maxLength: 300 }
+                hosting: { type: string, maxLength: 300, description: "Who runs the server if it is rented (named as processor); empty if the organiser runs it" }
       responses:
         "200": { description: The settings }
   /admin/totp/setup:

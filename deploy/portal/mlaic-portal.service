@@ -1,17 +1,17 @@
-# systemd unit for the MLAIC registration portal.
+# systemd unit for the MLAIC registration portal. Installed by
+# portal-install.sh (see setup.md).
 #
-# Install (see setup-oci.md):
-#   cp mlaic-portal.service /etc/systemd/system/
-#   systemctl daemon-reload && systemctl enable --now mlaic-portal
-#
-# The jar and pages are in /opt/mlaic-portal (owned by root, read-only for the
-# service), the data in /var/lib/mlaic-portal (created by systemd, 0700, the
-# only place the service may write). It listens on 127.0.0.1 only and may not
-# talk to any other address: Caddy on the same machine is its only client.
+# Before every start, mlaic-portal-update.service checks for a new build and
+# installs it. The jar (with the pages) is in /opt/mlaic-portal (owned by
+# root, read-only for the service), the data in /var/lib/mlaic-portal
+# (created by systemd, 0700, the only place the service may write). It
+# listens on 127.0.0.1 and may not talk to any other address: the reverse
+# proxy (Caddy) on the same machine is its only client.
 
 [Unit]
 Description=MLAIC registration portal
-After=network.target
+Wants=mlaic-portal-update.service
+After=network.target mlaic-portal-update.service
 
 [Service]
 Type=simple
