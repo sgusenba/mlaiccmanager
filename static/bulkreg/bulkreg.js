@@ -39,14 +39,25 @@ function rankingCategory(ranking) {
     return [...new Set(ids.map(id => state.disciplines.get(id)?.category).filter(Boolean))].sort().join(' / ');
 }
 
-// One short name per ranking; a ranking with several entries to choose from gets one per entry (WHIT1, WHIT2)
+const toCode = (text) => String(text).trim().toUpperCase().replace(/\s+/g, '_');
+
+// One short name per ranking. A ranking with several entries to choose from gets one per entry: the
+// discipline's own short name (MIQO, MIQR) when the entry is one discipline and that name is free,
+// otherwise the ranking's short name numbered (WHIT1, WHIT2). Rankings with one entry keep their names.
 function buildTokens(rankings) {
+    const kindOf = (ranking) => ranking.entries.length > 1 ? 'choice' : (ranking.entries[0].discipline_ids.length > 1 ? 'combo' : 'single');
+    const taken = new Set(rankings.filter(r => kindOf(r) !== 'choice').map(r => toCode(r.short_name || r.name)));
     rankings.forEach(ranking => {
-        const base = String(ranking.short_name || ranking.name).trim().toUpperCase().replace(/\s+/g, '_');
-        const kind = ranking.entries.length > 1 ? 'choice' : (ranking.entries[0].discipline_ids.length > 1 ? 'combo' : 'single');
+        const base = toCode(ranking.short_name || ranking.name);
+        const kind = kindOf(ranking);
         const category = rankingCategory(ranking);
         ranking.entries.forEach((entry, i) => {
-            const code = kind === 'choice' ? `${base}${i + 1}` : base;
+            let code = base;
+            if (kind === 'choice') {
+                const own = entry.discipline_ids.length === 1 && state.disciplines.get(entry.discipline_ids[0])?.short_name;
+                code = own && !taken.has(toCode(own)) ? toCode(own) : `${base}${i + 1}`;
+            }
+            taken.add(code);
             const label = kind === 'choice' ? `${ranking.name}: ${entry.label || entry.discipline_ids.map(disciplineName).join(' + ')}` : ranking.name;
             state.tokens.set(code, { code, ranking, entry: i, kind, category, label, disciplineIds: entry.discipline_ids });
         });
