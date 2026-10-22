@@ -55,6 +55,16 @@ installs Java, the jar and the scripts, the systemd services, and Caddy for HTTP
 - `portal-restore.sh`: `check`, `extract` (the drill) or `install` a backup
 - `portal-cli.sh`: the server commands below, as the portal's user with its settings
 
+### Windows (portable)
+
+For trying the portal out, or for a meet on the local network, there is a self-contained Windows zip with Java bundled, like the Manager's. Nothing needs to be installed and no admin rights are needed:
+
+1. Download [mlaic-portal-windows.zip](https://github.com/sgusenba/mlaiccmanager/releases/download/portal-latest/mlaic-portal-windows.zip). If Windows blocks it, right-click the zip, choose **Properties → Unblock**, then unzip it to a local folder such as `C:\mlaic-portal` (not a OneDrive-synced one).
+2. Double-click `portal-cli.bat` and create the first organiser account (it asks for the name and the password twice). With arguments it runs the other server commands below, e.g. `portal-cli.bat --set-password stefan`.
+3. Double-click `start.bat`. The portal opens its log-in page at http://localhost:8080 (`PORTAL_PORT` for another port); closing the console window stops it.
+
+It listens on 127.0.0.1 only and keeps its data in `portal-data\` in that folder. On every start `start.bat` runs `update.ps1`, which checks the `portal-latest` release like `portal-update.sh`: a new `mlaic-portal.jar` is checked against `SHA256SUMS`, test-run and only then swapped in, the old one kept as `mlaic-portal.jar.prev`; `powershell -ExecutionPolicy Bypass -File update.ps1 -Rollback` goes back to it. When offline it starts the current version. To freeze the version, create an empty file named `no-auto-update` in the folder. For the portal on the internet use the Linux installation above: it adds HTTPS, backups and the hardening.
+
 ## Organiser accounts
 
 There is no sign-up. Create the first account on the server, as the portal's user (on an installed server: `sudo /opt/mlaic-portal/portal-cli.sh --add-organiser stefan`):
@@ -146,4 +156,4 @@ Rules for meets: only one meet can be open at a time; opening needs uploaded ran
 
 ## Release
 
-`.github/workflows/portal-release.yml` builds the portal on every push to `main` that touches `registration-portal/` or `deploy/portal/` and publishes `mlaic-portal.jar`, the scripts and unit files of `deploy/portal/` and their `SHA256SUMS` on the release tag `portal-latest`, which the installed servers update from. The Manager's release (`release.yml`, tag `latest`) skips portal-only changes, so they never redeploy the installations at the ranges.
+`.github/workflows/portal-release.yml` builds the portal on every push to `main` that touches `registration-portal/` or `deploy/portal/` and publishes `mlaic-portal.jar`, the scripts and unit files of `deploy/portal/` (the Windows scripts of `deploy/portal/windows/` included) and their `SHA256SUMS` on the release tag `portal-latest`, which the installed servers and the Windows folders update from, plus the portable `mlaic-portal-windows.zip`. The Manager's release (`release.yml`, tag `latest`) skips portal-only changes, so they never redeploy the installations at the ranges.

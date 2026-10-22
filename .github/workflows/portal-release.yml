@@ -3,7 +3,8 @@ name: Build and release the registration portal
 # Builds registration-portal/ (one jar, the pages inside) and publishes it on
 # its own rolling "portal-latest" release, next to the install and update
 # scripts and unit files of deploy/portal/ and their SHA256SUMS, which
-# portal-install.sh and portal-update.sh download. It never touches the
+# portal-install.sh and portal-update.sh download, and a portable Windows zip
+# (mlaic-portal-windows.zip) with Java bundled. It never touches the
 # Manager's "latest" release, which the installations at the ranges update from.
 
 on:
@@ -41,9 +42,24 @@ jobs:
              deploy/portal/portal-restore.sh deploy/portal/portal-cli.sh \
              deploy/portal/mlaic-portal.service deploy/portal/mlaic-portal-update.service \
              deploy/portal/mlaic-portal-backup.service deploy/portal/mlaic-portal-backup.timer \
-             deploy/portal/Caddyfile.example deploy/portal/portal.env.example portal-release/
+             deploy/portal/Caddyfile.example deploy/portal/portal.env.example \
+             deploy/portal/windows/start.bat deploy/portal/windows/start.ps1 \
+             deploy/portal/windows/update.ps1 deploy/portal/windows/portal-cli.bat portal-release/
           (cd portal-release && sha256sum * > SHA256SUMS && cat SHA256SUMS)
           java -jar portal-release/mlaic-portal.jar --version
+
+      # Portable Windows zip: the jar, a Windows JRE and the launcher scripts of
+      # deploy/portal/windows/, which update the jar from SHA256SUMS above on every
+      # start. Built after SHA256SUMS, so the zip itself is not listed there
+      - name: Package Windows bundle
+        run: |
+          curl -fsSL -o jre.zip "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse"
+          unzip -q jre.zip -d jre-extract
+          mkdir -p win-bundle/mlaic-portal
+          mv jre-extract/* win-bundle/mlaic-portal/jre
+          cp portal-release/mlaic-portal.jar deploy/portal/windows/start.bat deploy/portal/windows/start.ps1 \
+             deploy/portal/windows/update.ps1 deploy/portal/windows/portal-cli.bat win-bundle/mlaic-portal/
+          (cd win-bundle && zip -qr ../portal-release/mlaic-portal-windows.zip mlaic-portal)
 
       # The rolling release keeps files of earlier builds; the tarball of the old layout is gone
       - name: Remove outdated release files
@@ -70,4 +86,6 @@ jobs:
             sudo bash portal-install.sh --domain anmeldung.example.org --email you@example.org
             ```
             Before every start the portal checks this release for a newer build and installs it. Details: `deploy/portal/setup.md`.
+
+            **Try it on Windows:** download `mlaic-portal-windows.zip` (Java included), unzip it, create an organiser account with `portal-cli.bat` and start the portal with `start.bat` (http://localhost:8080).
           files: portal-release/*
