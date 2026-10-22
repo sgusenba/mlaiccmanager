@@ -13,7 +13,7 @@
 | 7 | One-start rule | **Removed from the Manager** (PR #81): a competitor may start in every discipline of a ranking, e.g. both O and R. The portal has no such rule either |
 | 8 | Entry fees | None, out of scope |
 | 9 | Several meets open at once | No: one meet open at a time; the admin UI can assume that |
-| 10 | `/bulkreg/` demo page in the Manager | Remove it once the portal is live |
+| 10 | `/bulkreg/` demo page in the Manager | **Removed** |
 | 11 | Second organiser | **Yes**: a second organiser login, who also gets access to the backup key |
 
 Phase 0 is done (the Manager no longer has the one-start rule). Phases 1 (skeleton), 2 (meets and upload), 3 (log-ins), 4 (starters), 5 (club pages), 6 (organiser pages, privacy page), 7 (export, Manager import compatibility) and 9 (hardening, checklist in §10, `registration-portal/openapi.yaml`) are implemented in `registration-portal/`; the deployment files of phase 8 are in `deploy/portal/` (runbook: `setup.md`; one jar, installed on a Linux machine with `portal-install.sh`, updated before every start), tested locally (Caddy over HTTPS, backup and restore drill, install and update with stand-ins for systemd), still to be done on the real server. The backup packs the data folder with tar while the portal runs instead of a `--backup` command: every save is an atomic rename, so each file in the archive is complete, and `meets/` goes in before `portal.json`, whose meet-id counter is then never behind. The pages carry no inline styles either, so the policy has no `unsafe-inline`. Instead of a vendored Tailwind, the pages use one small stylesheet of their own, so the Content-Security-Policy needs no `unsafe-eval`.
@@ -177,7 +177,7 @@ Status codes:
 Each page is plain HTML with ES modules, the vendored Tailwind, and English and German texts. There is a small header with a language switch and logout.
 
 - **`/login/`** has two cards, "Club access code" and "Organiser". It reads invite links.
-- **`/sheet/` (club entry sheet)** is a port of the prototype form and `static/bulkreg/bulkreg.js`.
+- **`/sheet/` (club entry sheet)** is a port of the prototype form and of the Manager's former `/bulkreg/` demo page.
   - Header: meet, deadline countdown, club contact, defaults for club and country.
   - Grid: one row per starter and one checkbox column per ranking entry (Whitworth O/R has two columns, WHITO and WHITR), as in the current online form. Columns are grouped by rifle and pistol, and a status column shows each row's problems.
   - Enter and the arrow keys move between cells, rows can be pasted from Excel, and an empty row is always kept at the end.
@@ -260,7 +260,7 @@ Walked through in phase 9; each item says where it is enforced or tested. Untick
 - [x] Access codes: 80 bits, hashed, shown once, rotatable and revocable, never in logs (the invite link carries the code after `#`, which never reaches a server log).
 - [x] Limits on body size (1 MB) and row counts (500 per club, 5000 per meet, text lengths); all output escaped. Malformed JSON gets a JSON error without parser details. Destructive organiser actions (delete registrations, delete a meet) need the meet's key, checked by the server.
 - [x] Atomic file writes, encrypted backups, a tested restore: backup consistent while the portal runs (20 backups during 237 saves all readable), restore drill with identical export and change log; a cut-off audit line costs only that line. **On the server:** restore drill with a backup copied off the server.
-- [x] Dependencies pinned and checked monthly: versions fixed in `pom.xml`; `.github/dependabot.yml` checks the portal monthly. Note: Jetty 11 is out of community support; moving the portal (and the Manager) to Jetty 12 is a separate task.
+- [x] Dependencies pinned and checked monthly: versions fixed in `pom.xml`; `.github/dependabot.yml` checks the portal monthly. The portal and the Manager run on Jetty 12 (ee10, Servlet 6).
 
 **GDPR**
 - [x] The controller, **SV Bad Zell**, is named on `/privacy/` with address and contact, entered by the organiser (*Account*). **On the server:** enter it, and the hoster if the server is rented.

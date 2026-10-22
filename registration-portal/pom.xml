@@ -18,8 +18,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- The same versions as the Manager (../pom.xml) -->
-        <jetty.version>11.0.26</jetty.version>
-        <jersey.version>4.0.3</jersey.version>
+        <jetty.version>12.1.14</jetty.version>
+        <jersey.version>3.1.12</jersey.version>
         <jackson.version>2.22.4</jackson.version>
         <slf4j.version>2.0.20</slf4j.version>
         <logback.version>1.6.5</logback.version>
@@ -29,6 +29,19 @@
         <portal.built>${maven.build.timestamp}</portal.built>
     </properties>
 
+    <!-- Keeps the Jackson modules Jersey brings in on the same version as jackson-databind -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -36,8 +49,8 @@
             <version>${jetty.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
+            <groupId>org.eclipse.jetty.ee10</groupId>
+            <artifactId>jetty-ee10-servlet</artifactId>
             <version>${jetty.version}</version>
         </dependency>
 

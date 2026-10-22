@@ -6,9 +6,10 @@ import com.competition.config.ResultsPortFilter;
 import com.competition.i18n.LocaleFilter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.DefaultServlet;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,8 @@ public class Main {
         // Serve static files. "no-cache" makes browsers revalidate on every load
         // (a cheap 304 when unchanged), so an update never runs stale JS/CSS
         // against a newer API.
-        context.setResourceBase(System.getProperty("user.dir") + "/static");
-        ServletHolder staticFiles = new ServletHolder(new org.eclipse.jetty.servlet.DefaultServlet());
+        context.setBaseResourceAsString(System.getProperty("user.dir") + "/static");
+        ServletHolder staticFiles = new ServletHolder(new DefaultServlet());
         staticFiles.setInitParameter("cacheControl", "no-cache");
         context.addServlet(staticFiles, "/*");
 
