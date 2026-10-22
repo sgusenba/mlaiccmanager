@@ -39,25 +39,27 @@ function rankingCategory(ranking) {
     return [...new Set(ids.map(id => state.disciplines.get(id)?.category).filter(Boolean))].sort().join(' / ');
 }
 
-const toCode = (text) => String(text).trim().toUpperCase().replace(/\s+/g, '_');
+const toCode = (text) => String(text).toUpperCase().replace(/\s+/g, '');
 
-// One short name per ranking. A ranking with several entries to choose from gets one per entry: the
-// discipline's own short name (MIQO, MIQR) when the entry is one discipline and that name is free,
-// otherwise the ranking's short name numbered (WHIT1, WHIT2). Rankings with one entry keep their names.
+// One short name per entry, the one a starter knows: the discipline's own (MIQO, MIQR) for an entry of one
+// discipline, the entry's label for an entry to choose (REMO), else the ranking's short name (REM O -> REMO).
+// The ranking's short name also stands in where a name is wanted twice, numbered for an entry to choose (WHIT1).
 function buildTokens(rankings) {
     const kindOf = (ranking) => ranking.entries.length > 1 ? 'choice' : (ranking.entries[0].discipline_ids.length > 1 ? 'combo' : 'single');
-    const taken = new Set(rankings.filter(r => kindOf(r) !== 'choice').map(r => toCode(r.short_name || r.name)));
+    const preferred = (entry, ranking) => {
+        const own = entry.discipline_ids.length === 1 ? state.disciplines.get(entry.discipline_ids[0])?.short_name
+            : kindOf(ranking) === 'choice' ? entry.label : '';
+        return own ? toCode(own) : '';
+    };
+    const wanted = new Map();
+    rankings.forEach(r => r.entries.forEach(e => { const c = preferred(e, r); if (c) wanted.set(c, (wanted.get(c) || 0) + 1); }));
     rankings.forEach(ranking => {
         const base = toCode(ranking.short_name || ranking.name);
         const kind = kindOf(ranking);
         const category = rankingCategory(ranking);
         ranking.entries.forEach((entry, i) => {
-            let code = base;
-            if (kind === 'choice') {
-                const own = entry.discipline_ids.length === 1 && state.disciplines.get(entry.discipline_ids[0])?.short_name;
-                code = own && !taken.has(toCode(own)) ? toCode(own) : `${base}${i + 1}`;
-            }
-            taken.add(code);
+            const own = preferred(entry, ranking);
+            const code = own && wanted.get(own) === 1 ? own : kind === 'choice' ? `${base}${i + 1}` : base;
             const label = kind === 'choice' ? `${ranking.name}: ${entry.label || entry.discipline_ids.map(disciplineName).join(' + ')}` : ranking.name;
             state.tokens.set(code, { code, ranking, entry: i, kind, category, label, disciplineIds: entry.discipline_ids });
         });
