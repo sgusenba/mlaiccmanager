@@ -251,7 +251,7 @@ class PortalServerTest {
         assertTrue(bad.body().contains("\"rows\":[{\"index\":1"), bad.body());
 
         HttpResponse<String> saved = send("PUT", "/api/club/starters",
-            "{\"consent\":true,\"upsert\":[{\"name\":\"Anna Huber\",\"choices\":[{\"ranking_id\":84,\"entry\":0},{\"ranking_id\":84,\"entry\":1}]}]}", a);
+            "{\"consent\":true,\"upsert\":[{\"name\":\"Anna Huber\",\"choices\":[{\"ranking_id\":84,\"entry\":1}]}]}", a);
         assertEquals(200, saved.statusCode(), saved.body());
         assertTrue(saved.body().contains("\"name\":\"Anna Huber\"") && saved.body().contains("\"country\":\"Austria\""), saved.body());
 

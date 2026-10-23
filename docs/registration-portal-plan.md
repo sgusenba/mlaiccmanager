@@ -10,7 +10,7 @@
 | 4 | Data controller | **SV Bad Zell** |
 | 5 | Hosting | **A Linux machine** run by the organiser (first planned: Oracle Cloud), installed with `portal-install.sh` and updated before every start; see §9. Domain not decided yet (own domain or DuckDNS) |
 | 6 | Retention | Delete registrations at meet date + 90 days; backups kept 30 days |
-| 7 | One-start rule | **Removed from the Manager** (PR #81): a competitor may start in every discipline of a ranking, e.g. both O and R. The portal has no such rule either |
+| 7 | One-start rule | **Removed from the Manager** (PR #81): a competitor may start in every discipline of a ranking, e.g. both O and R. In the portal a club ticks one entry per ranking; the organiser may tick both |
 | 8 | Entry fees | None, out of scope |
 | 9 | Several meets open at once | No: one meet open at a time; the admin UI can assume that |
 | 10 | `/bulkreg/` demo page in the Manager | **Removed** |
@@ -210,7 +210,7 @@ Warning (does not block): a discipline is inactive. The `one_start_per_competito
 2. Country is required and must be one of the English country names, the same list as the Manager uses.
 3. Gender is male, female, other or empty. Year of birth is empty or between 1900 and this year. Email is empty or plausible.
 4. Club is required and defaults to the club account's name.
-5. Each choice references an offered ranking and an existing entry. Every entry is ticked on its own, so a starter may take O and R of the same ranking. Disciplines that come up twice (e.g. Colt on its own and through Remington O) are merged into one start.
+5. Each choice references an offered ranking and an existing entry. A club ticks one entry per ranking (O or R); the organiser may tick both, and a club editing such a row keeps them. Disciplines that come up twice (e.g. Colt on its own and through Remington O) are merged into one start.
 
 **Row warnings:** no ranking chosen, duplicate name within the club, duplicate name across clubs (shown to the organiser only).
 

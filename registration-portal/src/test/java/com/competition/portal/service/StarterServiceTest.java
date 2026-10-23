@@ -74,13 +74,13 @@ class StarterServiceTest {
         assertThrows(IllegalArgumentException.class, () -> s.starterService.save(meetId, BAD_ZELL, noConsent, "club:1", false));
 
         Map<String, Object> result = s.starterService.save(meetId, BAD_ZELL,
-            body(List.of(row("Anna Huber", 69, 0, 84, 0, 84, 1), row("Josef Gruber")), List.of()), "club:1", false);
+            body(List.of(row("Anna Huber", 69, 0, 84, 1), row("Josef Gruber")), List.of()), "club:1", false);
         List<Starter> starters = saved(result);
         assertEquals(2, starters.size());
         Starter anna = starters.get(0);
         assertEquals("Austria", anna.country, "the club's default country");
         assertEquals("SV Bad Zell", anna.club, "the club's name");
-        assertEquals(3, anna.choices.size(), "Colt, Whitworth O and R");
+        assertEquals(2, anna.choices.size(), "Colt, Whitworth R");
         assertEquals(1, anna.version);
         @SuppressWarnings("unchecked")
         Map<String, List<String>> warnings = (Map<String, List<String>>) result.get("warnings");
@@ -104,6 +104,23 @@ class StarterServiceTest {
         List<String> errors = (List<String>) e.getRows().get(0).get("errors");
         assertEquals(4, errors.size(), errors.toString());
         assertTrue(s.meetStore.get(meetId).starters.isEmpty());
+    }
+
+    @Test
+    void aClubTicksOneEntryPerRankingTheOrganiserMayTickBoth() throws Exception {
+        ValidationException e = assertThrows(ValidationException.class, () -> s.starterService.save(meetId, BAD_ZELL,
+            body(List.of(row("Anna Huber", 84, 0, 84, 1)), List.of()), "club:1", false));
+        assertEquals(List.of("Only one entry of \"Whitworth O/R\" can be ticked"), e.getRows().get(0).get("errors"));
+
+        Starter anna = saved(s.starterService.save(meetId, BAD_ZELL,
+            body(List.of(row("Anna Huber", 84, 0, 84, 1)), List.of()), "organiser:1", true)).get(0);
+        assertEquals(2, anna.choices.size(), "a shoot-off: both entries");
+
+        Map<String, Object> edit = row("Anna Huber", 84, 0, 84, 1, 69, 0);
+        edit.put("id", anna.id);
+        edit.put("version", anna.version);
+        Starter edited = saved(s.starterService.save(meetId, BAD_ZELL, body(List.of(edit), List.of()), "club:1", false)).get(0);
+        assertEquals(3, edited.choices.size(), "the club keeps the organiser's pair when it edits the row");
     }
 
     @Test

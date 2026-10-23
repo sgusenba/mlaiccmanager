@@ -97,7 +97,7 @@ public class StarterService {
      * version it was loaded with; a row without one is new. Unchanged rows are
      * left as they are. Returns the club's starters as stored now.
      *
-     * @param byOrganiser the organiser saving for the club: no deadline, no consent needed
+     * @param byOrganiser the organiser saving for the club: no deadline, no consent needed, several entries per ranking
      */
     public Map<String, Object> save(int meetId, int clubId, Map<String, Object> body, String actor, boolean byOrganiser)
             throws Exception {
@@ -125,8 +125,13 @@ public class StarterService {
                 Map<String, Object> row = upserts.get(i);
                 RegistrationRules.Checked c = RegistrationRules.check(row, meet, club, zone);
                 Integer id = intOrNull(row.get("id"));
-                if (id != null && starter(meet, clubId, id) == null) {
+                Starter stored = id != null ? starter(meet, clubId, id) : null;
+                if (id != null && stored == null) {
                     c.errors.add(Messages.get("starter.notFound", id));
+                }
+                if (!byOrganiser) {
+                    c.errors.addAll(RegistrationRules.oneEntryPerRanking(meet.snapshot,
+                        c.values.choices, stored != null ? stored.choices : List.of()));
                 }
                 checked.add(c);
                 if (!c.errors.isEmpty()) {
