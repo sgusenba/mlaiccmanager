@@ -96,6 +96,8 @@ table.sheet { border-collapse: separate; border-spacing: 0; font-size: .86rem; m
 .sheet td.cell { text-align: center; }
 .sheet td.cell input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; margin: 7px 0; }
 .sheet td.cell.on { background: var(--accent-soft); }
+.sheet td.cell.blocked { background: var(--head); }
+.sheet td.cell.blocked input { cursor: not-allowed; opacity: .35; }
 .sheet td.c-starts { text-align: center; padding: 0 8px; font-variant-numeric: tabular-nums; }
 .sheet td.c-status { padding: 3px 8px; font-size: .76rem; line-height: 1.25; white-space: normal; min-width: 200px; max-width: 300px; }
 .sheet tr.err td.c-num { box-shadow: inset 3px 0 0 var(--err); }

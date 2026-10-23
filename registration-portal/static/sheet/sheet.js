@@ -1,5 +1,6 @@
 // The club's entry sheet: one row per starter, one checkbox column per
-// ranking entry (a ranking with O and R has two). Rows are checked while
+// ranking entry (a ranking with O and R has two; a club ticks one of them,
+// the other is greyed out, the organiser may tick both). Rows are checked while
 // typing (rules.js) and saved in one go; the server checks again and its
 // answer is shown on the rows: errors per row (400), rows someone else
 // changed meanwhile (409, reloaded and marked), or the registration closed
@@ -150,6 +151,12 @@ function context() {
     };
 }
 
+/** Whether the column is greyed out in the row: a club ticks one entry per ranking, the organiser may tick several. */
+function blocked(row, col) {
+    return !ORGANISER && !row.sel.has(col.key)
+        && state.columns.some(o => o !== col && o.ranking === col.ranking && row.sel.has(o.key));
+}
+
 function startsOf(row) {
     const ids = new Set();
     for (const col of state.columns) {
@@ -232,7 +239,15 @@ function refreshRow(row) {
             + (!errors.length && !warnings.length && !row.stale ? `<span class="st-ok">${escapeHtml(row.dirty ? t('sheet.unsaved') : t('sheet.ok'))}</span>` : '');
     }
     tr.querySelector(`[data-starts="${row.uid}"]`).textContent = startsOf(row).size || '';
-    tr.querySelectorAll('td.cell').forEach(td => td.classList.toggle('on', row.sel.has(td.querySelector('input').dataset.col)));
+    tr.querySelectorAll('td.cell').forEach(td => {
+        const input = td.querySelector('input');
+        const col = state.columns.find(c => c.key === input.dataset.col);
+        const off = blocked(row, col);
+        td.classList.toggle('on', row.sel.has(col.key));
+        td.classList.toggle('blocked', off);
+        input.disabled = off;
+        td.title = off ? t('sheet.oneEntry') : '';
+    });
 }
 
 function renderTotals() {

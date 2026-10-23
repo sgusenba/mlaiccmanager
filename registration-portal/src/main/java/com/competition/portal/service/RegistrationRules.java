@@ -27,8 +27,9 @@ import java.util.regex.Pattern;
  * {@link Countries}), gender (male, female, other or none), year of birth
  * (1900 to this year, or none), email (empty or plausible; dropped when the
  * meet does not collect email), club (defaults to the club account's name),
- * and every ticked ranking entry must be offered at the meet. A starter may
- * tick several entries of a ranking, e.g. O and R.
+ * and every ticked ranking entry must be offered at the meet. A club ticks
+ * one entry per ranking, e.g. O or R of "Pennsylvania O/R"; the organiser may
+ * tick several (a shoot-off), and a club keeps such a pair when it edits the row.
  *
  * <p>Warnings: no ranking ticked, a name that appears twice.
  */
@@ -142,6 +143,33 @@ public final class RegistrationRules {
             }
         }
         return choices;
+    }
+
+    /**
+     * One entry per ranking, as a club registers: an error per ranking with a
+     * second entry ticked, unless the starter already has that entry (the
+     * organiser may give both, and the club can still edit the row).
+     */
+    public static List<String> oneEntryPerRanking(Snapshot snapshot, List<Choice> choices, List<Choice> stored) {
+        Set<String> kept = new LinkedHashSet<>();
+        stored.forEach(ch -> kept.add(ch.rankingId + "/" + ch.entry));
+        Map<Integer, Integer> perRanking = new LinkedHashMap<>();
+        Set<Integer> added = new LinkedHashSet<>();
+        for (Choice ch : choices) {
+            perRanking.merge(ch.rankingId, 1, Integer::sum);
+            if (!kept.contains(ch.rankingId + "/" + ch.entry)) {
+                added.add(ch.rankingId);
+            }
+        }
+        List<String> errors = new ArrayList<>();
+        for (int rankingId : added) {
+            if (perRanking.get(rankingId) > 1) {
+                String name = snapshot.rankings.stream().filter(r -> r.id == rankingId)
+                    .map(r -> r.name).findFirst().orElse(String.valueOf(rankingId));
+                errors.add(Messages.get("starter.oneEntryPerRanking", name));
+            }
+        }
+        return errors;
     }
 
     /**

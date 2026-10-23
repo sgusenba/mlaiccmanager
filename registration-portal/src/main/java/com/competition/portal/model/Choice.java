@@ -2,7 +2,7 @@ package com.competition.portal.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-/** A ticked ranking entry, e.g. Whitworth O/R entry 1 (WHITR); a starter may tick several entries of a ranking. */
+/** A ticked ranking entry, e.g. Whitworth O/R entry 1 (WHITR); a club ticks one entry per ranking, the organiser may tick several. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Choice {
     public int rankingId;
