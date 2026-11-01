@@ -4,7 +4,7 @@ A Java backend for managing historical firearms shooting competitions (MLAIC eve
 
 ## Features
 
-- **Competitor management** — add, edit, and delete competitors with full details (name, gender, club, email, phone, address, year of birth)
+- **Competitor management** — add, edit, and delete competitors with full details (name, gender, club, email, phone, address, year of birth); or add several at once (e.g. a whole club) with their rankings, typed as short names, ticked in a matrix or pasted from Excel, each saved like a single one
 - **Start management** — register competitors for specific disciplines with unique start IDs
 - **Disciplines and rankings** — the disciplines (what is shot, rifle and pistol, original/reproduction/open, individual/team) are the installation's catalog, the same at every meet; a meet's **rankings** (Wertungen) say what is ranked: one discipline, several ranked together (e.g. Whitworth O/R), or sums of disciplines (e.g. Remington_O = Colt + Donald Malson_O). Both are exported and imported as files of their own
 - **Results management** — record detailed results with individual scoring entries and override values
@@ -327,7 +327,7 @@ src/main/resources/
 └── logback.xml
 static/                     # Frontend assets served at / (plain HTML/CSS/JS, Tailwind via CDN)
 ├── index.html               # Competitors, starts and result entry
-├── js/                       # Vanilla JS: shared sidebar (appNav.js) and modules per feature (competitors, starts, results)
+├── js/                       # Vanilla JS: shared sidebar (appNav.js) and modules per feature (competitors, adding several at once, starts, results)
 ├── ranking/                  # Printable one-result-per-discipline ranking page, served at /ranking
 ├── results/                  # Enter Results page on its own, served at /results and on port 5001
 ├── dmgmt/                    # Discipline management page, served at /dmgmt
