@@ -21,10 +21,6 @@ A Java backend for managing historical firearms shooting competitions (MLAIC eve
 - **Danger Zone** — separate page at `/danger` to clear results, lane assignments, starts, competitors, teams, meet days and relays, the meet details or the rankings, or to reset the discipline catalog; locked until its master switch is on, and each button needs its own switch as well
 - **JSON file storage** — simple file-based storage, no database required
 
-## Registration Portal (in development)
-
-`registration-portal/` holds a separate program for online registration: clubs log in with an access code and enter their starters for a meet, and the organiser downloads them as one file for the **Import Registrations** page. It runs on its own Linux server, installed with one script and updated before every start (runbook in [`deploy/portal/setup.md`](deploy/portal/setup.md)), so this app never has to go on the internet. See [`registration-portal/README.md`](registration-portal/README.md) and the plan in [`docs/registration-portal-plan.md`](docs/registration-portal-plan.md).
-
 ## Technology Stack
 
 - **Java 17** (compiled with `--release 17`; requires JDK 26 to build)
@@ -67,7 +63,6 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 |---|---|---|
 | **Starters** | Competitors | `/#competitors` |
 | | Starts | `/#starts` |
-| | Import Registrations | `/import/` |
 | | Teams | `/tmgmt/` |
 | | Lane Assignment | `/rmgmt/#assignment` |
 | | Starter Overview | `/rmgmt/#overview` |
@@ -78,7 +73,6 @@ Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.cs
 | | Disciplines | `/dmgmt/` |
 | | Ranges & Relays | `/rmgmt/#settings` |
 | | Meet Days | `/rmgmt/#schedule` |
-| | Registration (Demo) | `/register/` |
 | | Backup & Restore | `/backup/` |
 | | Danger Zone | `/danger/` |
 
@@ -93,8 +87,6 @@ A new entry is one line in `GROUPS` in `appNav.js`; a page takes part by putting
 - **`/rmgmt`** (`static/rmgmt/`) — relay management page
 - **`/tmgmt`** (`static/tmgmt/`) — team management page
 - **`/meet`** (`static/meet/`) — meet details, start cards, race bibs (printed or as Word documents, `static/meet/wordExport.js`) the lane assignments CSV (`static/meet/laneExport.js`) and the target labels (`static/meet/labelExport.js`, QR codes by `static/js/qrCode.js`); the meet details and dates for all printouts come from `static/js/meet.js`; Word and Excel files are written in the browser without any library by `static/js/officeFiles.js`, so the export also works offline
-- **`/import`** (`static/import/`) — imports a registration file (format `mlaic-registrations`, as written by an online bulk registration form): shows each starter with their starts, then creates the competitors and starts through the regular API. A competitor already registered under the same name only gets the starts they lack (several with that name: skipped, to be added by hand), starts outside the meet's program are skipped, and the API's own checks are reported per start, so importing a file twice changes nothing. A file of a newer format version is refused; a file of the registration portal (several clubs) shows how many clubs it holds
-- **`/register`** (`static/register/`) — a demo of an online registration form for starters: offers the meet's individual rankings (combined rankings such as Remington register for all their disciplines) in three layouts to compare (list, cards per firearm, step by step). It only reads the meet, its rankings and the discipline catalog and saves nothing
 - **`/backup`** (`static/backup/`) — backup download and restore
 - **`/danger`** (`static/danger/`) — the Danger Zone: clears one kind of data at a time
 
