@@ -21,12 +21,20 @@
                         </svg>
                         <span data-i18n="competitors.title">Competitors</span>
                     </h2>
-                    <button id="add-competitor-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
-                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span data-i18n="competitors.add">Add Competitor</span>
-                    </button>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="add-competitor-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            <span data-i18n="competitors.add">Add Competitor</span>
+                        </button>
+                        <button id="add-several-btn" class="bg-white border border-blue-600 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors flex items-center">
+                            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10m4 0h2m-1-1v2"></path>
+                            </svg>
+                            <span data-i18n="competitors.addSeveral">Add Several</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Competitor Form -->
@@ -91,6 +99,70 @@
                             </button>
                         </div>
                     </form>
+                </div>
+
+                <!-- Several competitors at once (js/modules/bulkAdd.js) -->
+                <div id="bulk-form" class="bg-white rounded-lg shadow-md p-6 mb-6 space-y-5 hidden">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold" data-i18n="bulk.title">Add Several Competitors</h3>
+                        <button type="button" id="bulk-close" class="text-gray-500 hover:text-gray-700" aria-label="Close" data-i18n-aria-label="common.close">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600" data-i18n="bulk.intro">One row per starter, e.g. a whole club. "Add all" adds each starter like the single form and their starts like the Starts section.</p>
+
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div>
+                            <label for="bulk-default-club" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="bulk.defaultClub">Club for new rows</label>
+                            <input id="bulk-default-club" type="text" class="w-56 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="bulk-default-country" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="bulk.defaultCountry">Country for new rows</label>
+                            <select id="bulk-default-country" class="w-56 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        </div>
+                        <button type="button" id="bulk-apply-defaults" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.applyDefaults">Apply to empty fields</button>
+                    </div>
+
+                    <details class="border border-gray-200 rounded-md">
+                        <summary class="cursor-pointer px-4 py-2 font-medium text-gray-700" data-i18n="bulk.paste.title">Paste from Excel</summary>
+                        <div class="px-4 pb-4 space-y-3">
+                            <p class="text-sm text-gray-600" data-i18n-html="bulk.paste.intro">One starter per line, columns separated by tabs (as copied from Excel) or semicolons.</p>
+                            <textarea id="bulk-paste-text" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button type="button" id="bulk-paste-apply" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.paste.apply">Add rows</button>
+                                <span id="bulk-paste-result" class="text-sm text-gray-600"></span>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p id="bulk-view-hint" class="text-sm text-gray-500"></p>
+                        <div id="bulk-view-switch" class="bulk-switch" role="group" aria-label="View" data-i18n-aria-label="bulk.view">
+                            <button type="button" data-view="table" aria-pressed="true" data-i18n="bulk.view.table">Table</button>
+                            <button type="button" data-view="matrix" aria-pressed="false" data-i18n="bulk.view.matrix">Matrix</button>
+                        </div>
+                    </div>
+                    <p id="bulk-no-rankings" class="hidden px-4 py-3 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm" data-i18n-html="bulk.noRankings"></p>
+                    <div id="bulk-grid"></div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" id="bulk-add-row" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.addRow">Add row</button>
+                        <button type="button" id="bulk-add-rows" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50" data-i18n="bulk.addRows">Add 5 rows</button>
+                    </div>
+                    <details class="text-sm">
+                        <summary class="cursor-pointer text-gray-700 font-medium" data-i18n="bulk.codes">Short names of the rankings</summary>
+                        <div id="bulk-code-list" class="mt-3 grid gap-x-6 gap-y-1 bulk-codes"></div>
+                    </details>
+
+                    <div id="bulk-result"></div>
+                    <div class="bulk-footer">
+                        <div id="bulk-totals" class="text-sm text-gray-700 flex flex-wrap gap-x-5 gap-y-1"></div>
+                        <div class="flex gap-3">
+                            <button type="button" id="bulk-cancel" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" data-i18n="common.cancel">Cancel</button>
+                            <button type="button" id="bulk-save" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" data-i18n="bulk.saveAll">Add all</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Competitors Search & Filters -->
@@ -320,6 +392,7 @@
     <script type="module" src="js/api.js"></script>
     <script type="module" src="js/navigation.js"></script>
     <script type="module" src="js/modules/competitors.js"></script>
+    <script type="module" src="js/modules/bulkAdd.js"></script>
     <script type="module" src="js/modules/disciplines.js"></script>
     <script type="module" src="js/modules/starts.js"></script>
     <script type="module" src="js/modules/results.js"></script>
