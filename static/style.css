@@ -358,7 +358,7 @@ input:focus:invalid {
 .bulk-matrix thead .sticky-col { background: #f9fafb; }
 .bulk-matrix tfoot td { font-variant-numeric: tabular-nums; color: #6b7280; text-align: center; font-size: .75rem; background: #f9fafb; }
 
-.bulk-codes { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.bulk-codes { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); }
 
 .bulk-footer { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
     padding: .75rem 1rem; background: #fff; border: 1px solid #e5e7eb; border-radius: .5rem; box-shadow: 0 -4px 12px rgba(0,0,0,.06); }
