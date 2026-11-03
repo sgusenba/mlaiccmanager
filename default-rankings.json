@@ -452,7 +452,7 @@
       "level": "individual",
       "entries": [
         {
-          "label": "Remington_O",
+          "label": "REM_O",
           "discipline_ids": [
             52,
             53
@@ -467,7 +467,7 @@
       "level": "individual",
       "entries": [
         {
-          "label": "Remington_R",
+          "label": "REM_R",
           "discipline_ids": [
             57,
             58
@@ -482,7 +482,7 @@
       "level": "individual",
       "entries": [
         {
-          "label": "Schulhof_O",
+          "label": "Schul_O",
           "discipline_ids": [
             51,
             63
@@ -497,7 +497,7 @@
       "level": "individual",
       "entries": [
         {
-          "label": "Schulhof_RS",
+          "label": "Schul_RS",
           "discipline_ids": [
             62,
             60
@@ -512,7 +512,7 @@
       "level": "individual",
       "entries": [
         {
-          "label": "Schulhof_RU",
+          "label": "Schul_RU",
           "discipline_ids": [
             56,
             61
