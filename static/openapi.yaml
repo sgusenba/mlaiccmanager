@@ -919,8 +919,10 @@ paths:
         discipline's distance (disciplines without a distance are placed on the least busy
         one as a whole). A start takes one lane, a competitor has at most one lane per relay
         and a distance never holds more starts than it has lanes. A discipline is kept in
-        consecutive relays, and the disciplines follow each other in the meet's ranking
-        order. Locked days are never changed. Starts that do not fit are returned
+        consecutive relays where possible, a competitor avoids two relays in a row on one
+        day where possible (this never costs a start its lane), and the disciplines follow each other in the meet's ranking
+        order. A start only goes on a day whose rankings cover its discipline; a day
+        without rankings takes the rest. Locked days are never changed. Starts that do not fit are returned
         in `unplaced` with the reason; they are not an error.
       operationId: autoAssignLanes
       requestBody:
@@ -1059,6 +1061,79 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/day-plan:
+    get:
+      tags: [Relay management]
+      summary: What each day takes and whether it fits
+      description: >-
+        Per unlocked day and range the starts still waiting for a lane against the free
+        lanes. A start that may go on several days counts on each of them. `unscheduled`
+        counts the waiting starts no unlocked day takes.
+      operationId: getDayPlan
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        day_id: { type: string }
+                        rest: { type: boolean, description: The day has no rankings and takes the rest }
+                        discipline_ids:
+                          type: array
+                          items: { type: integer }
+                        ranges:
+                          type: array
+                          description: Empty for a locked day
+                          items:
+                            type: object
+                            properties:
+                              range_id: { type: string }
+                              waiting: { type: integer }
+                              free: { type: integer }
+                        without_range: { type: integer, description: Waiting starts of this day whose discipline has no range }
+                  unscheduled: { type: integer }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /rmgmt/days/{dayId}/rankings:
+    parameters:
+      - name: dayId
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Relay management]
+      summary: Set the rankings shot on a day
+      description: >-
+        The automatic lane assignment puts a start on this day if one of these individual
+        rankings covers its discipline. An empty list makes it a day for the rest: every
+        discipline no other day has a ranking for. Refused on a locked day.
+      operationId: setDayRankings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ranking_ids]
+              properties:
+                ranking_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: The day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Day" }
+        "400": { $ref: "#/components/responses/BadRequest" }
 
   /rmgmt/days/{dayId}/lock:
     parameters:
@@ -1952,6 +2027,10 @@ components:
         date: { type: string, format: date }
         start_time: { type: string }
         locked: { type: boolean }
+        ranking_ids:
+          type: array
+          items: { type: integer }
+          description: The individual rankings shot on this day; none means the day takes the rest
     Relay:
       type: object
       properties:

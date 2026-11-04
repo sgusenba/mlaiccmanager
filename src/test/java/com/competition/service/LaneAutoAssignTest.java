@@ -106,6 +106,264 @@ class LaneAutoAssignTest {
         return result;
     }
 
+    // Rankings of setUp, in catalog order: 1 -> discipline 1, 2 -> 11, 3 -> 21, 4 -> 2, 5 -> 31 (team), 6 -> 40
+
+    private String secondDay(int relayCount) throws Exception {
+        String id = (String) relayService.createDay(Map.of("date", "2026-10-04", "start_time", "09:00")).get("id");
+        relayService.addRelays(id, Map.of("count", relayCount));
+        return id;
+    }
+
+    /** discipline id -> the days its lanes are on */
+    @SuppressWarnings("unchecked")
+    private Map<Integer, Set<String>> daysByDiscipline() throws Exception {
+        Map<String, String> dayOfRelay = new java.util.HashMap<>();
+        ((List<Map<String, Object>>) relayService.getAll().get("relays"))
+            .forEach(r -> dayOfRelay.put((String) r.get("id"), (String) r.get("day_id")));
+        Map<Integer, Set<String>> result = new java.util.HashMap<>();
+        for (Map<String, Object> a : assignments()) {
+            int discipline = Integer.parseInt(((String) a.get("start_id")).split("-")[1]);
+            result.computeIfAbsent(discipline, k -> new HashSet<>()).add(dayOfRelay.get((String) a.get("relay_id")));
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> planOfDay(String id) throws Exception {
+        return ((List<Map<String, Object>>) relayService.getDayPlan().get("days")).stream()
+            .filter(d -> id.equals(d.get("day_id"))).findFirst().orElseThrow();
+    }
+
+    /** {waiting, free} of a range on a day */
+    @SuppressWarnings("unchecked")
+    private List<Integer> capacity(String id, String rangeId) throws Exception {
+        Map<String, Object> range = ((List<Map<String, Object>>) planOfDay(id).get("ranges")).stream()
+            .filter(r -> rangeId.equals(r.get("range_id"))).findFirst().orElseThrow();
+        return List.of(((Number) range.get("waiting")).intValue(), ((Number) range.get("free")).intValue());
+    }
+
+    @Test
+    void aStartOnlyGoesOnADayWhoseRankingsCoverItAndTheRestGoesOnTheDayWithout() throws Exception {
+        relays(4);
+        String rest = secondDay(8);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+
+        relayService.autoAssign(Map.of());
+
+        Map<Integer, Set<String>> days = daysByDiscipline();
+        assertEquals(Set.of(dayId), days.get(1));
+        assertEquals(Set.of(rest), days.get(11));
+        assertEquals(Set.of(rest), days.get(21));
+        assertEquals(Set.of(rest), days.get(2));
+    }
+
+    @Test
+    void aRankingCoversAllItsDisciplines() throws Exception {
+        Files.writeString(tempDir.resolve("rankings.json"), "{\"max_disciplines_per_ranking\":4,\"rankings\":["
+            + "{\"id\":1,\"name\":\"Pooled\",\"level\":\"individual\",\"entries\":[{\"label\":\"P\",\"discipline_ids\":[1,11]}]},"
+            + "{\"id\":2,\"name\":\"Other\",\"level\":\"individual\",\"entries\":[{\"discipline_ids\":[21]}]}]}");
+        relays(4);
+        String rest = secondDay(4);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+
+        relayService.autoAssign(Map.of());
+
+        Map<Integer, Set<String>> days = daysByDiscipline();
+        assertEquals(Set.of(dayId), days.get(1));
+        assertEquals(Set.of(dayId), days.get(11));
+        assertEquals(Set.of(rest), days.get(21));
+    }
+
+    @Test
+    void aLockedDayKeepsItsDisciplinesOutOfTheRest() throws Exception {
+        relays(4);
+        String rest = secondDay(8);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+        relayService.setDayLock(dayId, Map.of("locked", true));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> unplaced = (List<Map<String, Object>>) relayService.autoAssign(Map.of()).get("unplaced");
+
+        assertFalse(daysByDiscipline().containsKey(1));
+        assertEquals(Set.of(rest), daysByDiscipline().get(11));
+        assertEquals(4, unplaced.stream().filter(u -> Integer.valueOf(1).equals(u.get("discipline_id"))).count());
+        assertEquals(4, ((Number) relayService.getDayPlan().get("unscheduled")).intValue());
+    }
+
+    @Test
+    void whatDoesNotFitItsDayIsReportedAndNotMovedToAnother() throws Exception {
+        relays(1); // 2 lanes on m50 for the 4 starts of discipline 1
+        secondDay(8);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+
+        Map<String, Object> result = relayService.autoAssign(Map.of());
+
+        assertEquals(Set.of(dayId), daysByDiscipline().get(1));
+        assertEquals(2, assignments().stream().filter(a -> ((String) a.get("start_id")).contains("-1-")).count());
+        assertEquals(2, ((List<?>) result.get("unplaced")).size());
+    }
+
+    @Test
+    void aRankingOnTwoDaysFillsTheEarlierDayFirst() throws Exception {
+        relays(1);
+        String later = secondDay(1);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+        relayService.setDayRankings(later, Map.of("ranking_ids", List.of(1)));
+
+        relayService.autoAssign(Map.of());
+
+        assertEquals(Set.of(dayId, later), daysByDiscipline().get(1));
+        assertEquals(0, capacity(dayId, "m50").get(1));
+        assertEquals(0, capacity(later, "m50").get(1));
+    }
+
+    @Test
+    void onlyIndividualRankingsOfTheMeetCanBeSetAndNotOnALockedDay() throws Exception {
+        assertThrows(IllegalArgumentException.class, () -> relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(5))));
+        assertThrows(IllegalArgumentException.class, () -> relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(999))));
+        assertThrows(IllegalArgumentException.class, () -> relayService.setDayRankings(dayId, Map.of()));
+        relayService.setDayLock(dayId, Map.of("locked", true));
+        assertThrows(RuntimeException.class, () -> relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1))));
+    }
+
+    @Test
+    void aRankingThatNoLongerExistsLeavesTheDayTakingTheRest() throws Exception {
+        relays(8);
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+        Files.writeString(tempDir.resolve("rankings.json"), "{\"max_disciplines_per_ranking\":4,\"rankings\":["
+            + "{\"id\":2,\"name\":\"Other\",\"level\":\"individual\",\"entries\":[{\"discipline_ids\":[11]}]}]}");
+
+        assertEquals(true, planOfDay(dayId).get("rest"));
+        assertEquals(List.of(11), planOfDay(dayId).get("discipline_ids"));
+    }
+
+    @Test
+    void theDayPlanComparesWaitingStartsWithFreeLanes() throws Exception {
+        relays(2);
+        String rest = secondDay(1);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+
+        assertEquals(false, planOfDay(dayId).get("rest"));
+        assertEquals(true, planOfDay(rest).get("rest"));
+        assertEquals(List.of(4, 4), capacity(dayId, "m50"));
+        assertEquals(List.of(0, 4), capacity(dayId, "m100"));
+        assertEquals(List.of(8, 2), capacity(rest, "m50"));
+        assertEquals(List.of(1, 2), capacity(rest, "m100"));
+        assertEquals(0, ((Number) relayService.getDayPlan().get("unscheduled")).intValue());
+
+        relayService.autoAssign(Map.of());
+
+        assertEquals(List.of(0, 0), capacity(dayId, "m50"));
+        assertEquals(List.of(6, 0), capacity(rest, "m50"));
+    }
+
+    @Test
+    void aLockedDayReportsNoCapacity() throws Exception {
+        relays(2);
+        relayService.setDayLock(dayId, Map.of("locked", true));
+
+        assertTrue(((List<?>) planOfDay(dayId).get("ranges")).isEmpty());
+        assertEquals(13, ((Number) relayService.getDayPlan().get("unscheduled")).intValue());
+    }
+
+    private void lanesOn50m(int count) throws Exception {
+        relayService.setConfigLock(Map.of("locked", false));
+        relayService.updateRange("m50", Map.of("name", "50m", "lane_count", count));
+        relayService.setConfigLock(Map.of("locked", true));
+    }
+
+    /** How often a competitor shoots in two relays in a row; only for lanes on one day. */
+    private int backToBackRelays() throws Exception {
+        Map<String, Integer> sequence = sequenceOfRelay();
+        Map<String, TreeSet<Integer>> byCompetitor = new java.util.HashMap<>();
+        for (Map<String, Object> a : assignments()) {
+            byCompetitor.computeIfAbsent(((String) a.get("start_id")).split("-")[0], k -> new TreeSet<>())
+                .add(sequence.get((String) a.get("relay_id")));
+        }
+        int count = 0;
+        for (TreeSet<Integer> relaysOfCompetitor : byCompetitor.values()) {
+            for (int relay : relaysOfCompetitor) {
+                if (relaysOfCompetitor.contains(relay + 1)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Test
+    void aCompetitorGetsNoBackToBackRelaysWhereThereIsRoom() throws Exception {
+        lanesOn50m(3); // filling alone gives 1 and 2 of competitor 1 and 2: discipline 1 in relay 1 + 2, then 11
+        relays(9);
+        enable();
+
+        Map<String, Object> result = relayService.autoAssign(Map.of());
+
+        assertEquals(13, result.get("assigned"));
+        assertTrue(((List<?>) result.get("unplaced")).isEmpty());
+        assertEquals(0, backToBackRelays());
+    }
+
+    @Test
+    void backToBackRelaysStayWhenTheOnlyAlternativeIsNoLane() throws Exception {
+        lanesOn50m(4);
+        relays(3);
+        enable();
+
+        Map<String, Object> result = relayService.autoAssign(Map.of());
+
+        // every 50m start still has a lane, in three relays in a row; competitor 1 has no relay left for 100m
+        assertEquals(12, result.get("assigned"));
+        assertEquals(1, ((List<?>) result.get("unplaced")).size());
+        assertEquals(8, backToBackRelays());
+    }
+
+    @Test
+    void theLastRelayOfADayAndTheFirstOfTheNextAreNotBackToBack() throws Exception {
+        lanesOn50m(4);
+        relays(1);
+        String next = secondDay(3);
+        enable();
+        relayService.setDayRankings(dayId, Map.of("ranking_ids", List.of(1)));
+        relayService.setDayRankings(next, Map.of("ranking_ids", List.of(2, 3)));
+
+        relayService.autoAssign(Map.of());
+
+        Map<Integer, TreeSet<Integer>> byDiscipline = relaysByDiscipline();
+        assertEquals(new TreeSet<>(List.of(1)), byDiscipline.get(1));
+        assertEquals(new TreeSet<>(List.of(1)), byDiscipline.get(11));
+        assertEquals(new TreeSet<>(List.of(3)), byDiscipline.get(21));
+    }
+
+    @Test
+    void lanesAlreadyAssignedStayAndTheNewStartsKeepAwayFromThem() throws Exception {
+        relays(9);
+        enable();
+        @SuppressWarnings("unchecked")
+        String secondRelay = (String) ((List<Map<String, Object>>) relayService.getAll().get("relays")).get(1).get("id");
+        Map<String, Object> kept = relayService.assign(Map.of("relay_id", secondRelay, "range_id", "m50",
+            "lane_no", firstLaneOf50m(), "start_id", "1-1-1"));
+
+        relayService.autoAssign(Map.of());
+
+        assertTrue(assignments().stream().anyMatch(a -> kept.get("id").equals(a.get("id"))
+            && secondRelay.equals(a.get("relay_id")) && "1-1-1".equals(a.get("start_id"))));
+        assertEquals(0, backToBackRelays());
+    }
+
+    @SuppressWarnings("unchecked")
+    private int firstLaneOf50m() throws Exception {
+        return ((List<Map<String, Object>>) relayService.getAll().get("ranges")).stream()
+            .filter(r -> "m50".equals(r.get("id"))).findFirst()
+            .map(r -> r.get("first_lane_no") instanceof Number n ? n.intValue() : 1).orElseThrow();
+    }
+
     @Test
     void isRefusedWhileTheToggleIsOff() throws Exception {
         relays(3);

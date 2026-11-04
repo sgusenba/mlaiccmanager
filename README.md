@@ -261,6 +261,8 @@ Two rules are enforced on the server and also drive the lane dropdowns, so confl
 - `PUT /api/rmgmt/config` — set `relay_duration_min` and/or `break_min` (recalculates every day's start times)
 - `POST /api/rmgmt/days`, `PUT /api/rmgmt/days/{id}`, `DELETE /api/rmgmt/days/{id}` — meet days with `date` and `start_time`; deleting a day removes its relays and assignments
 - `PUT /api/rmgmt/days/{id}/lock` — lock or unlock a whole day, e.g. `{"locked": true}`; a locked day's date/time, relays and lane assignments cannot be changed
+- `PUT /api/rmgmt/days/{id}/rankings` — the individual rankings shot on a day, e.g. `{"ranking_ids": [23, 24, 25]}`. The automatic lane assignment only puts a start on a day whose rankings cover its discipline; a day with an empty list takes the rest (every discipline no other day has a ranking for, locked days included). Starts that do not fit their day are reported, never moved to another day; manual lane assignment is not restricted. Where possible it also avoids giving a competitor two relays in a row on one day; that is a recommendation, it never costs a start its lane
+- `GET /api/rmgmt/day-plan` — per unlocked day and range the starts waiting for a lane against the free lanes, and how many waiting starts no unlocked day takes
 - `POST /api/rmgmt/days/{id}/relays` — append `count` relays to a day (no maximum per day)
 - `GET /api/rmgmt/relays/{id}` — relay detail: one lane block per range with its current assignments
 - `DELETE /api/rmgmt/relays/{id}` — delete a relay and its assignments; later relays of the day move up

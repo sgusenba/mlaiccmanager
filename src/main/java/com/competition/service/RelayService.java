@@ -2,6 +2,7 @@ package com.competition.service;
 
 import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
+import com.competition.model.RankingDefinition;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -22,6 +23,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,6 +81,10 @@ public class RelayService {
             starts.forEach((startId, start) -> byStart.put(startId, RelayRules.intOf(start.get("competitor_id"))));
             return byStart;
         }
+    }
+
+    /** Day id -> the disciplines the day takes, and which days only take the rest. */
+    private record DayPrograms(Map<String, Set<Integer>> disciplines, Set<String> restDays) {
     }
 
     public RelayService(String relaysFilePath, DataService dataService) {
@@ -155,11 +161,15 @@ public class RelayService {
 
             // unlocked relays in schedule order (days are kept sorted)
             List<String> relayIds = new ArrayList<>();
+            Map<String, String> nextRelay = new HashMap<>();
             for (Map<String, Object> day : listOf(relays, "days")) {
                 if (!Boolean.TRUE.equals(day.get("locked"))) {
                     List<Map<String, Object>> ofDay = relaysOfDay(relays, (String) day.get("id"));
                     ofDay.sort(Comparator.comparingInt(r -> RelayRules.intOf(r.get("sequence_no"))));
                     ofDay.forEach(r -> relayIds.add((String) r.get("id")));
+                    for (int i = 0; i + 1 < ofDay.size(); i++) {
+                        nextRelay.put((String) ofDay.get(i).get("id"), (String) ofDay.get(i + 1).get("id"));
+                    }
                 }
             }
             if (relayIds.isEmpty()) {
@@ -195,16 +205,12 @@ public class RelayService {
                 }
             }
 
-            List<LaneAutoAssigner.Pending> pending = new ArrayList<>();
-            for (Map<String, Object> start : registry.starts().values()) {
-                int disciplineId = RelayRules.intOf(start.get("discipline_id"));
-                String startId = (String) start.get("start_id");
-                if (assignedStarts.contains(startId) || registry.takesNoLane(disciplineId)
-                    || !registry.activeDisciplines().contains(disciplineId)) {
-                    continue;
-                }
-                pending.add(new LaneAutoAssigner.Pending(startId, RelayRules.intOf(start.get("competitor_id")),
-                    disciplineId, shootingDistanceOfDiscipline(registry, disciplineId)));
+            List<LaneAutoAssigner.Pending> pending = pendingStarts(registry, assignedStarts);
+
+            Map<String, Set<Integer>> disciplinesOfDay = dayPrograms(relays).disciplines();
+            Map<String, Set<Integer>> allowed = new HashMap<>();
+            for (Map<String, Object> relay : listOf(relays, "relays")) {
+                allowed.put((String) relay.get("id"), disciplinesOfDay.getOrDefault((String) relay.get("day_id"), Set.of()));
             }
 
             List<LaneAutoAssigner.Range> ranges = new ArrayList<>();
@@ -214,7 +220,7 @@ public class RelayService {
             }
 
             LaneAutoAssigner.Plan plan = LaneAutoAssigner.plan(relayIds, ranges, occupied, shooters, pending,
-                registry.disciplineOrder());
+                registry.disciplineOrder(), allowed, nextRelay);
             for (LaneAutoAssigner.Placement placement : plan.placements()) {
                 Map<String, Object> assignment = new LinkedHashMap<>();
                 assignment.put("id", nextId(relays, assignments, "a"));
@@ -237,6 +243,151 @@ public class RelayService {
             result.put("unplaced", unplaced);
             return result;
         });
+    }
+
+    /**
+     * Sets the individual rankings shot on a day: the automatic lane assignment
+     * puts a start on that day if one of them covers its discipline. An empty
+     * list makes it a day for the rest (see dayPrograms). Blocked on a locked day.
+     */
+    public Map<String, Object> setDayRankings(String dayId, Map<String, Object> request) throws Exception {
+        if (request == null || !(request.get("ranking_ids") instanceof List<?> requested)) {
+            throw new IllegalArgumentException(Messages.get("request.required", "ranking_ids"));
+        }
+        Map<Integer, Set<Integer>> individual = individualRankings();
+        Set<Integer> rankingIds = new LinkedHashSet<>();
+        for (Object id : requested) {
+            if (!(id instanceof Number number) || !individual.containsKey(number.intValue())) {
+                throw new IllegalArgumentException(Messages.get("relay.rankingInvalid", id));
+            }
+            rankingIds.add(number.intValue());
+        }
+        return update(relays -> {
+            Map<String, Object> day = findDay(relays, dayId);
+            requireDayUnlocked(day, Messages.get("relay.action.editDay"));
+            day.put("ranking_ids", new ArrayList<>(rankingIds));
+            return day;
+        });
+    }
+
+    /**
+     * What each day takes and whether it fits: per range the starts still
+     * waiting for a lane against the free lanes. A start that may go on several
+     * days counts on each of them. Locked days are not filled, so they report no
+     * ranges; "unscheduled" counts the waiting starts no unlocked day takes.
+     */
+    public Map<String, Object> getDayPlan() throws Exception {
+        return read(relays -> {
+            Registry registry = registry();
+            DayPrograms programs = dayPrograms(relays);
+            List<Map<String, Object>> assignments = listOf(relays, "assignments");
+            Set<String> assignedStarts = new HashSet<>();
+            assignments.forEach(a -> assignedStarts.add((String) a.get("start_id")));
+            List<LaneAutoAssigner.Pending> waiting = pendingStarts(registry, assignedStarts);
+
+            Set<String> rangeIds = new HashSet<>();
+            listOf(relays, "ranges").forEach(r -> rangeIds.add((String) r.get("id")));
+
+            Set<Integer> takenOnUnlockedDay = new HashSet<>();
+            List<Map<String, Object>> days = new ArrayList<>();
+            for (Map<String, Object> day : listOf(relays, "days")) {
+                String dayId = (String) day.get("id");
+                Set<Integer> disciplines = programs.disciplines().get(dayId);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("day_id", dayId);
+                entry.put("rest", programs.restDays().contains(dayId));
+                entry.put("discipline_ids", new ArrayList<>(disciplines));
+
+                List<Map<String, Object>> ranges = new ArrayList<>();
+                int withoutRange = 0;
+                if (!Boolean.TRUE.equals(day.get("locked"))) {
+                    takenOnUnlockedDay.addAll(disciplines);
+                    List<Map<String, Object>> ofDay = relaysOfDay(relays, dayId);
+                    for (Map<String, Object> range : listOf(relays, "ranges")) {
+                        String rangeId = (String) range.get("id");
+                        long waitingOnRange = waiting.stream().filter(start ->
+                            rangeId.equals(start.rangeId()) && disciplines.contains(start.disciplineId())).count();
+                        long free = ofDay.stream().mapToLong(relay -> Math.max(0, RelayRules.intOf(range.get("lane_count"))
+                            - assignments.stream().filter(a -> relay.get("id").equals(a.get("relay_id"))
+                                && rangeId.equals(a.get("range_id"))).count())).sum();
+                        Map<String, Object> capacity = new LinkedHashMap<>();
+                        capacity.put("range_id", rangeId);
+                        capacity.put("waiting", waitingOnRange);
+                        capacity.put("free", free);
+                        ranges.add(capacity);
+                    }
+                    withoutRange = (int) waiting.stream().filter(start -> disciplines.contains(start.disciplineId())
+                        && !rangeIds.contains(start.rangeId())).count();
+                }
+                entry.put("ranges", ranges);
+                entry.put("without_range", withoutRange);
+                days.add(entry);
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("days", days);
+            result.put("unscheduled", waiting.stream().filter(start -> !takenOnUnlockedDay.contains(start.disciplineId())).count());
+            return result;
+        });
+    }
+
+    /** Starts that still need a lane: registered in the meet's program, in a discipline that takes lanes, not yet assigned. */
+    private static List<LaneAutoAssigner.Pending> pendingStarts(Registry registry, Set<String> assignedStarts) {
+        List<LaneAutoAssigner.Pending> pending = new ArrayList<>();
+        for (Map<String, Object> start : registry.starts().values()) {
+            int disciplineId = RelayRules.intOf(start.get("discipline_id"));
+            String startId = (String) start.get("start_id");
+            if (assignedStarts.contains(startId) || registry.takesNoLane(disciplineId)
+                || !registry.activeDisciplines().contains(disciplineId)) {
+                continue;
+            }
+            pending.add(new LaneAutoAssigner.Pending(startId, RelayRules.intOf(start.get("competitor_id")),
+                disciplineId, shootingDistanceOfDiscipline(registry, disciplineId)));
+        }
+        return pending;
+    }
+
+    private Map<Integer, Set<Integer>> individualRankings() throws IOException {
+        Map<Integer, Set<Integer>> individual = new HashMap<>();
+        for (RankingDefinition ranking : dataService.loadRankingConfig().getRankings()) {
+            if (!ranking.isTeam()) {
+                individual.put(ranking.getId(), ranking.disciplineIds());
+            }
+        }
+        return individual;
+    }
+
+    /**
+     * The disciplines every day takes. A day with rankings takes what they cover;
+     * a day without any (or only rankings that no longer exist) takes the rest:
+     * every discipline of the program no other day has a ranking for, locked
+     * days included. With no rankings set anywhere, every day takes everything.
+     */
+    private DayPrograms dayPrograms(Map<String, Object> relays) throws IOException {
+        Map<Integer, Set<Integer>> individual = individualRankings();
+        Set<Integer> rest = new HashSet<>(dataService.loadProgramIds());
+        Map<String, Set<Integer>> disciplines = new HashMap<>();
+        for (Map<String, Object> day : listOf(relays, "days")) {
+            Set<Integer> covered = new HashSet<>();
+            if (day.get("ranking_ids") instanceof List<?> rankingIds) {
+                for (Object id : rankingIds) {
+                    covered.addAll(individual.getOrDefault(RelayRules.intOf(id), Set.of()));
+                }
+            }
+            if (!covered.isEmpty()) {
+                disciplines.put((String) day.get("id"), covered);
+                rest.removeAll(covered);
+            }
+        }
+        Set<String> restDays = new HashSet<>();
+        for (Map<String, Object> day : listOf(relays, "days")) {
+            String dayId = (String) day.get("id");
+            if (!disciplines.containsKey(dayId)) {
+                disciplines.put(dayId, rest);
+                restDays.add(dayId);
+            }
+        }
+        return new DayPrograms(disciplines, restDays);
     }
 
     /** Adds a new range (distance). Blocked while the configuration is locked. */

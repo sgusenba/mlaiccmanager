@@ -13,7 +13,9 @@ const state = {
     relayView: null,     // that relay's lanes and the starts available per range
     disciplines: [],     // active individual disciplines with their range, for the lane filters
     laneFilters: {},     // range id -> discipline id the range's lane pickers are filtered by ('' = all)
-    overview: null
+    overview: null,
+    rankings: [],        // the meet's individual rankings, a day's program is made of these
+    dayPlan: null        // GET /api/rmgmt/day-plan: what each day takes and whether it fits
 };
 
 // --- helpers ---------------------------------------------------------------
@@ -150,8 +152,71 @@ async function showSection(name) {
 // --- schedule --------------------------------------------------------------
 
 async function refreshSchedule() {
-    await loadData();
+    await Promise.all([loadData(), loadRankings(), loadDayPlan()]);
     renderSchedule();
+}
+
+async function loadRankings() {
+    const response = await fetch('/api/rankings');
+    if (!response.ok) throw new ApiError(response.status, null);
+    const config = await response.json();
+    state.rankings = (config.rankings || []).filter(r => r.level !== 'team');
+}
+
+async function loadDayPlan() {
+    state.dayPlan = await api('/day-plan');
+}
+
+const rankingLabel = (ranking) => ranking.short_name?.trim() ? ranking.short_name : ranking.name;
+const disciplineIdsOfRanking = (ranking) => (ranking.entries || []).flatMap(e => e.discipline_ids || []);
+const selectedRankings = (day) => (day.ranking_ids || []).filter(id => state.rankings.some(r => r.id === id));
+
+// The rankings a day is set to as chips, then what the day will take if it has none
+function renderDayProgram(day, plan, off) {
+    const selected = selectedRankings(day);
+    const chips = state.rankings.map(ranking => {
+        const isOn = selected.includes(ranking.id);
+        const otherDays = state.data.days
+            .filter(d => d.id !== day.id && selectedRankings(d).includes(ranking.id))
+            .map(d => formatDate(d.date));
+        const look = isOn ? 'bg-blue-600 text-white border-blue-600'
+            : otherDays.length ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-white text-gray-700 border-gray-300';
+        const title = [ranking.name, ...otherDays.map(date => t('relays.program.alsoOn', { date }))].join(' · ');
+        return `<button type="button" ${off} class="ranking-chip px-2 py-0.5 text-xs border rounded-full disabled:opacity-60 ${look}"
+            data-ranking-id="${ranking.id}" aria-pressed="${isOn}" title="${escapeHtml(title)}">${escapeHtml(rankingLabel(ranking))}</button>`;
+    }).join('');
+
+    let rest = '';
+    if (plan?.rest) {
+        const taken = new Set(plan.discipline_ids);
+        const names = state.rankings.filter(r => disciplineIdsOfRanking(r).some(id => taken.has(id))).map(rankingLabel);
+        const anySelected = state.data.days.some(d => selectedRankings(d).length > 0);
+        rest = `<p class="text-sm text-gray-600 mt-2">${escapeHtml(anySelected
+            ? (names.length ? t('relays.program.rest', { rankings: names.join(', ') }) : t('relays.program.restEmpty'))
+            : t('relays.program.all'))}</p>`;
+    }
+    return `
+        <div class="mb-4 no-print">
+            <div class="text-sm font-medium text-gray-700 mb-1">${t('relays.program.title')}</div>
+            <div class="flex flex-wrap gap-1">${chips}</div>
+            ${rest}
+        </div>`;
+}
+
+// Per range the starts waiting for a lane against the free lanes of the day
+function renderDayCapacity(plan) {
+    if (!plan?.ranges.length) return '';
+    const parts = plan.ranges.map(entry => {
+        const range = state.data.ranges.find(r => r.id === entry.range_id);
+        const tight = entry.waiting > entry.free;
+        return `<span class="${tight ? 'text-red-700 font-medium' : 'text-gray-700'}">${escapeHtml(t('relays.capacity.range',
+            { range: range?.name ?? entry.range_id, waiting: entry.waiting, free: entry.free }))}</span>`;
+    });
+    if (plan.without_range > 0) {
+        parts.push(`<span class="text-gray-700">${escapeHtml(t('relays.capacity.withoutRange', { count: plan.without_range }))}</span>`);
+    }
+    return `<p class="text-sm mb-4 no-print" title="${escapeHtml(t('relays.capacity.hint'))}">
+        <span class="font-medium text-gray-700">${t('relays.capacity.title')}</span> ${parts.join(' · ')}</p>`;
 }
 
 function renderAutoAssign() {
@@ -181,6 +246,11 @@ function renderSchedule() {
     const { config, ranges, days, assignments } = state.data;
     renderAutoAssign();
 
+    const unscheduled = state.dayPlan?.unscheduled ?? 0;
+    const warning = document.getElementById('day-plan-warning');
+    warning.textContent = t('relays.capacity.unscheduled', { count: unscheduled });
+    warning.classList.toggle('hidden', unscheduled === 0 || days.length === 0);
+
     const filled = new Map();
     assignments.forEach(a => {
         const key = `${a.relay_id}/${a.range_id}`;
@@ -193,6 +263,7 @@ function renderSchedule() {
         const lastEnd = relays.length ? addMinutes(relays[relays.length - 1].start_time, config.relay_duration_min) : null;
         const locked = day.locked === true;
         const off = locked ? 'disabled' : '';
+        const plan = state.dayPlan?.days.find(d => d.day_id === day.id);
         return `
         <div class="bg-white rounded-lg shadow-md p-6" data-day-id="${escapeHtml(day.id)}">
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
@@ -217,6 +288,8 @@ function renderSchedule() {
                     <button ${off} class="day-delete-btn px-3 py-1 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50">${t('relays.day.delete')}</button>
                 </div>
             </div>
+            ${renderDayProgram(day, plan, off)}
+            ${renderDayCapacity(plan)}
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -369,7 +442,13 @@ function setupScheduleListeners() {
         const dayId = dayEl.dataset.dayId;
         const relayId = event.target.closest('[data-relay-id]')?.dataset.relayId;
 
-        if (button.classList.contains('day-lock-btn')) {
+        if (button.classList.contains('ranking-chip')) {
+            const rankingId = Number(button.dataset.rankingId);
+            const selected = selectedRankings(dayById(dayId));
+            const ranking_ids = selected.includes(rankingId)
+                ? selected.filter(id => id !== rankingId) : [...selected, rankingId];
+            perform(() => api(`/days/${encodeURIComponent(dayId)}/rankings`, 'PUT', { ranking_ids }), refreshSchedule);
+        } else if (button.classList.contains('day-lock-btn')) {
             const locked = button.dataset.locked === 'true';
             perform(() => api(`/days/${encodeURIComponent(dayId)}/lock`, 'PUT', { locked: !locked }), refreshSchedule);
         } else if (button.classList.contains('day-save-btn')) {
