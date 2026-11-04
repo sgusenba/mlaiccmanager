@@ -409,7 +409,7 @@
       "category": "pistol",
       "level": "individual",
       "type": "original",
-      "name": "23_Donald Malson O",
+      "name": "23_Donald Malson_O",
       "short_name": "MALO",
       "shooting_distance": "m50"
     },
@@ -454,7 +454,7 @@
       "category": "pistol",
       "level": "individual",
       "type": "reproduction",
-      "name": "23_Donald Malson R",
+      "name": "23_Donald Malson_R",
       "short_name": "MALR",
       "shooting_distance": "m50"
     },
