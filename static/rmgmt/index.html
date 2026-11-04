@@ -41,7 +41,7 @@
                             <span id="auto-assign-toggle-label" data-i18n="relays.auto.off">Off</span>
                         </label>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4" data-i18n="relays.auto.intro">Fills the lanes of all unlocked days: every start gets one lane on its discipline's distance, a competitor never has two lanes in one relay. A discipline is kept in consecutive relays, and original, reproduction and combined of an event run back to back. Locked days are never changed.</p>
+                    <p class="text-sm text-gray-600 mb-4" data-i18n="relays.auto.intro">Fills the lanes of all unlocked days: every start gets one lane on its discipline's distance, on a day whose rankings cover its discipline; a day without rankings takes the rest. A competitor never has two lanes in one relay. Where possible a competitor does not shoot in two relays in a row; this never costs a start its lane. A discipline is kept in consecutive relays where possible, and original, reproduction and combined of an event run back to back. Locked days are never changed.</p>
                     <div class="flex flex-wrap items-center gap-3">
                         <button type="button" id="auto-assign-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" data-i18n="relays.auto.assign">Assign lanes automatically</button>
                         <label class="flex items-center gap-2 text-sm text-gray-700">
@@ -53,6 +53,7 @@
                 </div>
             </div>
 
+            <div id="day-plan-warning" class="hidden mb-4 px-4 py-3 rounded-md bg-amber-50 text-amber-800 border border-amber-200 no-print"></div>
             <div id="days-list" class="space-y-6"></div>
             <div id="no-days" class="text-center py-12 text-gray-500 hidden" data-i18n="relays.noDays">No meet days yet. Add the first day above.</div>
         </div>

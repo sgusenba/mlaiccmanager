@@ -71,6 +71,18 @@ public class RelayResource {
     }
 
     @PUT
+    @Path("/days/{dayId}/rankings")
+    public Response setDayRankings(@PathParam("dayId") String dayId, Map<String, Object> request) {
+        return handle("update day rankings", () -> relayService.setDayRankings(dayId, request));
+    }
+
+    @GET
+    @Path("/day-plan")
+    public Response getDayPlan() {
+        return handle("get day plan", relayService::getDayPlan);
+    }
+
+    @PUT
     @Path("/config/lock")
     public Response setConfigLock(Map<String, Object> request) {
         return handle("update config lock", () -> relayService.setConfigLock(request));
