@@ -96,7 +96,7 @@ export default {
     'bulk.addRows': '5 Zeilen hinzufügen',
     'bulk.applyDefaults': 'In leere Felder übernehmen',
     'bulk.codes': 'Kürzel der Wertungen',
-    'bulk.codesPlaceholder': 'z. B. WHITO COLT',
+    'bulk.codesPlaceholder': 'z. B. WHITO COLT-45',
     'bulk.col.check': 'Prüfung',
     'bulk.col.rankings': 'Wertungen',
     'bulk.col.starts': 'Starts',
@@ -120,7 +120,7 @@ export default {
     'bulk.noRankings': 'Diese Veranstaltung hat noch keine Einzelwertungen. Lege sie auf der Seite <a href="/rankings/" class="underline font-medium">Wertungen einrichten</a> an.',
     'bulk.paste.added': { one: '{count} Zeile hinzugefügt', other: '{count} Zeilen hinzugefügt' },
     'bulk.paste.apply': 'Zeilen hinzufügen',
-    'bulk.paste.intro': 'Ein Starter pro Zeile, Spalten durch Tabulator (wie aus Excel kopiert) oder Strichpunkt getrennt: <code>Name; Geschlecht; Geburtsjahr; Verein; Land; Wertungen</code>. Wertungen sind Kürzel, durch Leerzeichen getrennt, z. B. <code>WHITO COLT</code>. Zeilen lassen sich auch direkt in die Tabelle einfügen.',
+    'bulk.paste.intro': 'Ein Starter pro Zeile, Spalten durch Tabulator (wie aus Excel kopiert) oder Strichpunkt getrennt: <code>Name; Geschlecht; Geburtsjahr; Verein; Land; Wertungen</code>. Wertungen sind Kürzel, durch Leerzeichen getrennt, optional mit Kaliber nach einem Bindestrich, z. B. <code>WHITO COLT-45 MAXO-55</code>. Zeilen lassen sich auch direkt in die Tabelle einfügen.',
     'bulk.paste.title': 'Aus Excel einfügen',
     'bulk.perRanking': 'Je Wertung',
     'bulk.removeCode': '{code} entfernen',
@@ -140,7 +140,7 @@ export default {
     'bulk.view.matrix': 'Matrix',
     'bulk.view.matrixHint': 'Eine Zeile je Starter, eine Spalte je Wertung: Kästchen ankreuzen. Gelb heißt, der Start kommt über eine Kombinationswertung (Σ).',
     'bulk.view.table': 'Tabelle',
-    'bulk.view.tableHint': 'Wertungen als Kürzel tippen; Enter, Leerzeichen oder Komma bestätigt eines. Enter in den anderen Feldern springt in die nächste Zeile.',
+    'bulk.view.tableHint': 'Wertungen als Kürzel tippen, das Kaliber nach einem Bindestrich (MAXO-55); Enter, Leerzeichen oder Komma bestätigt eines, ein Klick auf ein Kürzel ändert es. Enter in den anderen Feldern springt in die nächste Zeile.',
 
     // Starts
     'starts.title': 'Starts der Teilnehmer verwalten',

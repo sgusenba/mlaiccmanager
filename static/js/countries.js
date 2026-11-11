@@ -30,3 +30,18 @@ export function countryLabel(name) {
     const code = codeByEnglishName.get(name);
     return code ? localNames.of(code) : name;
 }
+
+const namesByLanguage = ['en', 'de', locale].map(lang => new Intl.DisplayNames([lang], { type: 'region' }));
+
+/**
+ * The stored (English) name of a country typed or pasted as its English, German
+ * or page-language name or as its two-letter code (Österreich, Austria, AT);
+ * null if none matches. Case does not matter.
+ */
+export function findCountry(text) {
+    const v = String(text || '').trim().toLowerCase();
+    if (!v) return null;
+    const code = COUNTRY_CODES.find(c => c.toLowerCase() === v
+        || namesByLanguage.some(names => names.of(c).toLowerCase() === v));
+    return code ? englishNames.of(code) : null;
+}

@@ -340,6 +340,7 @@ input:focus:invalid {
 .bulk-chip.is-unknown { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 .bulk-chip button { color: inherit; opacity: .6; padding: 0 .2rem; }
 .bulk-chip button:hover { opacity: 1; }
+.bulk-caliber { margin-left: .3rem; padding-left: .3rem; border-left: 1px solid currentColor; font-weight: 400; opacity: .85; }
 
 .bulk-note { font-size: .75rem; line-height: 1.2; }
 

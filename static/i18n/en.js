@@ -97,7 +97,7 @@ export default {
     'bulk.addRows': 'Add 5 rows',
     'bulk.applyDefaults': 'Apply to empty fields',
     'bulk.codes': 'Short names of the rankings',
-    'bulk.codesPlaceholder': 'e.g. WHITO COLT',
+    'bulk.codesPlaceholder': 'e.g. WHITO COLT-45',
     'bulk.col.check': 'Check',
     'bulk.col.rankings': 'Rankings',
     'bulk.col.starts': 'Starts',
@@ -121,7 +121,7 @@ export default {
     'bulk.noRankings': 'This meet has no individual rankings yet. Set them up on the <a href="/rankings/" class="underline font-medium">Ranking Setup</a> page.',
     'bulk.paste.added': { one: '{count} row added', other: '{count} rows added' },
     'bulk.paste.apply': 'Add rows',
-    'bulk.paste.intro': 'One starter per line, columns separated by tabs (as copied from Excel) or semicolons: <code>Name; Gender; Year of birth; Club; Country; Rankings</code>. Rankings are short names separated by spaces, e.g. <code>WHITO COLT</code>. Lines pasted straight into the table work too.',
+    'bulk.paste.intro': 'One starter per line, columns separated by tabs (as copied from Excel) or semicolons: <code>Name; Gender; Year of birth; Club; Country; Rankings</code>. Rankings are short names separated by spaces, optionally with the caliber after a hyphen, e.g. <code>WHITO COLT-45 MAXO-55</code>. Lines pasted straight into the table work too.',
     'bulk.paste.title': 'Paste from Excel',
     'bulk.perRanking': 'Per ranking',
     'bulk.removeCode': 'Remove {code}',
@@ -141,7 +141,7 @@ export default {
     'bulk.view.matrix': 'Matrix',
     'bulk.view.matrixHint': 'One row per starter, one column per ranking: tick the boxes. Yellow means the start comes with a combined ranking (Σ).',
     'bulk.view.table': 'Table',
-    'bulk.view.tableHint': 'Type the rankings as short names; Enter, space or comma confirms one. Enter in any other field moves to the next row.',
+    'bulk.view.tableHint': 'Type the rankings as short names, the caliber after a hyphen (MAXO-55); Enter, space or comma confirms one, clicking a short name changes it. Enter in any other field moves to the next row.',
 
     // Starts
     'starts.title': 'Competitor Starts Management',
