@@ -6,9 +6,12 @@
 // form does (POST /api/competitors) and then adds its starts the way the
 // Starts section does (POST /api/competitors/{id}/starts), one discipline at
 // a time. Rows that could not be saved stay in the table with the reason.
+// A short name may carry the caliber after a hyphen (MAXO-55): it is saved
+// with every start of that entry, as the Starts section's caliber field does,
+// and is printed on the target labels.
 
 import { addStart, loadCompetitors, saveCompetitor } from '../api.js';
-import { getCountries } from '../countries.js';
+import { findCountry, getCountries } from '../countries.js';
 import { escapeHtml } from '../meet.js';
 import { categoryLabel } from '../teamRanking.js';
 import { t } from '../i18n.js';
@@ -108,6 +111,7 @@ function newRow(values = {}) {
         club: state.defaults.club, country: state.defaults.country,
         countryText: '', // a pasted country that matched none, shown as an error
         picks: [],       // entry keys ("69:0"); a typed short name that matches none is kept as "?XYZ"
+        calibers: {},    // entry key -> caliber typed with it (MAXO-55 -> "55")
         error: '',       // why saving this row failed
         ...values
     };
@@ -147,16 +151,47 @@ function rowIssues(row) {
     return { errors, warnings };
 }
 
-/** Adds the entries for typed short names (separated by spaces, commas or semicolons). */
+/**
+ * A typed token as short name and caliber: MAXO-55 is MAXO with caliber 55.
+ * A short name that itself contains a hyphen is taken whole first.
+ */
+function parseToken(token) {
+    if (state.byCode.has(codeKey(token))) return { code: token, caliber: '' };
+    const dash = token.lastIndexOf('-');
+    if (dash > 0 && dash < token.length - 1) return { code: token.slice(0, dash), caliber: token.slice(dash + 1).trim() };
+    return { code: token.replace(/-+$/, ''), caliber: '' };
+}
+
+/** Adds the entries for typed short names (separated by spaces, commas or semicolons), each with an optional caliber. */
 function addCodes(row, text) {
-    String(text).split(/[\s,;]+/).map(c => c.trim()).filter(Boolean).forEach(code => {
+    String(text).split(/[\s,;]+/).map(c => c.trim()).filter(Boolean).forEach(token => {
+        const { code, caliber } = parseToken(token);
+        if (!code) return;
         const pick = state.byCode.get(codeKey(code)) ?? `?${compact(code)}`;
         if (!row.picks.includes(pick)) row.picks.push(pick);
+        if (caliber) row.calibers = { ...row.calibers, [pick]: caliber };
     });
 }
 
+function removePick(row, pick) {
+    row.picks = row.picks.filter(p => p !== pick);
+    const { [pick]: _, ...rest } = row.calibers;
+    row.calibers = rest;
+}
+
 function togglePick(row, key) {
-    row.picks = row.picks.includes(key) ? row.picks.filter(p => p !== key) : [...row.picks, key];
+    if (row.picks.includes(key)) removePick(row, key);
+    else row.picks = [...row.picks, key];
+}
+
+/** The caliber each discipline of a row starts with; with two entries sharing a discipline the first one's. */
+function rowCalibers(row) {
+    const calibers = new Map();
+    row.picks.forEach(pick => {
+        const caliber = row.calibers[pick];
+        if (caliber) state.entries.get(pick)?.disciplineIds.forEach(id => { if (!calibers.has(id)) calibers.set(id, caliber); });
+    });
+    return calibers;
 }
 
 /** Keeps an empty row at the end, ready for the next starter. */
@@ -171,8 +206,10 @@ function chips(row) {
         const entry = state.entries.get(pick);
         const code = pickCode(pick);
         const cls = !entry ? 'is-unknown' : entry.kind === 'combo' ? 'is-combo' : '';
-        const title = entry ? entry.label : t('bulk.issue.unknownCode');
-        return `<span class="bulk-chip ${cls}" title="${escapeHtml(title)}">${escapeHtml(code)}<button type="button" data-remove-pick="${escapeHtml(pick)}" data-row="${row.key}" aria-label="${escapeHtml(t('bulk.removeCode', { code }))}">×</button></span>`;
+        const caliber = row.calibers[pick] || '';
+        const title = [entry ? entry.label : t('bulk.issue.unknownCode'), caliber ? `${t('starts.caliber')} ${caliber}` : ''].filter(Boolean).join(' · ');
+        // Clicking the short name puts it back into the field (MAXO-55), to change the caliber
+        return `<span class="bulk-chip ${cls}" title="${escapeHtml(title)}"><span data-edit-pick="${escapeHtml(pick)}" data-row="${row.key}" class="cursor-text">${escapeHtml(code)}${caliber ? `<span class="bulk-caliber">${escapeHtml(caliber)}</span>` : ''}</span><button type="button" data-remove-pick="${escapeHtml(pick)}" data-row="${row.key}" aria-label="${escapeHtml(t('bulk.removeCode', { code }))}">×</button></span>`;
     }).join('');
 }
 
@@ -372,10 +409,11 @@ async function saveRow(row) {
         country: row.country
     });
     const failed = [];
+    const calibers = rowCalibers(row);
     let added = 0;
     for (const disciplineId of rowStarts(row)) {
         try {
-            await addStart(competitor.id, disciplineId, null);
+            await addStart(competitor.id, disciplineId, calibers.get(disciplineId) || null);
             added++;
         } catch (error) {
             failed.push(`${disciplineName(disciplineId)}: ${errorText(error)}`);
@@ -433,8 +471,8 @@ function parseGender(value) {
 function parseCountry(value) {
     const v = String(value || '').trim().toLowerCase();
     if (!v) return { country: state.defaults.country, countryText: '' };
-    const match = COUNTRIES.find(c => c.value.toLowerCase() === v || c.label.toLowerCase() === v);
-    return match ? { country: match.value, countryText: '' } : { country: '', countryText: String(value).trim() };
+    const match = findCountry(v);
+    return match ? { country: match, countryText: '' } : { country: '', countryText: String(value).trim() };
 }
 
 function pasteRows(text) {
@@ -517,7 +555,7 @@ export function setupBulkAddEventListeners() {
                 return;
             }
             if (e.key === 'Backspace' && !el.value && row.picks.length) {
-                row.picks.pop();
+                removePick(row, row.picks[row.picks.length - 1]);
                 refreshRow(row, { focusCodes: true });
                 renderTotals();
                 return;
@@ -546,16 +584,28 @@ export function setupBulkAddEventListeners() {
 
     grid.addEventListener('click', (e) => {
         const button = e.target.closest('button');
+        const edit = e.target.closest('[data-edit-pick]');
         if (button?.dataset.removePick) {
             const row = rowByKey(button.dataset.row);
-            row.picks = row.picks.filter(p => p !== button.dataset.removePick);
+            removePick(row, button.dataset.removePick);
             refreshRow(row, { focusCodes: true });
+            refreshAllNotes();
+            renderTotals();
+        } else if (edit) {
+            // Back into the field as typed, e.g. MAXO-55; confirming it adds it again
+            const row = rowByKey(edit.dataset.row);
+            const pick = edit.dataset.editPick;
+            const caliber = row.calibers[pick];
+            removePick(row, pick);
+            refreshRow(row, { focusCodes: true });
+            const input = document.querySelector(`#bulk-grid [data-tokens="${row.key}"] input`);
+            input.value = `${pickCode(pick)}${caliber ? `-${caliber}` : ''}`;
             refreshAllNotes();
             renderTotals();
         } else if (button?.dataset.copy) {
             // Copies everything but the name, for family members or club mates with the same rankings
             const row = rowByKey(button.dataset.copy);
-            const copy = newRow({ club: row.club, country: row.country, picks: [...row.picks] });
+            const copy = newRow({ club: row.club, country: row.country, picks: [...row.picks], calibers: { ...row.calibers } });
             state.rows.splice(state.rows.indexOf(row) + 1, 0, copy);
             render();
             focusField(copy.key, 'name');
