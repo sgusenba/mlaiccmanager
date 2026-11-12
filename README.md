@@ -55,7 +55,17 @@ It also listens on `http://localhost:5001`, which shows just the Enter Results p
 
 ## Frontend
 
-The frontend is plain HTML, vanilla JavaScript, and Tailwind (via CDN) — no build step, no framework. It lives entirely under `static/` and is served as-is by Jetty.
+The frontend is plain HTML, vanilla JavaScript, and Tailwind — no framework. It lives entirely under `static/` and is served as-is by Jetty. Pages need no internet: Tailwind is precompiled into the committed `static/tailwind.css` instead of loaded from a CDN.
+
+When you use a Tailwind class that no page used before, rebuild that file (needs Node.js) and commit it; the release workflow rebuilds it as well:
+
+```
+cd tailwind
+npm install
+npm run build     # or: npm run watch while editing
+```
+
+Classes assembled at runtime (e.g. `` `text-${align}` ``) are invisible to the build's scan; list them under `safelist` in `tailwind/tailwind.config.js`.
 
 Every page shares one sidebar (`static/js/appNav.js`, styles in `static/style.css`), grouped in the order a competition runs in, with the one-off setup (Management) last. On narrow screens it folds into a menu button:
 

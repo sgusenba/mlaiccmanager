@@ -58,3 +58,6 @@ deploy/pct.env
 # Test feeder: event data extracted from results PDFs (real competitor names)
 tools/testfeeder/data/
 
+
+# Tailwind build tooling (static/tailwind.css itself is committed)
+tailwind/node_modules/

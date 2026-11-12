@@ -28,6 +28,12 @@ jobs:
       - name: Build
         run: mvn -B clean package
 
+      # Regenerate static/tailwind.css from the current pages, so a forgotten
+      # local `npm run build` can never ship missing styles
+      - name: Build Tailwind CSS
+        working-directory: tailwind
+        run: npm ci --no-audit --no-fund && npm run build
+
       - name: Package deployment bundle
         run: |
           mkdir -p dist-bundle

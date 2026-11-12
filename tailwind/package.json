@@ -1,0 +1,12 @@
+{
+  "name": "mlaiccmanager-tailwind",
+  "private": true,
+  "description": "Builds static/tailwind.css so the app pages work without internet. Run `npm run build` after changing classes in static/.",
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i input.css -o ../static/tailwind.css --minify",
+    "watch": "tailwindcss -c tailwind.config.js -i input.css -o ../static/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
