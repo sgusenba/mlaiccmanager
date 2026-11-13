@@ -80,6 +80,7 @@ public class ResultService {
         if (result.getStartId() == null || result.getStartId().isBlank()) {
             throw new IllegalArgumentException(Messages.get("request.required", "start_id"));
         }
+        checkShots(result);
         return dataService.update(data -> {
             int[] owner = startOwner(data, result.getStartId());
             if (owner == null) {
@@ -129,7 +130,37 @@ public class ResultService {
         return null;
     }
 
+    /** A target takes at most {@link #MAX_SHOTS} shots, so that is the most a result can have. */
+    public static final int MAX_SHOTS = 10;
+
+    /**
+     * Refuses a result no target can show: more than {@link #MAX_SHOTS} shots, a shot that is
+     * not a whole ring from 0 (miss) to 10, or, without shots, a value above what the shots
+     * could add up to. The pages check this too, but the API is also reached without them.
+     */
+    private static void checkShots(Result result) {
+        List<Double> entries = result.getEntries();
+        if (entries != null && !entries.isEmpty()) {
+            if (entries.size() > MAX_SHOTS) {
+                throw new IllegalArgumentException(Messages.get("result.tooManyShots", entries.size(), MAX_SHOTS));
+            }
+            for (Double shot : entries) {
+                if (shot == null || shot < 0 || shot > Scoring.MAX_RING || shot != Math.rint(shot)) {
+                    throw new IllegalArgumentException(Messages.get("result.invalidShot", Scoring.MAX_RING));
+                }
+            }
+            return;
+        }
+        // Without shots the value is the score (results from before the shots were recorded)
+        double value = result.getValue();
+        int max = MAX_SHOTS * Scoring.MAX_RING;
+        if (Double.isNaN(value) || value < 0 || value > max) {
+            throw new IllegalArgumentException(Messages.get("result.invalidValue", max));
+        }
+    }
+
     public Result updateResult(int id, Result result) throws Exception {
+        checkShots(result);
         return dataService.update(data -> {
             Map<String, Object> existingData = findById(resultsOf(data), id);
             if (existingData == null) {

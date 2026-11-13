@@ -166,6 +166,38 @@ class IdAndReferenceIntegrityTest {
         assertThrows(IllegalArgumentException.class, () -> resultService.createResult(new Result(1, 52, 80)));
     }
 
+    private static Result shots(String startId, Double... entries) {
+        Result result = new Result(0, 0, 0);
+        result.setStartId(startId);
+        result.setEntries(java.util.Arrays.asList(entries));
+        return result;
+    }
+
+    @Test
+    void resultHasAtMostTenWholeRingShots() throws Exception {
+        Double[] eleven = new Double[11];
+        java.util.Arrays.fill(eleven, 10.0);
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(shots("2-52-1", eleven)));
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(shots("2-52-1", 11.0)));
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(shots("2-52-1", -1.0)));
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(shots("2-52-1", 9.5)));
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(shots("2-52-1", 9.0, null)));
+        Result noShots = new Result(0, 0, 101);
+        noShots.setStartId("2-52-1");
+        assertThrows(IllegalArgumentException.class, () -> resultService.createResult(noShots));
+        assertEquals(0, resultService.getResults(52).size());
+
+        // Fewer than ten shots are a result, misses included
+        Result saved = resultService.createResult(shots("2-52-1", 10.0, 9.0, 0.0));
+        assertEquals(1, resultService.getResults(52).size());
+
+        // A correction is checked like a new result, and a refused one changes nothing
+        Result tooMany = shots("2-52-1", eleven);
+        tooMany.setVersion(saved.getVersion());
+        assertThrows(IllegalArgumentException.class, () -> resultService.updateResult(saved.getId(), tooMany));
+        assertEquals(List.of(10.0, 9.0, 0.0), resultService.getResults(52).get(0).get("entries"));
+    }
+
     @Test
     void deletedResultIdIsNotReused() throws Exception {
         Result first = new Result(1, 52, 90);
