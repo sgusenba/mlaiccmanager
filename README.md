@@ -223,7 +223,7 @@ A start is only taken for an individual discipline of the meet's program (one of
 ### Scoring and tie-breaks
 
 - An individual result's score is the sum of its shots (`entries`); `value` is stored alongside. The result's `override_value` is a **tie-break value, and the lower value wins** (distance of the furthest shot from the centre); it no longer replaces the score. A result without it loses a tie against one with it.
-- The results page records a result as the number of shots per ring (10, 9, … 0 for a miss), which must add up to 10 shots. It is saved as the list of the 10 shots, best ring first, so `entries` keeps its format.
+- The results page records a result as the number of shots per ring (10, 9, … 0 for a miss), which must add up to 10 shots. It is saved as the list of the 10 shots, best ring first, so `entries` keeps its format. The API refuses (400) a result with more than 10 shots, a shot that is not a whole ring from 0 to 10, or, without shots, a value above 100.
 - Individual ranking: each competitor once. Their results that count are every result in one of the ranking's single disciplines, and per sum entry the best result of each of its disciplines added up (as soon as there is one; a missing one counts as nothing; ring counts added up, tie-break the furthest shot of them). Ranked by the best of those results, then the next one (another start, or another entry of the ranking; another result beats none), then the best one's 10s, 9s, … 1s, then its tie-break (lower wins). Identical standings share the rank. The other results are listed below the competitor.
 
 ### Teams (`/api/teams`)
