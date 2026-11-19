@@ -18,9 +18,9 @@ const nameCell = (row) => `
 /**
  * showRank: false leaves out the rank column. rowClass(row, index): extra
  * classes for a row. markMissingTieBreak: shows a missing tie-break as such
- * instead of "-".
+ * instead of "-". columns: { club, country }, which of the two columns to show.
  */
-export function individualCard(data, { extraClass = '', showRank = true, rowClass = () => '', markMissingTieBreak = false } = {}) {
+export function individualCard(data, { extraClass = '', showRank = true, rowClass = () => '', markMissingTieBreak = false, columns = { club: true, country: true } } = {}) {
     const rows = data.rankings || [];
     const ranking = data.ranking;
     const hasNotes = rows.some(row => row.notes);
@@ -34,13 +34,18 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     <td class="pl-8 pr-4 pb-2 whitespace-nowrap">${escapeHtml(c.label)}${c.start_id
                                         ? `<div class="font-mono text-gray-400" style="font-size: 0.65rem">${escapeHtml(c.start_id)}</div>` : ''}</td>
                                     ${combined ? `<td class="px-2 pb-2 text-center">${escapeHtml(c.short_name || '')}</td>` : ''}
-                                    <td class="px-4 pb-2 font-mono">${combined ? '' : escapeHtml(c.short_name || '')}</td>
-                                    <td></td>
+                                    ${shortNameCell(c)}
                                     <td class="px-4 pb-2 text-center">${c.score === null ? '-' : formatScore(c.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 pb-2 text-center">${c.freq_counts ? (c.freq_counts[ring] ?? 0) : ''}</td>`).join('')}
                                     <td class="px-4 pb-2 text-center">${c.override_value ?? ''}</td>
                                     ${hasNotes ? '<td></td>' : ''}
                                 </tr>`).join('');
+    // The short name of a component goes into the first of the club and country columns shown
+    const textColumns = (columns.club ? 1 : 0) + (columns.country ? 1 : 0);
+    const shortNameCell = (c) => (textColumns === 0 ? ''
+        : `<td class="px-4 pb-2 font-mono">${combined ? '' : escapeHtml(c.short_name || '')}</td>${textColumns === 2 ? '<td></td>' : ''}`);
+    const clubCell = (row, style) => (columns.club ? `<td class="px-4 py-3 text-sm ${style}">${escapeHtml(row.competitor.club || '')}</td>` : '');
+    const countryCell = (row, style) => (columns.country ? `<td class="px-4 py-3 text-sm ${style}">${escapeHtml(countryLabel(row.competitor.country || ''))}</td>` : '');
     const typeCell = (row) => combined
         ? `<td class="px-2 py-3 text-center text-sm">${escapeHtml(typeTag(row))}</td>` : '';
     const th = (label, align = 'left', title = '', padding = 'px-4') =>
@@ -64,8 +69,8 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                 ${showRank ? th(t('ranking.col.rank')) : ''}
                                 ${th(t('ranking.col.name'))}
                                 ${combined ? th(typeHeader(ranking), 'center', t('ranking.discHint'), 'px-2') : ''}
-                                ${th(t('ranking.col.club'))}
-                                ${th(t('ranking.col.country'))}
+                                ${columns.club ? th(t('ranking.col.club')) : ''}
+                                ${columns.country ? th(t('ranking.col.country')) : ''}
                                 ${th(t('ranking.col.result'), 'center')}
                                 ${RINGS.map(ring => th(ringHeader(ring), 'center', '', 'px-2')).join('')}
                                 ${th(t('ranking.col.tieBreak'), 'center', aggregate
@@ -80,8 +85,8 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${showRank ? `<td class="px-4 py-3 whitespace-nowrap">${rankBadge(row.rank)}</td>` : ''}
                                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${nameCell(row)}</td>
                                     ${typeCell(row)}
-                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm font-normal text-gray-700">${escapeHtml(countryLabel(row.competitor.country || ''))}</td>
+                                    ${clubCell(row, 'font-normal text-gray-700')}
+                                    ${countryCell(row, 'font-normal text-gray-700')}
                                     <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">${formatScore(row.score)}</td>
                                     ${RINGS.map(ring => `<td class="px-2 py-3 text-center text-sm font-normal">${row.freq_counts?.[ring] ?? 0}</td>`).join('')}
                                     <td class="px-4 py-3 text-center text-sm font-normal">${tieBreak(row)}</td>
@@ -92,9 +97,9 @@ export function individualCard(data, { extraClass = '', showRank = true, rowClas
                                     ${showRank ? '<td class="px-4 py-3 text-center text-sm">-</td>' : ''}
                                     <td class="px-4 py-3 whitespace-nowrap text-sm">${nameCell(row)}</td>
                                     ${typeCell(row)}
-                                    <td class="px-4 py-3 text-sm">${escapeHtml(row.competitor.club || '')}</td>
-                                    <td class="px-4 py-3 text-sm">${escapeHtml(countryLabel(row.competitor.country || ''))}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm italic">${t('ranking.noResult')}</td>
+                                    ${clubCell(row, '')}
+                                    ${countryCell(row, '')}
+                                    <td class="px-4 py-3"></td>
                                     ${RINGS.map(() => '<td class="px-2 py-3"></td>').join('')}
                                     <td class="px-4 py-3"></td>
                                     ${hasNotes ? '<td class="px-4 py-3"></td>' : ''}

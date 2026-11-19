@@ -42,9 +42,12 @@ function dayAndTime(isoDate, time) {
     return [date, time].filter(Boolean).join(' ');
 }
 
-/** The labels of the scheduled rows of laneRows(); with pairs a left (L) and a right (R) one per start. */
-export function targetLabels(rows, { pairs = false } = {}) {
-    return rows.filter(row => row.scheduled).flatMap(row => {
+/**
+ * The labels of the scheduled rows of laneRows(); with pairs a left (L) and a
+ * right (R) one per start; with day (YYYY-MM-DD) only those of that meet day.
+ */
+export function targetLabels(rows, { pairs = false, day = '' } = {}) {
+    return rows.filter(row => row.scheduled && (!day || row.date === day)).flatMap(row => {
         const label = side => ({
             distance: `${row.range} / ${row.lane}${side ? ` ${side}` : ''}`,
             number: String(row.starterId),
@@ -114,7 +117,10 @@ export function labelsPerSheet(size) {
 
 // Font sizes (pt) at the default label size
 const numberSize = (number) => (number.length >= 5 ? 22 : number.length === 4 ? 26 : 30);
-const FONT = { distance: 15, text: 10, discipline: 8, score: 10, startId: 5.5 };
+const FONT = { distance: 15, text: 12, discipline: 12, score: 10, startId: 12 };
+// A discipline short name longer than this many characters gets smaller, so it stays on one line below the QR code
+const DISCIPLINE_CHARS = 9;
+const disciplineSize = (discipline) => FONT.discipline * Math.min(1, DISCIPLINE_CHARS / Math.max(1, discipline.length));
 
 const sheets = (labels, perSheet) =>
     Array.from({ length: Math.ceil(labels.length / perSheet) }, (_, i) => labels.slice(i * perSheet, (i + 1) * perSheet));
@@ -135,12 +141,12 @@ function labelHtml(label, l) {
                 <tr style="height:${l.rows.main.toFixed(2)}mm">
                     ${td(distanceSpan, 'tl-distance', escapeHtml(label.distance), `font-size:${pt(FONT.distance)}`)}
                     ${td(numberSpan, 'tl-number', escapeHtml(label.number), `font-size:${pt(numberSize(label.number))}`)}
-                    ${td(qrSpan, 'tl-qr', `${qrSvg(label.startId, QR_MM)}<div class="tl-id" style="font-size:${FONT.startId}pt">${escapeHtml(label.startId)}</div>`)}
+                    ${td(qrSpan, 'tl-qr', `${qrSvg(label.startId, QR_MM)}<div class="tl-id" style="font-size:${pt(FONT.startId)}">${escapeHtml(label.startId)}</div>`)}
                 </tr>
                 <tr style="height:${l.rows.time.toFixed(2)}mm;font-size:${pt(FONT.text)}">
                     ${td(distanceSpan, 'tl-text', `${escapeHtml(t('meet.labels.time'))} <b>${escapeHtml(label.time)}</b>`)}
                     ${td(numberSpan, 'tl-text', label.caliber ? `${escapeHtml(t('meet.labels.caliber'))} <b>${escapeHtml(label.caliber)}</b>` : '')}
-                    ${td(qrSpan, 'tl-discipline', escapeHtml(label.discipline), `font-size:${pt(FONT.discipline)}`)}
+                    ${td(qrSpan, 'tl-discipline', escapeHtml(label.discipline), `font-size:${pt(disciplineSize(label.discipline))}`)}
                 </tr>
                 <tr class="tl-score-head" style="height:${l.rows.scoreHead.toFixed(2)}mm;font-size:${pt(FONT.score)}">
                     ${SCORE_COLUMNS.map((text, i) => td(l.scoreSpans[i], 'tl-score', text)).join('')}
@@ -197,7 +203,7 @@ function labelDocx(label, l, image, drawingId) {
     const [distanceSpan, numberSpan, qrSpan] = l.topSpans;
     const qr = `<w:p><w:pPr><w:spacing w:after="20"/><w:jc w:val="center"/></w:pPr>`
         + `${imageRun(imageRelId(image), QR_MM, QR_MM, { id: drawingId, name: `qr${drawingId}.png`, description: t('meet.labels.qr', { id: label.startId }) })}</w:p>`
-        + paragraph(label.startId, { size: FONT.startId, align: 'center' });
+        + paragraph(label.startId, { size: size(FONT.startId), bold: true, align: 'center' });
     // a double line between the label's details and the score grid, as on the printout
     const double = `<w:top w:val="double" w:sz="6" w:space="0" w:color="000000"/>`;
 
@@ -213,7 +219,7 @@ function labelDocx(label, l, image, drawingId) {
             [distanceSpan, paragraph([{ text: `${t('meet.labels.time')} ` }, { text: label.time, bold: true }], { size: size(FONT.text) })],
             // no caliber: an empty cell, not "Cal:" alone
             [numberSpan, paragraph(label.caliber ? [{ text: `${t('meet.labels.caliber')} ` }, { text: label.caliber, bold: true }] : '', { size: size(FONT.text) })],
-            [qrSpan, paragraph(label.discipline, { size: size(FONT.discipline), align: 'center' })]
+            [qrSpan, paragraph(label.discipline, { size: size(disciplineSize(label.discipline)), bold: true, align: 'center' })]
         ])),
         row(h(l.rows.scoreHead), cells(l, SCORE_COLUMNS.map((text, i) =>
             [l.scoreSpans[i], paragraph(text, { size: size(FONT.score), align: 'center' }), { borders: double }]))),

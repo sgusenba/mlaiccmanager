@@ -78,6 +78,8 @@ function fillForm() {
     document.getElementById('meet-host').value = meet.host || '';
     document.getElementById('meet-date-from').value = meet.date_from || '';
     document.getElementById('meet-date-to').value = meet.date_to || '';
+    document.getElementById('meet-show-club').checked = meet.show_club !== false;
+    document.getElementById('meet-show-country').checked = meet.show_country !== false;
 
     const fromDays = formatDateRange(meet.days.from, meet.days.to);
     document.getElementById('meet-date-hint').textContent = fromDays
@@ -99,6 +101,8 @@ async function saveMeet(event) {
             host: document.getElementById('meet-host').value,
             date_from: document.getElementById('meet-date-from').value || null,
             date_to: document.getElementById('meet-date-to').value || null,
+            show_club: document.getElementById('meet-show-club').checked,
+            show_country: document.getElementById('meet-show-country').checked,
             version: meet.version
         }));
         await refreshMeet();
@@ -428,15 +432,44 @@ async function exportLanes(button) {
 
 // --- target labels ---------------------------------------------------------
 
-/** Size and pairs as set on the page, the size kept within its limits. */
+/** Size, pairs and meet day ('' for all) as set on the page, the size kept within its limits. */
 function labelSettings() {
     const size = labelSize(document.getElementById('label-width').value, document.getElementById('label-height').value);
-    return { size, pairs: document.getElementById('label-pairs').checked };
+    return { size, pairs: document.getElementById('label-pairs').checked, day: document.getElementById('label-day').value };
 }
 
-function showLabelsPerSheet() {
-    const { columns, lines } = labelsPerSheet(labelSettings().size);
-    document.getElementById('label-per-sheet').textContent = t('meet.labels.perSheet', { count: columns * lines, columns, lines });
+// The lane rows the label count was last worked out from, so typing a size does not reload them
+let labelRowsCache = null;
+
+/** Labels per sheet, and with a meet day chosen how many labels and sheets that day takes. */
+async function showLabelsPerSheet({ reload = false } = {}) {
+    const { size, pairs, day } = labelSettings();
+    const { columns, lines } = labelsPerSheet(size);
+    const perSheet = t('meet.labels.perSheet', { count: columns * lines, columns, lines });
+    const el = document.getElementById('label-per-sheet');
+    el.textContent = perSheet;
+    if (!day) return;
+    try {
+        if (reload || !labelRowsCache) labelRowsCache = await loadLaneRows(false);
+        const count = targetLabels(labelRowsCache, { pairs, day }).length;
+        el.textContent = `${perSheet} · ${t('meet.labels.dayCount', { count, sheets: Math.ceil(count / (columns * lines)) })}`;
+    } catch {
+        // the count is a hint; printing reports what went wrong
+    }
+}
+
+/** The meet days of the relay management as options of the day selection; keeps the chosen one if it still exists. */
+async function fillLabelDays(wanted) {
+    const select = document.getElementById('label-day');
+    let days = [];
+    try {
+        days = [...new Set(((await api('/rmgmt'))?.days || []).map(day => day.date).filter(Boolean))].sort();
+    } catch {
+        // without meet days only "All days" is offered
+    }
+    select.innerHTML = `<option value="">${escapeHtml(t('meet.labels.allDays'))}</option>`
+        + days.map(date => `<option value="${escapeHtml(date)}">${escapeHtml(formatDay(date))}</option>`).join('');
+    select.value = days.includes(wanted) ? wanted : '';
 }
 
 function restoreLabelSettings() {
@@ -447,17 +480,19 @@ function restoreLabelSettings() {
     document.getElementById('label-height').value = size.height;
     document.getElementById('label-pairs').checked = Boolean(saved?.pairs);
     showLabelsPerSheet();
+    fillLabelDays(saved?.day).then(() => showLabelsPerSheet());
 }
 
 async function loadLabels() {
-    const { size, pairs } = labelSettings();
+    const { size, pairs, day } = labelSettings();
     // shows the values actually used, e.g. when one was out of range
     document.getElementById('label-width').value = size.width;
     document.getElementById('label-height').value = size.height;
-    store(LABELS_KEY, JSON.stringify({ ...size, pairs }));
-    const labels = targetLabels(await loadLaneRows(false), { pairs });
-    if (labels.length === 0) throw new Error(t('meet.noLanes'));
-    return { labels, size };
+    store(LABELS_KEY, JSON.stringify({ ...size, pairs, day }));
+    labelRowsCache = await loadLaneRows(false);
+    const labels = targetLabels(labelRowsCache, { pairs, day });
+    if (labels.length === 0) throw new Error(t(day ? 'meet.labels.noLanesOnDay' : 'meet.noLanes'));
+    return { labels, size, day };
 }
 
 async function renderLabels() {
@@ -472,8 +507,10 @@ async function exportLabels(format, button) {
     try {
         if (format === 'word') {
             await withButtonFeedback(button, async () => {
-                const { labels, size } = await loadLabels();
-                downloadBlob(await targetLabelsDocx(labels, size), exportFileName(t('meet.labels.fileName'), 'docx'));
+                const { labels, size, day } = await loadLabels();
+                // one file per day: the day goes into the name
+                const name = day ? `${t('meet.labels.fileName')}-${day}` : t('meet.labels.fileName');
+                downloadBlob(await targetLabelsDocx(labels, size), exportFileName(name, 'docx'));
             });
         } else {
             await renderLabels();
@@ -506,7 +543,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('export-lanes-btn').addEventListener('click', e => exportLanes(e.currentTarget));
     document.getElementById('print-labels-btn').addEventListener('click', e => exportLabels('print', e.currentTarget));
     document.getElementById('word-labels-btn').addEventListener('click', e => exportLabels('word', e.currentTarget));
-    ['label-width', 'label-height'].forEach(id => document.getElementById(id).addEventListener('input', showLabelsPerSheet));
+    ['label-width', 'label-height'].forEach(id => document.getElementById(id).addEventListener('input', () => showLabelsPerSheet()));
+    document.getElementById('label-pairs').addEventListener('change', () => showLabelsPerSheet());
+    document.getElementById('label-day').addEventListener('change', () => showLabelsPerSheet({ reload: true }));
     restoreLabelSettings();
     document.querySelectorAll('.starter-search').forEach(search => {
         search.addEventListener('input', () => renderStarterSelect(search));

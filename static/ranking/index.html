@@ -15,7 +15,14 @@
                repeated on every page */
             @page { size: A4 portrait; margin: 0; }
             body main { padding: 10mm !important; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+            /* A ranking that fits on a page is kept together; a longer one (may-break) runs on
+               over the pages, so it never leaves an empty page behind the title. Its title stays
+               with the first rows, the table header repeats on every page, no row is split */
             .keep-together { break-inside: avoid; page-break-inside: avoid; }
+            .may-break > div:first-child { break-after: avoid; page-break-after: avoid; }
+            #ranking-content .overflow-x-auto { overflow: visible !important; }
+            #ranking-content thead { display: table-header-group; }
+            #ranking-content tr { break-inside: avoid; page-break-inside: avoid; }
             #print-header { display: flex !important; }
             body.with-cover #print-cover,
             body.with-stats #print-stats { display: block; break-after: page; }

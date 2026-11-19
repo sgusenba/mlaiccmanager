@@ -2,7 +2,7 @@
 // once on their best result, laid out for printing and exported as Word or
 // Excel files. Team rankings rank teams, which have one total each.
 
-import { escapeHtml, teamRankingCard } from '../js/teamRanking.js';
+import { escapeHtml, rankingColumns, teamRankingCard } from '../js/teamRanking.js';
 import { loadMeet } from '../js/meet.js';
 import { downloadBlob, exportFileName } from '../js/officeFiles.js';
 import { coverPage, entryStatistics, statisticsPage } from './printPages.js';
@@ -52,8 +52,19 @@ function store(key, value) {
 
 // --- rendering -------------------------------------------------------------
 
+// The club and country columns as set on the Meet page; both until it is loaded
+let columns = rankingColumns(null);
+
+async function loadColumns() {
+    try {
+        columns = rankingColumns(await api('/meet'));
+    } catch {
+        // keeps the columns it had: the ranking matters more than its layout
+    }
+}
+
 function card(data, extraClass) {
-    return data.kind === 'team' ? teamRankingCard(data, { extraClass }) : individualCard(data, { extraClass });
+    return data.kind === 'team' ? teamRankingCard(data, { extraClass }) : individualCard(data, { extraClass, columns });
 }
 
 function emptyState(text) {
@@ -62,6 +73,19 @@ function emptyState(text) {
             <h3 class="text-lg font-medium text-gray-900 mb-2">${t('ranking.noData')}</h3>
             <p class="text-gray-500">${text}</p>
         </div>`;
+}
+
+// About as many table lines as fit on a printed A4 page below the page's title.
+// A longer ranking is not kept together: the browser would move it to the next
+// page as a whole, leaving the first page empty.
+const LINES_PER_PAGE = 18;
+
+function fitsOnPage(data) {
+    const rows = data.rankings || [];
+    const lines = data.kind === 'team'
+        ? rows.reduce((sum, team) => sum + Math.max(1, (team.members || []).length * 0.5), 0)
+        : rows.reduce((sum, row) => sum + 1 + (row.components || []).length * 0.5, 0);
+    return lines <= LINES_PER_PAGE;
 }
 
 // What the page shows, for the Word and Excel export
@@ -78,7 +102,10 @@ function render(rankings, emptyText) {
         return;
     }
     content.innerHTML = withData
-        .map((data, i) => card(data, pagePerDiscipline && i < withData.length - 1 ? 'print-break' : 'keep-together'))
+        .map((data, i) => card(data, [
+            pagePerDiscipline && i < withData.length - 1 ? 'print-break' : '',
+            fitsOnPage(data) ? 'keep-together' : 'may-break'
+        ].filter(Boolean).join(' ')))
         .join('');
 }
 
@@ -98,9 +125,11 @@ async function loadRanking() {
     const rankingId = document.getElementById('discipline-select').value;
     try {
         if (rankingId) {
-            render([await api(`/rankings/${rankingId}/result`)], t('ranking.emptyOne'));
+            const [result] = await Promise.all([api(`/rankings/${rankingId}/result`), loadColumns()]);
+            render([result], t('ranking.emptyOne'));
         } else {
-            render(await api('/rankings/results'), t('ranking.emptyAll'));
+            const [results] = await Promise.all([api('/rankings/results'), loadColumns()]);
+            render(results, t('ranking.emptyAll'));
         }
     } catch (error) {
         shownRankings = [];
@@ -220,7 +249,8 @@ async function exportFromDialog() {
         rankings: shownRankings,
         withCover,
         withStats,
-        pagePerDiscipline: document.getElementById('page-per-discipline').checked
+        pagePerDiscipline: document.getElementById('page-per-discipline').checked,
+        columns
     };
     try {
         if (format === 'excel') {

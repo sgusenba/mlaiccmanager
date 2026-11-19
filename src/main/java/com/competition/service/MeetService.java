@@ -24,12 +24,17 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>The dates are optional; the pages fall back to the first and last meet
  * day of the relay management when they are empty.
+ *
+ * <p>show_club and show_country say whether the rankings list the club and
+ * the country (e.g. no country at a club's own meet, no club at a
+ * championship of nations); both default to true.
  */
 public class MeetService {
     private static final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     static final String[] TEXT_FIELDS = {"name", "location", "host"};
     static final String[] DATE_FIELDS = {"date_from", "date_to"};
+    static final String[] FLAG_FIELDS = {"show_club", "show_country"};
     static final int MAX_LENGTH = 200;
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -55,6 +60,9 @@ public class MeetService {
         }
         for (String field : DATE_FIELDS) {
             meet.put(field, date(request, field));
+        }
+        for (String field : FLAG_FIELDS) {
+            meet.put(field, flag(request, field));
         }
         if (meet.get("date_from") != null && meet.get("date_to") != null
                 && ((String) meet.get("date_from")).compareTo((String) meet.get("date_to")) > 0) {
@@ -103,6 +111,18 @@ public class MeetService {
         return trimmed;
     }
 
+    /** true or false; true when missing, so a request without it keeps the column. */
+    private static boolean flag(Map<String, Object> request, String field) {
+        Object value = request != null ? request.get(field) : null;
+        if (value == null) {
+            return true;
+        }
+        if (!(value instanceof Boolean b)) {
+            throw new IllegalArgumentException(Messages.get("request.mustBeBoolean", field));
+        }
+        return b;
+    }
+
     /** A YYYY-MM-DD date, or null when missing or blank. */
     private static String date(Map<String, Object> request, String field) {
         Object value = request != null ? request.get(field) : null;
@@ -130,6 +150,9 @@ public class MeetService {
         }
         for (String field : DATE_FIELDS) {
             meet.put(field, stored.get(field) instanceof String s && !s.isBlank() ? s : null);
+        }
+        for (String field : FLAG_FIELDS) {
+            meet.put(field, !(stored.get(field) instanceof Boolean b) || b);
         }
         meet.put("version", DataService.getVersion(stored));
         return meet;
