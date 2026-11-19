@@ -67,6 +67,12 @@ export async function loadAvailableDisciplines() {
     }
 }
 
+// Load the meet's rankings (what it ranks); the starts form picks from these
+export async function loadRankings() {
+    const data = await apiCall('/rankings');
+    return Array.isArray(data?.rankings) ? data.rankings : [];
+}
+
 // Load active disciplines
 export async function loadActiveDisciplines() {
     try {
