@@ -33,6 +33,14 @@ public class CascadingDeletes {
         });
     }
 
+    /**
+     * Withdraws the competitor from a ranking; starts left in no ranking are
+     * deleted with their results, lanes and team memberships.
+     */
+    public void withdrawFromRanking(int competitorId, int rankingId) throws Exception {
+        locked(() -> startService.withdrawFromRanking(competitorId, rankingId));
+    }
+
     /** Deletes the competitor with their starts, results, lanes and team memberships. */
     public void deleteCompetitor(int id, Integer expectedVersion) throws Exception {
         locked(() -> competitorService.deleteCompetitor(id, expectedVersion));

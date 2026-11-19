@@ -179,13 +179,18 @@ function meetLine() {
     return [meet.location, meet.dateText].filter(Boolean).map(escapeHtml).join(' · ');
 }
 
-/** The names of the meet's rankings a discipline counts in, e.g. "Whitworth O/R, Whitworth O". */
-export const rankingNames = (rankingsByDiscipline, disciplineId) =>
-    (rankingsByDiscipline?.[disciplineId] || []).map(r => r.name).join(', ');
+/**
+ * The names of the meet's rankings a discipline counts in, e.g. "Whitworth O/R, Whitworth O";
+ * with rankingIds only those (the rankings a start is registered for).
+ */
+export const rankingNames = (rankingsByDiscipline, disciplineId, rankingIds) =>
+    (rankingsByDiscipline?.[disciplineId] || [])
+        .filter(r => !Array.isArray(rankingIds) || rankingIds.includes(r.id))
+        .map(r => r.name).join(', ');
 
-// The discipline shot, with the rankings it counts in below it
+// The discipline shot, with the rankings the start is registered for below it
 function disciplineCell(start, rankingsByDiscipline) {
-    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id);
+    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id, start.ranking_ids);
     return `${escapeHtml(start.discipline_name ?? '')}${rankings
         ? `<div class="card-rankings">${escapeHtml(t('meet.card.rankings', { rankings }))}</div>` : ''}`;
 }
@@ -314,6 +319,16 @@ async function loadPrintout(kind) {
         .sort(printOrder);
     if (chosen.length === 0) throw new Error(t('meet.noStarters'));
     const rows = new Map((overview?.rows || []).map(row => [row.competitor?.id, row]));
+    // The rankings each start is registered for, for the start cards
+    const rankingIdsByStart = new Map();
+    for (const starter of starters) {
+        Object.values(starter.starts || {}).flat()
+            .forEach(start => rankingIdsByStart.set(start.generated_id, start.ranking_ids));
+    }
+    for (const row of rows.values()) {
+        [...(row.scheduled || []), ...(row.unscheduled || []), ...(row.no_lane || [])]
+            .forEach(start => { start.ranking_ids = rankingIdsByStart.get(start.start_id); });
+    }
     // Each competitor's teams
     const teamsByCompetitor = new Map();
     for (const team of teams || []) {

@@ -122,6 +122,20 @@ export async function addStart(competitorId, disciplineId, caliber) {
     });
 }
 
+// Register a competitor for an entry of a ranking; returns the starts it uses (shared or new)
+export async function registerForRanking(competitorId, rankingId, entry, caliber) {
+    return await apiCall(`/competitors/${competitorId}/starts/rankings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ranking_id: rankingId, entry, caliber: caliber || null })
+    });
+}
+
+// Withdraw a competitor from a ranking; starts left in no ranking are deleted
+export async function withdrawFromRanking(competitorId, rankingId) {
+    return await apiCall(`/competitors/${competitorId}/starts/rankings/${rankingId}`, { method: 'DELETE' });
+}
+
 // Delete start
 export async function deleteStart(competitorId, generatedId) {
     return await apiCall(`/competitors/${competitorId}/starts/${generatedId}`, {

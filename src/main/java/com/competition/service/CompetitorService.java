@@ -210,6 +210,7 @@ public class CompetitorService {
         start.setDisciplineId(((Number) data.get("discipline_id")).intValue());
         start.setStatus((String) data.get("status"));
         start.setCaliber((String) data.get("caliber"));
+        start.setRankingIds(Start.rankingIdsOf(data.get("ranking_ids")));
         return start;
     }
 
@@ -221,6 +222,9 @@ public class CompetitorService {
         data.put("status", start.getStatus());
         if (start.getCaliber() != null) {
             data.put("caliber", start.getCaliber());
+        }
+        if (start.getRankingIds() != null) {
+            data.put("ranking_ids", new java.util.ArrayList<>(start.getRankingIds()));
         }
         return data;
     }

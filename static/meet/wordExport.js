@@ -15,12 +15,14 @@ const START_COLUMNS = [38, 17, 18, 20, 14, 49, 30];
 
 const idSize = (id) => (String(id).length >= 5 ? 32 : String(id).length === 4 ? 38 : 44);
 
-const rankingNames = (rankingsByDiscipline, disciplineId) =>
-    (rankingsByDiscipline?.[disciplineId] || []).map(r => r.name).join(', ');
+const rankingNames = (rankingsByDiscipline, disciplineId, rankingIds) =>
+    (rankingsByDiscipline?.[disciplineId] || [])
+        .filter(r => !Array.isArray(rankingIds) || rankingIds.includes(r.id))
+        .map(r => r.name).join(', ');
 
 // The discipline shot, with the rankings it counts in below it
 function disciplineCell(start, rankingsByDiscipline, style = {}) {
-    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id);
+    const rankings = rankingNames(rankingsByDiscipline, start.discipline_id, start.ranking_ids);
     return {
         paragraphs: [
             paragraph(start.discipline_name ?? '', { size: 10, ...style }),

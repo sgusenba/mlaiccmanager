@@ -1,7 +1,7 @@
 // Starts management module
 
 import { getState, setState } from '../config.js';
-import { addStart, deleteStart as apiDeleteStart, loadCompetitors, loadRankings } from '../api.js';
+import { deleteStart as apiDeleteStart, loadCompetitors, loadRankings, registerForRanking, withdrawFromRanking } from '../api.js';
 import { escapeHtml } from '../teamRanking.js';
 import { t, tOr } from '../i18n.js';
 import { genderLabel } from './competitors.js';
@@ -45,26 +45,31 @@ export function displayCompetitorInfo(competitor) {
 }
 
 // Display starts management
-export function displayStartsManagement(competitor) {
+export async function displayStartsManagement(competitor) {
     showElement('starts-management');
-    populateRankingsDropdown();
-    displayStartsTable(competitor);
+    // The table names each start's rankings, so they are loaded first
+    await populateRankingsDropdown();
+    displayStartsTable(getState('selectedCompetitor') || competitor);
 }
 
-// The ranking entries offered in the dropdown: option value -> discipline ids of that entry
+// The ranking entries offered in the dropdown: option value "rankingId:entry" -> { rankingId, entry }
 const rankingEntries = new Map();
+// The meet's individual rankings by id, for the names shown with each start
+const rankingsById = new Map();
 
 const disciplineName = (id) =>
     getState('availableDisciplines').find(d => d.id === id)?.name ?? `#${id}`;
 
+const rankingName = (id) => rankingsById.get(id)?.name ?? `#${id}`;
+
 // Populate the dropdown with the meet's individual rankings, as the bulk entry
 // offers them: one option per ranking entry. A ranking that ranks several
-// entries together (e.g. Whitworth O/R) gets a group with one option each;
-// an entry that sums disciplines (Remington_O = Colt + Donald Malson_O) adds
-// a start in each of them.
+// entries together (e.g. Whitworth O/R) gets a group with one option each.
+// A competitor is registered for each ranking on its own; an entry that sums
+// disciplines (Remington_O = Colt + Donald Malson_O) uses a start in each,
+// shared with the other rankings the competitor is registered for.
 async function populateRankingsDropdown() {
     const dropdown = document.getElementById('start-ranking');
-    rankingEntries.clear();
     let rankings = [];
     try {
         rankings = (await loadRankings())
@@ -73,28 +78,58 @@ async function populateRankingsDropdown() {
     } catch (error) {
         console.error('Error loading rankings:', error);
         showMessage(t('starts.error.loadRankings'), 'error');
+        return;
     }
+    rankingEntries.clear();
+    rankingsById.clear();
+    rankings.forEach(r => rankingsById.set(r.id, r));
 
-    const option = (value, ids, text) => {
-        rankingEntries.set(value, ids);
+    const option = (ranking, i, text) => {
+        const value = `${ranking.id}:${i}`;
+        const ids = ranking.entries[i].discipline_ids;
+        rankingEntries.set(value, { rankingId: ranking.id, entry: i });
         const parts = ids.length > 1 ? ` (${ids.map(disciplineName).join(' + ')})` : '';
         return `<option value="${value}">${escapeHtml(text)}${escapeHtml(parts)}</option>`;
     };
 
     dropdown.innerHTML = `<option value="">${t('starts.selectRanking')}</option>` +
-        rankings.map((ranking, r) => {
+        rankings.map(ranking => {
             const entries = ranking.entries;
             if (entries.length === 1) {
-                return option(`${r}:0`, entries[0].discipline_ids, ranking.name);
+                return option(ranking, 0, ranking.name);
             }
             return `<optgroup label="${escapeHtml(ranking.name)}">` +
-                entries.map((entry, i) => option(`${r}:${i}`, entry.discipline_ids,
+                entries.map((entry, i) => option(ranking, i,
                     entry.label || (entry.discipline_ids.length === 1 ? disciplineName(entry.discipline_ids[0]) : ranking.name))).join('') +
                 `</optgroup>`;
         }).join('');
 
     hideElement('no-rankings-hint');
     if (!rankingEntries.size) showElement('no-rankings-hint');
+}
+
+// The rankings the competitor is registered for, each with a button to withdraw
+function displayRegisteredRankings(allStarts) {
+    const container = document.getElementById('registered-rankings');
+    const ids = [...new Set(allStarts.flatMap(start => start.ranking_ids || []))]
+        .sort((a, b) => rankingName(a).localeCompare(rankingName(b)));
+    if (!ids.length) {
+        container.innerHTML = '';
+        hideElement('registered-rankings');
+        return;
+    }
+    container.innerHTML = `<span class="text-sm font-medium text-gray-500 mr-1">${t('starts.registeredFor')}</span>` +
+        ids.map(id => `
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-800 text-sm">
+                ${escapeHtml(rankingName(id))}
+                <button type="button" data-action="withdraw-ranking" data-ranking-id="${id}"
+                        class="text-blue-500 hover:text-red-600 leading-none" title="${escapeHtml(t('starts.withdraw', { ranking: rankingName(id) }))}"
+                        aria-label="${escapeHtml(t('starts.withdraw', { ranking: rankingName(id) }))}">×</button>
+            </span>`).join('');
+    container.querySelectorAll('button[data-action="withdraw-ranking"]').forEach(button => {
+        button.addEventListener('click', () => withdraw(parseInt(button.dataset.rankingId), button));
+    });
+    showElement('registered-rankings');
 }
 
 // Display starts table
@@ -117,6 +152,8 @@ function displayStartsTable(competitor) {
         });
     }
     
+    displayRegisteredRankings(allStarts);
+
     if (allStarts.length === 0) {
         setElementContent('starts-table-body', '');
         showElement('no-starts');
@@ -124,10 +161,17 @@ function displayStartsTable(competitor) {
         hideElement('no-starts');
         tbody.innerHTML = allStarts.map(start => {
             const discipline = availableDisciplines.find(d => d.id === start.discipline_id);
+            // Starts added by discipline alone (older data) count in every ranking of their discipline
+            const rankings = start.ranking_ids
+                ? start.ranking_ids.map(rankingName).map(escapeHtml).join('<br>')
+                : `<span class="text-gray-400">${t('starts.anyRanking')}</span>`;
             return `
                 <tr>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                        ${rankings}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${discipline ? discipline.name : t('common.unknown')}
+                        ${discipline ? escapeHtml(discipline.name) : t('common.unknown')}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${start.start_number}
@@ -202,35 +246,40 @@ export async function saveStart() {
         return;
     }
     
-    const disciplineIds = rankingEntries.get(getElementValue('start-ranking'));
+    const picked = rankingEntries.get(getElementValue('start-ranking'));
     
-    if (!disciplineIds || !disciplineIds.length) {
+    if (!picked) {
         showMessage(t('starts.selectRankingPrompt'), 'error');
         return;
     }
     
-    // One start per discipline of the entry, as the bulk entry does
-    const caliber = getElementValue('start-caliber').trim();
-    const failed = [];
-    await withButtonFeedback(document.getElementById('save-start-btn'), async () => {
-        for (const disciplineId of disciplineIds) {
-            try {
-                await addStart(selectedCompetitor.id, disciplineId, caliber);
-            } catch (error) {
-                console.error('Error adding start:', error);
-                failed.push(`${disciplineName(disciplineId)}: ${error.body?.error || error.message}`);
-            }
-        }
-        // No checkmark on the button if a start was refused
-        if (failed.length) throw new Error(failed.join('; '));
-    }).catch(() => {});
-    
-    // Show the starts as stored on the server, including ones other users added
-    if (!await refreshSelectedCompetitor()) return;
-    if (failed.length) {
-        showMessage(t('starts.error.addWith', { error: failed.join('; ') }), 'error');
-    } else {
+    try {
+        const caliber = getElementValue('start-caliber').trim();
+        await withButtonFeedback(document.getElementById('save-start-btn'),
+            () => registerForRanking(selectedCompetitor.id, picked.rankingId, picked.entry, caliber));
         hideAddStartForm();
+        await refreshSelectedCompetitor();
+    } catch (error) {
+        console.error('Error registering for ranking:', error);
+        // Show the starts as stored on the server, including ones other users added
+        if (!await refreshSelectedCompetitor()) return;
+        showMessage(error.body?.error ? t('starts.error.addWith', { error: error.body.error }) : t('starts.error.add'), 'error');
+    }
+}
+
+// Withdraw the competitor from a ranking: starts used by no other ranking are deleted with their results
+async function withdraw(rankingId, button) {
+    const selectedCompetitor = getState('selectedCompetitor');
+    if (!selectedCompetitor || !confirm(t('starts.confirmWithdraw', { ranking: rankingName(rankingId) }))) {
+        return;
+    }
+    try {
+        await withButtonFeedback(button, () => withdrawFromRanking(selectedCompetitor.id, rankingId));
+        await refreshSelectedCompetitor();
+    } catch (error) {
+        console.error('Error withdrawing from ranking:', error);
+        if (!await refreshSelectedCompetitor()) return;
+        showMessage(error.body?.error ? t('starts.error.withdrawWith', { error: error.body.error }) : t('starts.error.withdraw'), 'error');
     }
 }
 
