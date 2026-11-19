@@ -3,6 +3,7 @@ package com.competition.service;
 import com.competition.i18n.Messages;
 import com.competition.model.Discipline;
 import com.competition.model.RankingDefinition;
+import com.competition.model.Start;
 
 import java.util.*;
 
@@ -127,11 +128,14 @@ public class RankingService {
         boolean pooled = ranking.getEntries().size() > 1;
         return dataService.read(data -> {
             List<Map<String, Object>> competitors = (List<Map<String, Object>>) data.get("competitors");
+            // The starts registered for this ranking (see Start.countsIn)
+            Set<Object> counting = countingStarts(competitors, ranking.getId());
             // Each competitor's results in the ranking's disciplines, by discipline
             Map<Integer, Map<Integer, List<BestResult>>> resultsByCompetitor = new LinkedHashMap<>();
             for (Map<String, Object> result : (List<Map<String, Object>>) data.get("results")) {
                 if (!(result.get("discipline_id") instanceof Number d) || !ids.contains(d.intValue())
-                        || !(result.get("competitor_id") instanceof Number c)) {
+                        || !(result.get("competitor_id") instanceof Number c)
+                        || !counting.contains(result.get("start_id"))) {
                     continue;
                 }
                 resultsByCompetitor.computeIfAbsent(c.intValue(), k -> new HashMap<>())
@@ -171,6 +175,26 @@ public class RankingService {
             rows.addAll(startersWithoutResult(competitors, ranking, disciplines, standings.keySet(), pooled));
             return rows;
         });
+    }
+
+    /** The ids of the competitors' starts that count in the ranking: registered for it, or for none in particular. */
+    private static Set<Object> countingStarts(List<Map<String, Object>> competitors, int rankingId) {
+        Set<Object> ids = new HashSet<>();
+        for (Map<String, Object> competitorData : competitors) {
+            if (!(competitorData.get("starts") instanceof Map<?, ?> starts)) {
+                continue;
+            }
+            for (Object list : starts.values()) {
+                if (list instanceof List<?> items) {
+                    for (Object item : items) {
+                        if (item instanceof Map<?, ?> start && Start.countsIn(start.get("ranking_ids"), rankingId)) {
+                            ids.add(start.get("generated_id"));
+                        }
+                    }
+                }
+            }
+        }
+        return ids;
     }
 
     /**
@@ -259,10 +283,14 @@ public class RankingService {
             String label = null;
             for (RankingDefinition.Entry entry : ranking.getEntries()) {
                 for (int id : entry.getDisciplineIds()) {
-                    if (firstStart == null && starts.get(String.valueOf(id)) instanceof List<?> list
-                            && !list.isEmpty() && list.get(0) instanceof Map<?, ?> start) {
-                        firstStart = start;
-                        label = entryLabel(entry, disciplines);
+                    if (firstStart == null && starts.get(String.valueOf(id)) instanceof List<?> list) {
+                        for (Object item : list) {
+                            if (item instanceof Map<?, ?> start && Start.countsIn(start.get("ranking_ids"), ranking.getId())) {
+                                firstStart = start;
+                                label = entryLabel(entry, disciplines);
+                                break;
+                            }
+                        }
                     }
                 }
             }

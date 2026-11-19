@@ -137,6 +137,66 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /competitors/{competitorId}/starts/rankings:
+    parameters:
+      - name: competitorId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Starts]
+      summary: Register a competitor for a ranking
+      description: |
+        Registers for one entry of the ranking (for a sum like Remington_O = Colt + Donald Malson_O
+        all its disciplines). A start the competitor already has in a discipline is used for the
+        ranking too, missing ones are added with the caliber given. Each ranking needs its own
+        registration: starts in Colt and Donald Malson_O alone do not count in Remington_O.
+        `400` if the competitor is already registered for the entry.
+      operationId: registerForRanking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ranking_id]
+              properties:
+                ranking_id: { type: integer, example: 35 }
+                entry: { type: integer, description: "Index of the ranking's entry, default 0" }
+                caliber: { type: string, example: ".44" }
+      responses:
+        "200":
+          description: The starts registered for the entry, in its order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Start" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /competitors/{competitorId}/starts/rankings/{rankingId}:
+    parameters:
+      - name: competitorId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: rankingId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Starts]
+      summary: Withdraw a competitor from a ranking
+      description: Takes the ranking off the competitor's starts; starts left in no ranking are deleted with their results, lanes and team memberships.
+      operationId: withdrawFromRanking
+      responses:
+        "204": { description: Withdrawn }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   /competitors/{competitorId}/starts/{generatedId}:
     parameters:
       - name: competitorId
@@ -1690,6 +1750,13 @@ components:
         start_number: { type: integer }
         discipline_id: { type: integer }
         status: { type: string, example: registered }
+        caliber: { type: string, example: ".44" }
+        ranking_ids:
+          type: array
+          items: { type: integer }
+          description: |
+            The rankings the competitor is registered for with this start; it counts only in these.
+            Absent for starts added by discipline alone: they count in every ranking of their discipline.
 
     Competitor:
       type: object

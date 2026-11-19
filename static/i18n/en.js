@@ -145,7 +145,7 @@ export default {
 
     // Starts
     'starts.title': 'Competitor Starts Management',
-    'starts.intro': 'Search for a competitor and manage their starts in the meet\'s rankings. A combined ranking adds one start per discipline.',
+    'starts.intro': 'Search for a competitor and register them for the meet\'s rankings. Each ranking needs its own registration; a start (e.g. Colt) counts in every ranking it is registered for.',
     'starts.searchCompetitor': 'Search Competitor',
     'starts.searchPlaceholder': 'Enter name or ID...',
     'starts.selectedCompetitor': 'Selected Competitor',
@@ -156,6 +156,13 @@ export default {
     'starts.selectRankingPrompt': 'Please select a ranking',
     'starts.noRankings': 'This meet has no individual rankings yet. Set them up on the <a href="/rankings/" class="underline font-medium">Ranking Setup</a> page.',
     'starts.error.loadRankings': 'Error loading the rankings',
+    'starts.rankings': 'Rankings',
+    'starts.registeredFor': 'Registered for:',
+    'starts.anyRanking': 'every ranking of the discipline',
+    'starts.withdraw': 'Withdraw from {ranking}',
+    'starts.confirmWithdraw': 'Withdraw from {ranking}? Starts no other ranking uses are deleted with their results.',
+    'starts.error.withdraw': 'Error withdrawing',
+    'starts.error.withdrawWith': 'Error withdrawing: {error}',
     'starts.discipline': 'Discipline',
     'starts.caliber': 'Caliber',
     'starts.caliberPlaceholder': 'e.g. .36, .56',

@@ -2,15 +2,16 @@
 // the rankings typed as short names (WHITO COLT), ticked in a matrix, or
 // pasted from a spreadsheet. A row keeps the ranking entries it picked by
 // their ids (ranking id and entry); the short names are only what is shown
-// and typed, and saving uses the entries' discipline ids. "Add all" saves each row the way the single
-// form does (POST /api/competitors) and then adds its starts the way the
-// Starts section does (POST /api/competitors/{id}/starts), one discipline at
-// a time. Rows that could not be saved stay in the table with the reason.
+// and typed. "Add all" saves each row the way the single form does
+// (POST /api/competitors) and then registers it for each ranking entry picked
+// the way the Starts section does (POST /api/competitors/{id}/starts/rankings):
+// one start per discipline, shared by the rankings that use it. Rows that could
+// not be saved stay in the table with the reason.
 // A short name may carry the caliber after a hyphen (MAXO-55): it is saved
-// with every start of that entry, as the Starts section's caliber field does,
+// with the starts the entry adds, as the Starts section's caliber field does,
 // and is printed on the target labels.
 
-import { addStart, loadCompetitors, saveCompetitor } from '../api.js';
+import { loadCompetitors, registerForRanking, saveCompetitor } from '../api.js';
 import { findCountry, getCountries } from '../countries.js';
 import { escapeHtml } from '../meet.js';
 import { categoryLabel } from '../teamRanking.js';
@@ -182,16 +183,6 @@ function removePick(row, pick) {
 function togglePick(row, key) {
     if (row.picks.includes(key)) removePick(row, key);
     else row.picks = [...row.picks, key];
-}
-
-/** The caliber each discipline of a row starts with; with two entries sharing a discipline the first one's. */
-function rowCalibers(row) {
-    const calibers = new Map();
-    row.picks.forEach(pick => {
-        const caliber = row.calibers[pick];
-        if (caliber) state.entries.get(pick)?.disciplineIds.forEach(id => { if (!calibers.has(id)) calibers.set(id, caliber); });
-    });
-    return calibers;
 }
 
 /** Keeps an empty row at the end, ready for the next starter. */
@@ -409,16 +400,19 @@ async function saveRow(row) {
         country: row.country
     });
     const failed = [];
-    const calibers = rowCalibers(row);
-    let added = 0;
-    for (const disciplineId of rowStarts(row)) {
+    // Starts shared by two rankings (Colt in 7_Colt and Remington_O) count once
+    const startIds = new Set();
+    for (const pick of new Set(row.picks)) {
+        const entry = state.entries.get(pick);
+        if (!entry || entry.ranking.id === undefined) continue;
         try {
-            await addStart(competitor.id, disciplineId, calibers.get(disciplineId) || null);
-            added++;
+            const starts = await registerForRanking(competitor.id, entry.ranking.id, entry.entry, row.calibers[pick] || null);
+            (starts || []).forEach(start => startIds.add(start.generated_id));
         } catch (error) {
-            failed.push(`${disciplineName(disciplineId)}: ${errorText(error)}`);
+            failed.push(`${entry.code}: ${errorText(error)}`);
         }
     }
+    const added = startIds.size;
     return { name: competitor.name || row.name.trim(), added, failed };
 }
 

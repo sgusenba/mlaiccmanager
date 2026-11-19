@@ -144,7 +144,7 @@ export default {
 
     // Starts
     'starts.title': 'Starts der Teilnehmer verwalten',
-    'starts.intro': 'Suchen Sie einen Teilnehmer und verwalten Sie seine Starts in den Wertungen des Wettkampfs. Eine Kombinationswertung legt je Disziplin einen Start an.',
+    'starts.intro': 'Suchen Sie einen Teilnehmer und melden Sie ihn für die Wertungen des Wettkampfs an. Für jede Wertung wird eigens angemeldet; ein Start (z. B. Colt) zählt in allen Wertungen, für die er angemeldet ist.',
     'starts.searchCompetitor': 'Teilnehmer suchen',
     'starts.searchPlaceholder': 'Name oder ID eingeben...',
     'starts.selectedCompetitor': 'Ausgewählter Teilnehmer',
@@ -155,6 +155,13 @@ export default {
     'starts.selectRankingPrompt': 'Bitte wählen Sie eine Wertung',
     'starts.noRankings': 'Diese Veranstaltung hat noch keine Einzelwertungen. Lege sie auf der Seite <a href="/rankings/" class="underline font-medium">Wertungen einrichten</a> an.',
     'starts.error.loadRankings': 'Fehler beim Laden der Wertungen',
+    'starts.rankings': 'Wertungen',
+    'starts.registeredFor': 'Angemeldet für:',
+    'starts.anyRanking': 'alle Wertungen der Disziplin',
+    'starts.withdraw': 'Von {ranking} abmelden',
+    'starts.confirmWithdraw': 'Von {ranking} abmelden? Starts, die für keine andere Wertung gebraucht werden, werden mit ihren Ergebnissen gelöscht.',
+    'starts.error.withdraw': 'Fehler beim Abmelden',
+    'starts.error.withdrawWith': 'Fehler beim Abmelden: {error}',
     'starts.discipline': 'Disziplin',
     'starts.caliber': 'Kaliber',
     'starts.caliberPlaceholder': 'z. B. .36, .56',
