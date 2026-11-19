@@ -252,7 +252,7 @@ function rankingSection(data, pageBreakBefore, columns) {
  * rankings: the rankings with data, as shown on the page (/api/rankings/results
  * or /api/rankings/{id}/result). scope: "All rankings" or the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
  * (none), a watermark across the ranking pages (not the cover and statistics).
- * columns: { club, country }, which of the two columns the individual rankings show.
+ * columns: { club, country }, which of the two columns the individual rankings show. Returns a Promise of the .docx Blob.
  */
 export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline, columns = ALL_COLUMNS }) {
     const frontMatter = [];
@@ -352,7 +352,7 @@ function statisticsSheet(stats) {
     };
 }
 
-/** One sheet per ranking, plus the statistics sheet when asked for. */
+/** One sheet per ranking, plus the statistics sheet when asked for: a Promise of the .xlsx Blob. */
 export function rankingXlsx({ rankings, stats, withStats, columns = ALL_COLUMNS }) {
     const sheets = rankings.map(data => (data.kind === 'team' ? teamSheet(data) : individualSheet(data, columns)));
     if (withStats && stats) sheets.push(statisticsSheet(stats));

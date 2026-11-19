@@ -254,9 +254,9 @@ async function exportFromDialog() {
     };
     try {
         if (format === 'excel') {
-            downloadBlob(rankingXlsx(options), exportFileName(t('ranking.fileName'), 'xlsx'));
+            downloadBlob(await rankingXlsx(options), exportFileName(t('ranking.fileName'), 'xlsx'));
         } else {
-            downloadBlob(rankingDocx(options), exportFileName(t('ranking.fileName'), 'docx'));
+            downloadBlob(await rankingDocx(options), exportFileName(t('ranking.fileName'), 'docx'));
         }
     } catch (error) {
         showMessage(t('ranking.error.export', { error: error.message }));

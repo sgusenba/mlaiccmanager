@@ -358,9 +358,9 @@ async function renderPrintout(kind) {
 
 async function exportWord(kind) {
     const { chosen, rows, printedAt, extras } = await loadPrintout(kind);
-    const file = kind === 'cards'
+    const file = await (kind === 'cards'
         ? startCardsDocx(meet, chosen, rows, { printedAt, formatDay, ...extras })
-        : raceBibsDocx(meet, chosen);
+        : raceBibsDocx(meet, chosen));
     downloadBlob(file, exportFileName(t(FILE_PREFIXES[kind]), 'docx'));
 }
 
