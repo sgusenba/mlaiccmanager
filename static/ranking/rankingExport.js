@@ -113,17 +113,30 @@ function statisticsPage(meet, stats, pageBreakBefore) {
     return body;
 }
 
-function individualTable(data) {
+const ALL_COLUMNS = { club: true, country: true };
+
+function individualTable(data, columns = ALL_COLUMNS) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(data.ranking);
     const ringWidths = RINGS.map(() => 6);
-    // A ranking of several entries has a column with the entry shot (e.g. WHITO), taken from the name column
+    // A ranking of several entries has a column with the entry shot (e.g. WHITO); the name column takes what the others leave
     const tagWidth = 11;
-    const nameWidth = (hasNotes ? 34 : 40) - (combined ? tagWidth : 0);
-    const widths = [9, nameWidth, ...(combined ? [tagWidth] : []),
-        ...(hasNotes ? [24, 15, 12, ...ringWidths, 12, 18] : [31, 20, 12, ...ringWidths, 12])];
+    const clubWidth = hasNotes ? 24 : 31;
+    const countryWidth = hasNotes ? 15 : 20;
+    const others = [9, ...(combined ? [tagWidth] : []), ...(columns.club ? [clubWidth] : []), ...(columns.country ? [countryWidth] : []),
+        12, ...ringWidths, 12, ...(hasNotes ? [18] : [])];
+    const nameWidth = PAGE_WIDTH - others.reduce((a, b) => a + b, 0);
+    const widths = [9, nameWidth, ...others.slice(1)];
     const center = (text) => ({ text, align: 'center' });
+    const textCells = (row, style) => [
+        ...(columns.club ? [{ text: row.competitor.club || '', ...style }] : []),
+        ...(columns.country ? [{ text: countryLabel(row.competitor.country || ''), ...style }] : [])
+    ];
+    // A component's short name goes into the first of the club and country columns shown
+    const textColumns = (columns.club ? 1 : 0) + (columns.country ? 1 : 0);
+    const shortNameCells = (c) => (textColumns === 0 ? []
+        : [{ text: combined ? '' : c.short_name || '', mono: true }, ...(textColumns === 2 ? [''] : [])]);
     // Below each competitor: a sum's disciplines (e.g. Remington), then their other results
     const componentRows = (row) => (row.components || []).map(c => ({
         size: 7,
@@ -133,8 +146,7 @@ function individualTable(data) {
             `\u00a0\u00a0\u00a0\u00a0${c.label}`, // indented; non-breaking spaces are kept by Word
             // In a combined ranking the discipline shot goes into its column
             ...(combined ? [center(c.short_name || '')] : []),
-            { text: combined ? '' : c.short_name || '', mono: true },
-            '',
+            ...shortNameCells(c),
             center(c.score === null ? '-' : formatScore(c.score)),
             ...RINGS.map(ring => center(c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
             center(c.override_value ?? ''),
@@ -152,7 +164,7 @@ function individualTable(data) {
     return table([
         {
             cells: [t('ranking.col.rank'), t('ranking.col.name'), ...(combined ? [center(typeHeader(data.ranking))] : []),
-                t('ranking.col.club'), t('ranking.col.country'),
+                ...(columns.club ? [t('ranking.col.club')] : []), ...(columns.country ? [t('ranking.col.country')] : []),
                 center(t('ranking.col.result')), ...RINGS.map(ring => center(ringHeader(ring))),
                 center(t('ranking.col.tieBreak')), ...(hasNotes ? [t('ranking.col.notes')] : [])]
         },
@@ -162,8 +174,7 @@ function individualTable(data) {
                 center(row.rank),
                 nameCell(row, { bold: row.rank <= 3 }),
                 ...typeCells(row, { bold: false }),
-                { text: row.competitor.club || '', bold: false },
-                { text: countryLabel(row.competitor.country || ''), bold: false },
+                ...textCells(row, { bold: false }),
                 center(formatScore(row.score)),
                 ...RINGS.map(ring => ({ text: row.freq_counts?.[ring] ?? 0, align: 'center', bold: false })),
                 { text: row.override_value ?? '-', align: 'center', bold: false },
@@ -174,9 +185,8 @@ function individualTable(data) {
                 center('-'),
                 nameCell(row, { color: GREY }),
                 ...typeCells(row, { color: GREY }),
-                { text: row.competitor.club || '', color: GREY },
-                { text: countryLabel(row.competitor.country || ''), color: GREY },
-                { text: t('ranking.noResult'), align: 'center', italic: true, color: GREY },
+                ...textCells(row, { color: GREY }),
+                '',
                 ...RINGS.map(() => ''),
                 '',
                 ...(hasNotes ? [''] : [])
@@ -220,7 +230,7 @@ function teamTable(data) {
         header: true, size: 8, borderColor: 'BBBBBB', padding: 0.7 });
 }
 
-function rankingSection(data, pageBreakBefore) {
+function rankingSection(data, pageBreakBefore, columns) {
     const ranking = data.ranking;
     const team = data.kind === 'team';
     const entries = isCombined(ranking) || hasSums(ranking) ? entriesLine(ranking) : '';
@@ -233,7 +243,7 @@ function rankingSection(data, pageBreakBefore) {
             { text: `   ${team ? t('ranking.categoryTeam', { category: categoryLabel(ranking.category) }) : categoryLabel(ranking.category)}`, bold: false, size: 9, color: GREY }
         ], { size: 12, bold: true, keepNext: true, spaceAfter: subline ? 1 : 4, pageBreakBefore }),
         ...(subline ? [paragraph(subline, { size: 9, color: GREY, keepNext: true, spaceAfter: 4 })] : []),
-        team ? teamTable(data) : individualTable(data),
+        team ? teamTable(data) : individualTable(data, columns),
         paragraph('', { spaceAfter: 14 })
     ];
 }
@@ -242,8 +252,9 @@ function rankingSection(data, pageBreakBefore) {
  * rankings: the rankings with data, as shown on the page (/api/rankings/results
  * or /api/rankings/{id}/result). scope: "All rankings" or the chosen one. resultLabel: "Intermediate Result", "Final Result" or ''
  * (none), a watermark across the ranking pages (not the cover and statistics).
+ * columns: { club, country }, which of the two columns the individual rankings show. Returns a Promise of the .docx Blob.
  */
-export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline }) {
+export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, withCover, withStats, pagePerDiscipline, columns = ALL_COLUMNS }) {
     const frontMatter = [];
     if (withCover && meet) frontMatter.push(...coverPage(meet, scope));
     if (withStats && stats) frontMatter.push(...statisticsPage(meet || {}, stats, frontMatter.length > 0));
@@ -256,7 +267,7 @@ export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, w
         ? [table([[{ paragraphs: [logoParagraph(16)] }, { paragraphs: title }]],
             { widths: [20, 170], borders: 'none', padding: 0, vAlign: 'center' }), paragraph('', { spaceAfter: 12 })]
         : [title[0], paragraph(timestampLine(scope), { size: 9, color: GREY, spaceAfter: 12 })];
-    rankings.forEach((data, i) => body.push(...rankingSection(data, pagePerDiscipline && i > 0)));
+    rankings.forEach((data, i) => body.push(...rankingSection(data, pagePerDiscipline && i > 0, columns)));
     return docx(body, { margin: 10, watermark: resultLabel, frontMatter, logo });
 }
 
@@ -264,14 +275,19 @@ export function rankingDocx({ logo, meet, scope, resultLabel, rankings, stats, w
 
 const number = (value) => (value === null || value === undefined || value === '' ? '' : Number(value));
 
-function individualSheet(data) {
+function individualSheet(data, columns = ALL_COLUMNS) {
     const rows = data.rankings || [];
     const hasNotes = rows.some(row => row.notes);
     const combined = isCombined(data.ranking);
     const type = (row) => (combined ? [typeTag(row)] : []);
+    const textCells = (row) => [...(columns.club ? [row.competitor.club || ''] : []),
+        ...(columns.country ? [countryLabel(row.competitor.country || '')] : [])];
+    // A component's short name goes into the first of the club and country columns shown
+    const textColumns = (columns.club ? 1 : 0) + (columns.country ? 1 : 0);
+    const shortNameCells = (c) => (textColumns === 0 ? [] : [combined ? '' : c.short_name || '', ...(textColumns === 2 ? [''] : [])]);
     // Below each competitor: a sum's disciplines (e.g. Remington), then their other results
     const componentRows = (row) => (row.components || []).map(c => [
-        '', c.start_id || '', `  ${c.label}`, ...(combined ? [c.short_name || ''] : []), combined ? '' : c.short_name || '', '',
+        '', c.start_id || '', `  ${c.label}`, ...(combined ? [c.short_name || ''] : []), ...shortNameCells(c),
         c.score === null ? '' : number(c.score), ...RINGS.map(ring => (c.freq_counts ? (c.freq_counts[ring] ?? 0) : '')),
         number(c.override_value), ...(hasNotes ? [''] : [])
     ]);
@@ -280,20 +296,22 @@ function individualSheet(data) {
         columns: [
             { header: t('ranking.col.rank'), width: 6 }, { header: t('ranking.col.start'), width: 12 }, { header: t('ranking.col.name'), width: 28 },
             ...(combined ? [{ header: typeHeader(data.ranking), width: 12 }] : []),
-            { header: t('ranking.col.club'), width: 24 }, { header: t('ranking.col.country'), width: 16 }, { header: t('ranking.col.result'), width: 9 },
+            ...(columns.club ? [{ header: t('ranking.col.club'), width: 24 }] : []),
+            ...(columns.country ? [{ header: t('ranking.col.country'), width: 16 }] : []),
+            { header: t('ranking.col.result'), width: 9 },
             ...RINGS.map(ring => ({ header: ringHeader(ring), width: 6 })), { header: t('ranking.col.tieBreak'), width: 9 },
             ...(hasNotes ? [{ header: t('ranking.col.notes'), width: 30 }] : [])
         ],
         rows: rows.flatMap(row => [hasResult(row)
             ? [
-                row.rank, row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', countryLabel(row.competitor.country || ''),
+                row.rank, row.start_id, row.competitor.name, ...type(row), ...textCells(row),
                 number(row.score), ...RINGS.map(ring => row.freq_counts?.[ring] ?? 0),
                 number(row.override_value),
                 ...(hasNotes ? [row.notes || ''] : [])
             ]
             : [
-                '', row.start_id, row.competitor.name, ...type(row), row.competitor.club || '', countryLabel(row.competitor.country || ''),
-                t('ranking.noResult'), ...RINGS.map(() => ''), '',
+                '', row.start_id, row.competitor.name, ...type(row), ...textCells(row),
+                '', ...RINGS.map(() => ''), '',
                 ...(hasNotes ? [''] : [])
             ], ...componentRows(row)])
     };
@@ -334,9 +352,9 @@ function statisticsSheet(stats) {
     };
 }
 
-/** One sheet per ranking, plus the statistics sheet when asked for. */
-export function rankingXlsx({ rankings, stats, withStats }) {
-    const sheets = rankings.map(data => (data.kind === 'team' ? teamSheet(data) : individualSheet(data)));
+/** One sheet per ranking, plus the statistics sheet when asked for: a Promise of the .xlsx Blob. */
+export function rankingXlsx({ rankings, stats, withStats, columns = ALL_COLUMNS }) {
+    const sheets = rankings.map(data => (data.kind === 'team' ? teamSheet(data) : individualSheet(data, columns)));
     if (withStats && stats) sheets.push(statisticsSheet(stats));
     return xlsx(sheets);
 }

@@ -39,8 +39,29 @@ class MeetServiceTest {
         assertEquals("", meet.get("host"));
         assertNull(meet.get("date_from"));
         assertNull(meet.get("date_to"));
+        assertEquals(true, meet.get("show_club"));
+        assertEquals(true, meet.get("show_country"));
         assertEquals(0, meet.get("version"));
         assertFalse(Files.exists(tempDir.resolve("meet.json")));
+    }
+
+    @Test
+    void rankingColumnsCanBeSwitchedOff() throws Exception {
+        Map<String, Object> saved = meetService.update(request("name", "Freischießen", "show_country", false));
+        assertEquals(true, saved.get("show_club"));
+        assertEquals(false, saved.get("show_country"));
+
+        Map<String, Object> reloaded = new MeetService(tempDir.resolve("meet.json").toString()).get();
+        assertEquals(true, reloaded.get("show_club"));
+        assertEquals(false, reloaded.get("show_country"));
+
+        Map<String, Object> championship = meetService.update(request("show_club", false, "show_country", true));
+        assertEquals(false, championship.get("show_club"));
+        assertEquals(true, championship.get("show_country"));
+
+        IllegalArgumentException notBoolean = assertThrows(IllegalArgumentException.class,
+            () -> meetService.update(request("show_club", "no")));
+        assertEquals("show_club must be true or false", notBoolean.getMessage());
     }
 
     @Test

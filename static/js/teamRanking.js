@@ -34,8 +34,11 @@ export const formatScore = (value) => (value === null || value === undefined ? '
 export const categoryLabel = (category) => String(category ?? '').split(' / ')
     .map(part => tOr(`category.${part}`, part)).join(' / ');
 
-/** The column header of a ring, e.g. "10s". */
-export const ringHeader = (ring) => t('ranking.col.ring', { ring });
+/** The column header of a ring: "Z" (X in English) for the ten, else the ring alone, so all ring columns are equally narrow. */
+export const ringHeader = (ring) => (ring === '10' ? t('ranking.col.innerTen') : ring);
+
+/** Which of the club and country columns the rankings show, as set on the Meet page (both unless switched off). */
+export const rankingColumns = (meet) => ({ club: meet?.show_club !== false, country: meet?.show_country !== false });
 
 export function rankBadge(rank) {
     const icon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;

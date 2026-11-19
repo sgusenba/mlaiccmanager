@@ -1398,7 +1398,7 @@ paths:
       summary: Replace the meet details
       description: |
         All fields are replaced: a missing text becomes empty, a missing or blank date is
-        cleared. Texts are trimmed. Send the `version` you loaded; `409` if someone else
+        cleared, a missing `show_club` or `show_country` becomes true. Texts are trimmed. Send the `version` you loaded; `409` if someone else
         saved in the meantime.
       operationId: updateMeet
       requestBody:
@@ -1736,6 +1736,14 @@ components:
           format: date
           nullable: true
           description: Last day, not before `date_from`; when empty the pages print the last meet day
+        show_club:
+          type: boolean
+          default: true
+          description: Whether the rankings (page, print, Word, Excel) and the Todos page list the club; true when missing
+        show_country:
+          type: boolean
+          default: true
+          description: Whether the rankings and the Todos page list the country; true when missing
         version: { type: integer }
     LockRequest:
       type: object

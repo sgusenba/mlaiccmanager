@@ -117,7 +117,7 @@ function startCard(meet, competitor, row, printedAt, formatDay, first, { ranking
     ];
 }
 
-/** One start card per starter; rows: the starter overview rows by competitor ID. */
+/** One start card per starter (a Promise of the .docx Blob); rows: the starter overview rows by competitor ID. */
 export function startCardsDocx(meet, competitors, rows, { printedAt, formatDay, rankingsByDiscipline, teamsByCompetitor }) {
     const body = competitors.flatMap((c, i) => startCard(meet, c, rows.get(c.id), printedAt, formatDay, i === 0,
         { rankingsByDiscipline, teamsByCompetitor }));
@@ -143,7 +143,7 @@ function bib(meet, competitor, first) {
     ];
 }
 
-/** One A4 landscape race bib per starter. */
+/** One A4 landscape race bib per starter: a Promise of the .docx Blob. */
 export function raceBibsDocx(meet, competitors) {
     const body = competitors.flatMap((c, i) => bib(meet, c, i === 0));
     return docx(body, { landscape: true, margin: 10, pageBorder: 6 });

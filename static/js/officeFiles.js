@@ -1,6 +1,8 @@
 // Word (.docx) and Excel (.xlsx) files built in the browser, without any
-// library: both formats are ZIP files of XML parts. The ZIP is written
-// uncompressed ("stored"), which Word, Excel and LibreOffice all accept.
+// library: both formats are ZIP files of XML parts. The parts are
+// compressed (deflate) with the browser's CompressionStream; a part that
+// does not get smaller (e.g. a PNG) is stored as it is, and so is every part
+// in a browser without CompressionStream.
 
 // --- ZIP -------------------------------------------------------------------
 
@@ -20,8 +22,22 @@ function crc32(bytes) {
     return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-/** ZIP archive of the given [path, text or bytes] entries as a Blob of the given type. */
-export function zip(entries, type) {
+const STORED = 0;
+const DEFLATED = 8;
+
+/** The bytes deflated (raw, as ZIP wants them), or null where the browser cannot. */
+async function deflate(data) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try {
+        const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    } catch {
+        return null; // e.g. no 'deflate-raw' in an older browser: stored instead
+    }
+}
+
+/** ZIP archive of the given [path, text or bytes] entries: a Promise of a Blob of the given type. */
+export async function zip(entries, type) {
     const encoder = new TextEncoder();
     const now = new Date();
     const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
@@ -32,17 +48,21 @@ export function zip(entries, type) {
 
     for (const [path, text] of entries) {
         const name = encoder.encode(path);
-        const data = typeof text === 'string' ? encoder.encode(text) : text;
-        const crc = crc32(data);
+        const raw = typeof text === 'string' ? encoder.encode(text) : text;
+        const crc = crc32(raw);
+        const deflated = await deflate(raw);
+        const method = deflated && deflated.length < raw.length ? DEFLATED : STORED;
+        const data = method === DEFLATED ? deflated : raw;
 
         const local = new DataView(new ArrayBuffer(30));
         local.setUint32(0, 0x04034b50, true);
         local.setUint16(4, 20, true);
+        local.setUint16(8, method, true);
         local.setUint16(10, dosTime, true);
         local.setUint16(12, dosDate, true);
         local.setUint32(14, crc, true);
         local.setUint32(18, data.length, true);
-        local.setUint32(22, data.length, true);
+        local.setUint32(22, raw.length, true);
         local.setUint16(26, name.length, true);
         parts.push(new Uint8Array(local.buffer), name, data);
 
@@ -50,11 +70,12 @@ export function zip(entries, type) {
         central.setUint32(0, 0x02014b50, true);
         central.setUint16(4, 20, true);
         central.setUint16(6, 20, true);
+        central.setUint16(10, method, true);
         central.setUint16(12, dosTime, true);
         central.setUint16(14, dosDate, true);
         central.setUint32(16, crc, true);
         central.setUint32(20, data.length, true);
-        central.setUint32(24, data.length, true);
+        central.setUint32(24, raw.length, true);
         central.setUint16(28, name.length, true);
         central.setUint32(42, offset, true);
         directory.push(new Uint8Array(central.buffer), name);
@@ -269,14 +290,19 @@ function watermarkHeader(text, pageWidthMm) {
         + `<w:p><w:pPr><w:spacing w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:pict>${shape}</w:pict></w:r></w:p></w:hdr>`;
 }
 
+/** A paragraph 1 pt high, e.g. to end a document whose last page is filled to the bottom. */
+export const TINY_PARAGRAPH = '<w:p><w:pPr><w:spacing w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>';
+
 /**
- * A Word document on A4. body: paragraphs and tables in order.
+ * A Word document on A4, as a Promise of a Blob. body: paragraphs and tables in order.
  * options: landscape, margin (mm, or { top, right, bottom, left }), pageBorder (pt): a border around every page,
  * watermark: text across every page of the body, frontMatter: paragraphs and
  * tables before the body, on their own pages without the watermark, logo: the PNG bytes
- * logoParagraph() shows, images: further PNG bytes, the index-th related as imageRelId(index).
+ * logoParagraph() shows, images: further PNG bytes, the index-th related as imageRelId(index),
+ * lastParagraph: the paragraph Word wants after a table that ends the document
+ * (TINY_PARAGRAPH where the last page is full, so it does not open another one).
  */
-export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null, images = [] } = {}) {
+export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null, images = [], lastParagraph = '<w:p/>' } = {}) {
     const [width, height] = landscape ? [16838, 11906] : [11906, 16838];
     const margins = typeof margin === 'number' ? { top: margin, right: margin, bottom: margin, left: margin } : margin;
     const [top, right, bottom, left] = ['top', 'right', 'bottom', 'left'].map(side => twips(margins[side] ?? 0));
@@ -291,7 +317,7 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
     // The front matter ends in a section break, so the body starts on a new page
     const front = frontMatter.length ? `${frontMatter.join('')}<w:p><w:pPr>${sectionProperties(false)}</w:pPr></w:p>` : '';
     // Word wants a paragraph after a table that ends the document
-    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${front}${body.join('')}<w:p/>`
+    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${front}${body.join('')}${lastParagraph}`
         + `${sectionProperties(Boolean(watermark))}</w:body></w:document>`;
 
     const styles = `${XML_HEAD}<w:styles xmlns:w="${W_NS}"><w:docDefaults>`
@@ -387,7 +413,7 @@ function sheetXml(sheet, selected) {
 }
 
 /**
- * An Excel workbook. sheets: { name, columns: [{ header, width }], rows }; a row is a
+ * An Excel workbook, as a Promise of a Blob. sheets: { name, columns: [{ header, width }], rows }; a row is a
  * list of values (numbers stay numbers; texts with line breaks wrap) or { cells, bold }.
  * The header row is bold, shaded, frozen and has a filter.
  */
