@@ -276,7 +276,14 @@ function watermarkHeader(text, pageWidthMm) {
  * tables before the body, on their own pages without the watermark, logo: the PNG bytes
  * logoParagraph() shows, images: further PNG bytes, the index-th related as imageRelId(index).
  */
-export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null, images = [] } = {}) {
+/** A paragraph 1 pt high, e.g. to end a document whose last page is filled to the bottom. */
+export const TINY_PARAGRAPH = '<w:p><w:pPr><w:spacing w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>';
+
+/**
+ * lastParagraph: the paragraph Word wants after a table that ends the document;
+ * TINY_PARAGRAPH where the last page is full, so it does not open another one.
+ */
+export function docx(body, { landscape = false, margin = 15, pageBorder = 0, watermark = '', frontMatter = [], logo = null, images = [], lastParagraph = '<w:p/>' } = {}) {
     const [width, height] = landscape ? [16838, 11906] : [11906, 16838];
     const margins = typeof margin === 'number' ? { top: margin, right: margin, bottom: margin, left: margin } : margin;
     const [top, right, bottom, left] = ['top', 'right', 'bottom', 'left'].map(side => twips(margins[side] ?? 0));
@@ -291,7 +298,7 @@ export function docx(body, { landscape = false, margin = 15, pageBorder = 0, wat
     // The front matter ends in a section break, so the body starts on a new page
     const front = frontMatter.length ? `${frontMatter.join('')}<w:p><w:pPr>${sectionProperties(false)}</w:pPr></w:p>` : '';
     // Word wants a paragraph after a table that ends the document
-    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${front}${body.join('')}<w:p/>`
+    const document = `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${DOC_REL}"><w:body>${front}${body.join('')}${lastParagraph}`
         + `${sectionProperties(Boolean(watermark))}</w:body></w:document>`;
 
     const styles = `${XML_HEAD}<w:styles xmlns:w="${W_NS}"><w:docDefaults>`
