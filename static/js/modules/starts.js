@@ -1,7 +1,7 @@
 // Starts management module
 
 import { getState, setState } from '../config.js';
-import { addStart, deleteStart as apiDeleteStart, loadCompetitors } from '../api.js';
+import { addStart, deleteStart as apiDeleteStart, loadCompetitors, loadRankings } from '../api.js';
 import { escapeHtml } from '../teamRanking.js';
 import { t, tOr } from '../i18n.js';
 import { genderLabel } from './competitors.js';
@@ -47,25 +47,54 @@ export function displayCompetitorInfo(competitor) {
 // Display starts management
 export function displayStartsManagement(competitor) {
     showElement('starts-management');
-    populateActiveDisciplinesDropdown();
+    populateRankingsDropdown();
     displayStartsTable(competitor);
 }
 
-// Populate active disciplines dropdown
-function populateActiveDisciplinesDropdown() {
-    const dropdown = document.getElementById('start-discipline');
-    const availableDisciplines = getState('availableDisciplines');
-    const activeDisciplines = getState('activeDisciplines');
-    
-    // The meet's program (the disciplines its rankings cover); competitors start in individual disciplines only
-    const activeDisciplinesList = availableDisciplines.filter(discipline =>
-        activeDisciplines.includes(discipline.id) && discipline.level !== 'team'
-    );
-    
-    dropdown.innerHTML = `<option value="">${t('starts.selectDiscipline')}</option>` +
-        activeDisciplinesList.map(discipline => 
-            `<option value="${discipline.id}">${discipline.name} (${tOr(`category.${discipline.category}`, discipline.category)})</option>`
-        ).join('');
+// The ranking entries offered in the dropdown: option value -> discipline ids of that entry
+const rankingEntries = new Map();
+
+const disciplineName = (id) =>
+    getState('availableDisciplines').find(d => d.id === id)?.name ?? `#${id}`;
+
+// Populate the dropdown with the meet's individual rankings, as the bulk entry
+// offers them: one option per ranking entry. A ranking that ranks several
+// entries together (e.g. Whitworth O/R) gets a group with one option each;
+// an entry that sums disciplines (Remington_O = Colt + Donald Malson_O) adds
+// a start in each of them.
+async function populateRankingsDropdown() {
+    const dropdown = document.getElementById('start-ranking');
+    rankingEntries.clear();
+    let rankings = [];
+    try {
+        rankings = (await loadRankings())
+            .filter(r => String(r.level || 'individual').toLowerCase() !== 'team')
+            .filter(r => (r.entries || []).length);
+    } catch (error) {
+        console.error('Error loading rankings:', error);
+        showMessage(t('starts.error.loadRankings'), 'error');
+    }
+
+    const option = (value, ids, text) => {
+        rankingEntries.set(value, ids);
+        const parts = ids.length > 1 ? ` (${ids.map(disciplineName).join(' + ')})` : '';
+        return `<option value="${value}">${escapeHtml(text)}${escapeHtml(parts)}</option>`;
+    };
+
+    dropdown.innerHTML = `<option value="">${t('starts.selectRanking')}</option>` +
+        rankings.map((ranking, r) => {
+            const entries = ranking.entries;
+            if (entries.length === 1) {
+                return option(`${r}:0`, entries[0].discipline_ids, ranking.name);
+            }
+            return `<optgroup label="${escapeHtml(ranking.name)}">` +
+                entries.map((entry, i) => option(`${r}:${i}`, entry.discipline_ids,
+                    entry.label || (entry.discipline_ids.length === 1 ? disciplineName(entry.discipline_ids[0]) : ranking.name))).join('') +
+                `</optgroup>`;
+        }).join('');
+
+    hideElement('no-rankings-hint');
+    if (!rankingEntries.size) showElement('no-rankings-hint');
 }
 
 // Display starts table
@@ -153,13 +182,15 @@ function handleStartAction(event) {
 
 // Show add start form
 export function showAddStartForm() {
+    // Rankings may have changed since the competitor was opened
+    populateRankingsDropdown();
     showElement('add-start-form');
 }
 
 // Hide add start form
 export function hideAddStartForm() {
     hideElement('add-start-form');
-    setElementValue('start-discipline', '');
+    setElementValue('start-ranking', '');
     setElementValue('start-caliber', '');
 }
 
@@ -171,24 +202,35 @@ export async function saveStart() {
         return;
     }
     
-    const disciplineId = parseInt(getElementValue('start-discipline'));
+    const disciplineIds = rankingEntries.get(getElementValue('start-ranking'));
     
-    if (!disciplineId) {
-        showMessage(t('starts.selectDisciplinePrompt'), 'error');
+    if (!disciplineIds || !disciplineIds.length) {
+        showMessage(t('starts.selectRankingPrompt'), 'error');
         return;
     }
     
-    try {
-        const caliber = getElementValue('start-caliber').trim();
-        await withButtonFeedback(document.getElementById('save-start-btn'),
-            () => addStart(selectedCompetitor.id, disciplineId, caliber));
+    // One start per discipline of the entry, as the bulk entry does
+    const caliber = getElementValue('start-caliber').trim();
+    const failed = [];
+    await withButtonFeedback(document.getElementById('save-start-btn'), async () => {
+        for (const disciplineId of disciplineIds) {
+            try {
+                await addStart(selectedCompetitor.id, disciplineId, caliber);
+            } catch (error) {
+                console.error('Error adding start:', error);
+                failed.push(`${disciplineName(disciplineId)}: ${error.body?.error || error.message}`);
+            }
+        }
+        // No checkmark on the button if a start was refused
+        if (failed.length) throw new Error(failed.join('; '));
+    }).catch(() => {});
+    
+    // Show the starts as stored on the server, including ones other users added
+    if (!await refreshSelectedCompetitor()) return;
+    if (failed.length) {
+        showMessage(t('starts.error.addWith', { error: failed.join('; ') }), 'error');
+    } else {
         hideAddStartForm();
-        await refreshSelectedCompetitor();
-    } catch (error) {
-        console.error('Error adding start:', error);
-        // Show the starts as stored on the server, including ones other users added
-        if (!await refreshSelectedCompetitor()) return;
-        showMessage(error.body?.error ? t('starts.error.addWith', { error: error.body.error }) : t('starts.error.add'), 'error');
     }
 }
 

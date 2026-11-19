@@ -293,11 +293,12 @@
                     <div id="add-start-form" class="border border-gray-200 rounded-lg p-4 mb-4 hidden">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.disciplineRequired">Discipline *</label>
-                                <select id="start-discipline" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="" data-i18n="starts.selectDiscipline">Select Discipline</option>
-                                    <!-- Active disciplines will be populated here -->
+                                <label for="start-ranking" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.rankingRequired">Ranking *</label>
+                                <select id="start-ranking" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="" data-i18n="starts.selectRanking">Select ranking</option>
+                                    <!-- The meet's individual rankings will be populated here -->
                                 </select>
+                                <p id="no-rankings-hint" class="mt-1 text-xs text-gray-500 hidden" data-i18n-html="starts.noRankings"></p>
                             </div>
                             <div>
                                 <label for="start-caliber" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="starts.caliber">Caliber</label>
