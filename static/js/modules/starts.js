@@ -173,9 +173,6 @@ function displayStartsTable(competitor) {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${discipline ? escapeHtml(discipline.name) : t('common.unknown')}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${start.start_number}
-                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${start.caliber ? escapeHtml(start.caliber) : '<span class="text-gray-400">–</span>'}
                     </td>

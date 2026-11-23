@@ -151,7 +151,7 @@ paths:
         all its disciplines). A start the competitor already has in a discipline is used for the
         ranking too, missing ones are added with the caliber given. Each ranking needs its own
         registration: starts in Colt and Donald Malson_O alone do not count in Remington_O.
-        `400` if the competitor is already registered for the entry.
+        Registering again for an entry adds a further start in each of its disciplines.
       operationId: registerForRanking
       requestBody:
         required: true

@@ -165,7 +165,6 @@ export default {
     'starts.discipline': 'Disziplin',
     'starts.caliber': 'Kaliber',
     'starts.caliberPlaceholder': 'z. B. .36, .56',
-    'starts.startNumber': 'Startnummer',
     'starts.generatedId': 'Start-ID',
     'starts.status': 'Status',
     'starts.statusValue.registered': 'gemeldet',

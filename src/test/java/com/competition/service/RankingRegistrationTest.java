@@ -117,8 +117,20 @@ class RankingRegistrationTest {
         assertEquals(List.of("Anna"), names(COLT));
         assertEquals(List.of("Anna"), names(REMINGTON));
 
-        assertThrows(IllegalArgumentException.class, () -> startService.registerForRanking(1, REMINGTON, 0, null),
-            "already registered");
+    }
+
+    @Test
+    void registeringAgainAddsAFurtherStartAndTheBestCounts() throws Exception {
+        Start first = startService.registerForRanking(1, COLT, 0, ".44").get(0);
+        Start second = startService.registerForRanking(1, COLT, 0, null).get(0);
+
+        assertNotEquals(first.getGeneratedId(), second.getGeneratedId());
+        assertEquals(List.of(COLT), second.getRankingIds());
+        assertEquals(2, competitorService.getCompetitorById(1).getStarts().get("52").size());
+
+        result(first.getGeneratedId(), 80);
+        result(second.getGeneratedId(), 90);
+        assertEquals(List.of("Anna"), names(COLT), "Anna is ranked once, with her best start");
     }
 
     @Test
