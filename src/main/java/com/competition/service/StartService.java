@@ -96,8 +96,8 @@ public class StartService {
      * A start the competitor already has in a discipline is used for the
      * ranking too (one Colt start counts in 7_Colt and in Remington_O);
      * otherwise a new start is added with the caliber given. Returns the starts
-     * registered, in the entry's order. Refused if the competitor is already
-     * registered for the entry.
+     * registered, in the entry's order. If the competitor is registered for the
+     * entry already, a further start is added in each of its disciplines.
      */
     public List<Start> registerForRanking(int competitorId, int rankingId, int entryIndex, String caliber)
             throws Exception {
@@ -146,7 +146,13 @@ public class StartService {
                 registered.add(start);
             }
             if (!anyNew) {
-                throw new IllegalArgumentException(Messages.get("start.alreadyRegistered", ranking.getName()));
+                // Registered already: a further start per discipline (e.g. a second
+                // Vetterli start); the ranking counts the competitor's best one
+                registered.clear();
+                for (int disciplineId : disciplineIds) {
+                    registered.add(addStartData(data, competitorData, competitorId, disciplineId, trimmedCaliber,
+                        List.of(rankingId)));
+                }
             }
             return registered.stream().map(this::mapToStart).toList();
         });
