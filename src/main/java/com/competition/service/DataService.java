@@ -512,6 +512,18 @@ public class DataService {
         return next;
     }
 
+    /**
+     * Lets the ids of the given kind start again at 1 once no record of it is
+     * left: deleting every record took its references along, so nothing still
+     * names the old ids. Call within update() before nextId().
+     */
+    @SuppressWarnings("unchecked")
+    public static void restartIdsIfNoneLeft(Map<String, Object> data, String kind, List<?> items) {
+        if ((items == null || items.isEmpty()) && data.get(NEXT_IDS) instanceof Map<?, ?> counters) {
+            ((Map<String, Object>) counters).remove(kind);
+        }
+    }
+
     static final String NEXT_IDS = "next_ids";
 
     private static int maxId(List<?> items) {

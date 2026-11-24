@@ -40,6 +40,7 @@ public class CompetitorService {
         return dataService.update(data -> {
             List<Map<String, Object>> competitorsData = competitorsOf(data);
 
+            DataService.restartIdsIfNoneLeft(data, "competitor", competitorsData);
             competitor.setId(DataService.nextId(data, "competitor", competitorsData));
             competitor.setCreatedAt(LocalDateTime.now().format(formatter));
             competitor.setStarts(new HashMap<>());
