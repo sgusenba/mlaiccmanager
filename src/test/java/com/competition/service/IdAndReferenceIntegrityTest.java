@@ -103,6 +103,17 @@ class IdAndReferenceIntegrityTest {
     }
 
     @Test
+    void competitorIdsStartAgainAtOneOnceAllAreDeleted() throws Exception {
+        competitorService.createCompetitor(new Competitor("Carl"));
+        for (Competitor competitor : competitorService.getAllCompetitors()) {
+            competitorService.deleteCompetitor(competitor.getId(), null);
+        }
+
+        assertEquals(1, competitorService.createCompetitor(new Competitor("Dora")).getId());
+        assertEquals(2, competitorService.createCompetitor(new Competitor("Emil")).getId());
+    }
+
+    @Test
     void deletedStartIdIsNotReusedAndItsLaneAndTeamMembershipGo() throws Exception {
         Map<String, Object> team = teamService.createTeam(Map.of("discipline_id", 31, "members", List.of("1-3-1")));
         int teamId = ((Number) team.get("id")).intValue();
